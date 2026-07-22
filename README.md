@@ -1,72 +1,133 @@
-## 🛠️ Stack Công Nghệ Tổng Quan
+# CE Training
 
-| Thành phần | Công nghệ / Thư viện sử dụng | Quy chuẩn & Công cụ |
-| :--- | :--- | :--- |
-| **Môi trường chính** | Python 3.12, Node.js 20.19 | Lập trình cấu trúc & Kiểu dữ liệu mạnh |
-| **Backend** | FastAPI, Django | RESTful API, ORM (SQLAlchemy, Django ORM) |
-| **Database & Migration** | PostgreSQL | Alembic, Django Migrations |
-| **Security & Auth** | JWT, Bcrypt | Authentication & Authorization |
-| **Frontend Core** | HTML5, CSS3, JavaScript, TypeScript | ES6+, Component-based architecture |
-| **Frontend Framework** | VueJS (v3) | Pinia (State), Vue Router (Routing), Axios |
-| **UI Frameworks** | Bootstrap 5, TailwindCSS | Responsive Design, Utility-first |
-| **DevOps & Deploy** | Docker, Nginx | Containerization, Reverse Proxy, Load Balancing |
-| **Testing & Tools** | Postman | API Testing, Automated Testing Basics |
+Repository thực hành và phát triển kỹ năng Full-stack thông qua một sản phẩm thực tế: **Multi-Vendor AI E-commerce Platform**. Dự án hướng đến một sàn thương mại điện tử đa gian hàng, hỗ trợ ba vai trò **Admin**, **Seller** và **Customer**, đồng thời xây dựng lớp dịch vụ AI có thể thay đổi nhà cung cấp.
 
----
+> Trạng thái: đang phát triển. Nền tảng hệ thống, xác thực, phân quyền và nhóm chức năng quản lý tài khoản đã được khởi tạo; các module thương mại điện tử và AI sẽ được bổ sung theo lộ trình.
 
-## 📅 Lộ Trình  (Roadmap)
+## Mục tiêu dự án
 
-### 📌 1: Nền Tảng Frontend & TypeScript 
-*Mục tiêu:* Làm chủ giao diện, tư duy lập trình giao diện hiện đại và dịch chuyển từ JavaScript sang TypeScript.
-* **HTML5 & CSS3 Cơ Bản & Nâng Cao:**
-    * Cấu trúc ngữ nghĩa (Semantic HTML), Form validation.
-    * CSS Layouts (Flexbox, Grid), Responsive Design (Media Queries).
-* **Giao Diện Hiện Đại với Frameworks:**
-    * **Bootstrap:** Tận dụng hệ thống lưới (Grid system), Utilities, và các component có sẵn để dựng layout nhanh.
-    * **TailwindCSS:** Tư duy thiết kế utility-first, custom cấu hình (`tailwind.config.js`), tối ưu hóa CSS khi production.
-* **JavaScript (ES6+) & TypeScript:**
-    * Xử lý bất đồng bộ: Callback, Promises, Async/Await. Đọc/ghi dữ liệu với **Axios**.
-    * **TypeScript:** Type Annotations, Interfaces, Types, Generics, và cách tích hợp TypeScript vào dự án thực tế.
+- Thực hành quy trình xây dựng một ứng dụng Full-stack có kiến trúc rõ ràng và dễ mở rộng.
+- Xây dựng đầy đủ các nghiệp vụ của sàn thương mại điện tử đa gian hàng.
+- Áp dụng xác thực JWT, phân quyền theo vai trò, xử lý bất đồng bộ và giao tiếp thời gian thực.
+- Tích hợp tìm kiếm ngữ nghĩa, gợi ý sản phẩm và trợ lý mua sắm qua một AI Service Layer thống nhất.
+- Chuẩn hóa môi trường phát triển, kiểm thử và triển khai bằng Docker.
 
-### 📌 2: Phát Triển Ứng Dụng Frontend Với VueJS
-*Mục tiêu:* Xây dựng ứng dụng Single Page Application (SPA) chuyên nghiệp, dễ bảo trì.
-* **VueJS Core (Vue 3 - Composition API):**
-    * Reactivity (ref, reactive, computed, watch).
-    * Component Lifecycle, Props, Custom Events, Slots.
-* **Quản Lý Routing & State nâng cao:**
-    * **Vue Router:** Cấu hình Dynamic Routing, Nested Routes, Navigation Guards (Xử lý phân quyền, chặn truy cập khi chưa login).
-    * **Pinia:** Quản lý global state tập trung, Actions, Getters, và phân tách các Store theo module chức năng (Auth Store, User Store, Product Store,...).
-* **Tích Hợp Hệ Thống:** Kết nối API bằng Axios ứng dụng Interceptors để tự động đính kèm Token bảo mật.
+## Chức năng chính
 
-### 📌 3: Cơ Sở Dữ Liệu & Nền Tảng Backend
-*Mục tiêu:* Làm chủ cơ sở dữ liệu quan hệ và xây dựng kiến trúc Backend vững chắc.
-* **PostgreSQL:**
-    * Thiết kế Schema cơ sở dữ liệu: Quan hệ 1-1, 1-n, n-n.
-    * Tối ưu hóa truy vấn: Indexing, Constraints, Triggers và Views.
-* **Mô Hình Kiến Trúc & Security:**
-    * **RESTful API:** Hiểu sâu về HTTP Methods (GET, POST, PUT, DELETE), Status Codes, chuẩn hóa cấu trúc dữ liệu JSON trả về.
-    * **Authentication & Security:** Cơ chế hoạt động của **JWT (JSON Web Token)** (Access Token & Refresh Token). Mã hóa mật khẩu an toán bằng thuật toán **Bcrypt**.
+| Nhóm | Phạm vi |
+| --- | --- |
+| Admin | Quản lý người dùng, seller, sản phẩm, đơn hàng, khuyến mãi, báo cáo và audit log |
+| Seller | Quản lý gian hàng, sản phẩm, biến thể, tồn kho, đơn hàng, voucher và hội thoại với khách hàng |
+| Customer | Tài khoản, tìm kiếm, wishlist, giỏ hàng, checkout, thanh toán, theo dõi đơn và đánh giá |
+| AI | Smart search, semantic search, gợi ý cá nhân hóa, chatbot, sinh nội dung và phân tích bán hàng |
+| Nền tảng | JWT, RBAC, Celery, Redis cache, WebSocket, OpenAPI, logging và health check |
 
-### 📌 4: Đi Sâu Vào Backend Frameworks
-*Mục tiêu:*  Xử lý logic luồng dữ liệu thông qua 2 framework hot nhất hiện nay của Python.
-* **Nhánh 1: FastAPI (Hiệu năng cao & Asynchronous)**
-    * Kiến trúc Async/Await trong Python 3.12.
-    * Xử lý validate dữ liệu đầu vào/đầu ra bằng **Pydantic**.
-    * **SQLAlchemy:** Cấu hình Session, viết truy vấn ORM nâng cao, xử lý Relationships.
-    * **Alembic:** Khởi tạo, quản lý và tự động tạo các file migration dịch chuyển database.
-* **Nhánh 2: Django (Mạnh mẽ, Toàn diện - Batteries Included)**
-    * Kiến trúc MVT (Model-View-Template) và dịch chuyển sang **Django REST Framework (DRF)**.
-    * Django ORM, QuerySets tối ưu (tránh lỗi N+1 bằng `select_related`, `prefetch_related`).
-    * Quản lý Database qua Django Migrations tích hợp sẵn.
-* **Kiểm thử API:** Sử dụng **Postman** thiết lập Collections, Environment variables để thực hiện test luồng API tự động.
+## Công nghệ
 
-### 📌 5: DevOps, Triển Khai & Thực Chiến
-*Mục tiêu:* Đóng gói sản phẩm và vận hành hệ thống trên môi trường máy chủ thực tế.
-* **Docker & Containerization:**
-    * Viết `Dockerfile` tối ưu cho các ứng dụng Python (FastAPI/Django) và Node.js (VueJS).
-    * Sử dụng `docker-compose.yml` để liên kết đồng bộ các container: Backend + Frontend + PostgreSQL.
-* **Nginx & Web Server:**
-    * Cấu hình Nginx làm Reverse Proxy điều hướng request.
-    * Cấu hình Load Balancing cơ bản, phục vụ Static files (CSS, JS, Images) và bảo mật SSL/TLS.
+- **Frontend:** Vue 3, TypeScript, Vite, Pinia, Vue Router, Tailwind CSS, Axios, Vitest.
+- **Backend:** Python 3.12, Django 5, Django REST Framework, Simple JWT, Channels, Celery.
+- **Dữ liệu:** PostgreSQL với `pg_trgm` và `pgvector`; Redis 7 cho cache, task queue và channel layer.
+- **AI và thanh toán:** AI Service Layer đa nhà cung cấp (mặc định Gemini), COD và VNPay Sandbox.
+- **Hạ tầng:** Docker Compose, Nginx và OpenAPI/Swagger.
 
----
+## Cấu trúc repository
+
+```text
+CE_Training/
+├── README.md
+└── ecommerce/
+    ├── backend/              # Django API, domain apps, Celery và Channels
+    ├── frontend/             # Vue SPA tổ chức theo feature
+    ├── nginx/                # Reverse proxy và phục vụ static/media
+    ├── docs/                 # Đặc tả, kiến trúc và quy chuẩn dự án
+    ├── docker-compose.yml    # Cấu hình chạy gần với production
+    ├── docker-compose.dev.yml
+    └── .env.example
+```
+
+## Khởi chạy nhanh
+
+### Yêu cầu
+
+- Docker và Docker Compose v2.
+- PostgreSQL có thể truy cập từ Docker.
+- Database đã bật extension `pg_trgm` và `vector`.
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+### Cấu hình môi trường
+
+```bash
+cd ecommerce
+cp .env.example .env
+```
+
+Cập nhật tối thiểu các biến `DJANGO_SECRET_KEY`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` và `POSTGRES_HOST`. Không commit file `.env`.
+
+### Chạy môi trường development
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
+Sau khi các container hoạt động:
+
+- Ứng dụng: <http://localhost:8080>
+- Frontend Vite: <http://localhost:5173>
+- Backend API: <http://localhost:8000>
+- Health check: <http://localhost:8080/api/health/>
+- Swagger UI: <http://localhost:8080/api/docs/>
+
+Chạy migration lần đầu:
+
+```bash
+docker compose run --rm backend python manage.py migrate
+```
+
+## Kiểm tra chất lượng
+
+Backend:
+
+```bash
+cd ecommerce/backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements/development.txt
+ruff check .
+python manage.py check
+pytest
+```
+
+Frontend:
+
+```bash
+cd ecommerce/frontend
+npm ci
+npm run lint
+npm run test
+npm run build
+```
+
+## Tài liệu
+
+- [Tổng quan sản phẩm](ecommerce/docs/PROJECT_OVERVIEW.md)
+- [Kiến trúc hệ thống](ecommerce/docs/ARCHITECTURE.md)
+- [Technology stack](ecommerce/docs/TECH_STACK.md)
+- [Quy chuẩn lập trình](ecommerce/docs/CODING_STANDARDS.md)
+- [Project Constitution](ecommerce/docs/PROJECT_CONSTITUTION.md)
+- [Hướng dẫn chi tiết dự án e-commerce](ecommerce/README.md)
+
+## Quy trình Git đề xuất
+
+- `main`: phiên bản ổn định.
+- `develop`: tích hợp các thay đổi đã hoàn thiện.
+- `feature/<ten-tinh-nang>`: phát triển từng chức năng độc lập.
+
+Commit nên ngắn gọn, mô tả đúng phạm vi thay đổi và không chứa secrets, file `.env`, dependency cache hoặc build artifacts.
+
+## License
+
+Dự án được xây dựng cho mục đích học tập và thực hành.
