@@ -179,6 +179,9 @@ EMAIL_HOST = env("EMAIL_HOST", default="localhost")
 EMAIL_PORT = env.int("EMAIL_PORT", default=1025)
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+if EMAIL_HOST.lower() == "smtp.gmail.com":
+    # Google displays App Passwords in groups of four; SMTP expects 16 characters.
+    EMAIL_HOST_PASSWORD = "".join(EMAIL_HOST_PASSWORD.split())
 EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=False)
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="no-reply@example.com")
 
