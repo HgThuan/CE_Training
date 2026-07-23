@@ -12,17 +12,33 @@ const form = reactive({ full_name: '', email: '', password: '', password_confirm
 const message = ref('')
 const errorMessage = ref('')
 const submitting = ref(false)
+const resending = ref(false)
+const registeredEmail = ref('')
 
 async function submit(): Promise<void> {
   message.value = ''
   errorMessage.value = ''
+  registeredEmail.value = ''
   submitting.value = true
   try {
     message.value = await authStore.register({ ...form })
+    registeredEmail.value = form.email
   } catch (error) {
     errorMessage.value = getErrorMessage(error)
   } finally {
     submitting.value = false
+  }
+}
+
+async function resendVerification(): Promise<void> {
+  errorMessage.value = ''
+  resending.value = true
+  try {
+    message.value = await authStore.resendVerification(registeredEmail.value)
+  } catch (error) {
+    errorMessage.value = getErrorMessage(error)
+  } finally {
+    resending.value = false
   }
 }
 </script>
@@ -77,6 +93,15 @@ async function submit(): Promise<void> {
         :disabled="submitting"
       >
         {{ submitting ? 'Đang tạo…' : 'Đăng ký' }}
+      </button>
+      <button
+        v-if="registeredEmail"
+        class="w-full rounded-xl border border-indigo-200 px-4 py-3 font-semibold text-indigo-700 disabled:opacity-60"
+        type="button"
+        :disabled="resending"
+        @click="resendVerification"
+      >
+        {{ resending ? 'Đang gửi lại…' : 'Không nhận được email? Gửi lại xác thực' }}
       </button>
     </form>
     <RouterLink class="mt-6 block text-center text-sm font-medium text-indigo-600" to="/auth/login">
