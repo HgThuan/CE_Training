@@ -37,6 +37,7 @@ http.interceptors.request.use((config) => {
 const publicAuthPaths = [
   '/auth/login/',
   '/auth/register/',
+  '/auth/session/',
   '/auth/refresh/',
   '/auth/verify-email/',
   '/auth/resend-verification/',

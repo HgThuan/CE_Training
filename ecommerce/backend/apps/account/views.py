@@ -37,6 +37,7 @@ from .serializers import (
     RefreshSerializer,
     RegisterSerializer,
     ResetPasswordSerializer,
+    SessionResponseSerializer,
     TokenResponseSerializer,
     UserResponseSerializer,
     UserSerializer,
@@ -77,6 +78,22 @@ def token_response(*, user, access: str, message: str):
             "user": UserSerializer(user).data,
         },
     )
+
+
+def refresh_session(*, refresh: str, message: str):
+    serializer = VersionedTokenRefreshSerializer(data={"refresh": refresh})
+    serializer.is_valid(raise_exception=True)
+    rotated_refresh = serializer.validated_data.get("refresh")
+    user_id = RefreshToken(rotated_refresh or refresh)["user_id"]
+    user = get_user_for_profile(user_id)
+    response = token_response(
+        user=user,
+        access=serializer.validated_data["access"],
+        message=message,
+    )
+    if rotated_refresh:
+        set_refresh_cookie(response, rotated_refresh)
+    return response
 
 
 class RegisterView(APIView):
@@ -164,19 +181,39 @@ class RefreshView(APIView):
         refresh = input_serializer.validated_data.get("refresh") or request.COOKIES.get(
             settings.JWT_REFRESH_COOKIE_NAME
         )
-        serializer = VersionedTokenRefreshSerializer(data={"refresh": refresh})
-        serializer.is_valid(raise_exception=True)
-        rotated_refresh = serializer.validated_data.get("refresh")
-        user_id = RefreshToken(rotated_refresh or refresh)["user_id"]
-        user = get_user_for_profile(user_id)
-        response = token_response(
-            user=user,
-            access=serializer.validated_data["access"],
+        return refresh_session(
+            refresh=refresh,
             message="Làm mới phiên đăng nhập thành công",
         )
-        if rotated_refresh:
-            set_refresh_cookie(response, rotated_refresh)
-        return response
+
+
+class SessionView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth_refresh"
+
+    @extend_schema(request=None, responses={200: SessionResponseSerializer})
+    def post(self, request):
+        refresh = request.COOKIES.get(settings.JWT_REFRESH_COOKIE_NAME)
+        if not refresh:
+            return success_response(
+                message="Không có phiên đăng nhập",
+                data=None,
+            )
+
+        try:
+            return refresh_session(
+                refresh=refresh,
+                message="Khôi phục phiên đăng nhập thành công",
+            )
+        except BusinessError:
+            response = success_response(
+                message="Phiên đăng nhập không còn hiệu lực",
+                data=None,
+            )
+            clear_refresh_cookie(response)
+            return response
 
 
 class LogoutView(APIView):

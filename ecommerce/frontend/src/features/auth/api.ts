@@ -20,6 +20,7 @@ export const authApi = {
   resendVerification: (email: string) =>
     http.post<ApiResponse<null>>('/auth/resend-verification/', { email }),
   login: (payload: LoginPayload) => http.post<ApiResponse<AuthTokenData>>('/auth/login/', payload),
+  session: () => http.post<ApiResponse<AuthTokenData | null>>('/auth/session/', {}),
   refresh: () => http.post<ApiResponse<AuthTokenData>>('/auth/refresh/', {}),
   logout: () => http.post<ApiResponse<null>>('/auth/logout/', {}),
   forgotPassword: (email: string) =>

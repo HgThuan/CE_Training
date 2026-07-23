@@ -28,6 +28,12 @@ User = get_user_model()
 
 class AccountService:
     @staticmethod
+    def _release_deleted_email(user) -> None:
+        """Keep the deleted row for history while freeing its login email."""
+        user.email = f"deleted-{user.pk}-{uuid4().hex}@deleted.invalid"
+        user.save(update_fields=["email", "updated_at"])
+
+    @staticmethod
     @transaction.atomic
     def register_customer(*, email: str, password: str, full_name: str = ""):
         normalized_email = User.objects.normalize_login_email(email)
@@ -38,6 +44,17 @@ class AccountService:
                 "Dữ liệu không hợp lệ",
                 errors={"email": list(exc.messages)},
             ) from exc
+
+        existing_user = (
+            User.objects.select_for_update().filter(email__iexact=normalized_email).first()
+        )
+        if existing_user is not None:
+            if not existing_user.is_deleted:
+                raise BusinessError(
+                    "Email đã được sử dụng",
+                    errors={"email": ["Hãy đăng nhập hoặc sử dụng chức năng quên mật khẩu"]},
+                )
+            AccountService._release_deleted_email(existing_user)
 
         try:
             user = User.objects.create_user(
@@ -450,6 +467,7 @@ class AccountService:
         target.is_active = False
         target.is_deleted = True
         target.deleted_at = timezone.now()
+        AccountService._release_deleted_email(target)
         target.save(
             update_fields=["is_active", "is_deleted", "deleted_at", "updated_at"],
         )
@@ -459,7 +477,10 @@ class AccountService:
             action="delete_customer",
             target_type="User",
             target_id=target.pk,
-            diff={"is_deleted": {"before": False, "after": True}},
+            diff={
+                "is_deleted": {"before": False, "after": True},
+                "email_released_for_registration": True,
+            },
         )
 
     @staticmethod

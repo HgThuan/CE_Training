@@ -56,7 +56,10 @@ async function createCustomer(): Promise<void> {
   message.value = ''
   errorMessage.value = ''
   try {
-    const response = await adminUsersApi.createCustomer({ ...createForm })
+    const response = await adminUsersApi.createCustomer({
+      ...createForm,
+      date_of_birth: createForm.date_of_birth || null,
+    })
     message.value = response.data.message
     Object.assign(createForm, emptyCreateForm())
     showCreateForm.value = false
@@ -206,14 +209,20 @@ onMounted(() => loadCustomers())
         >Mật khẩu ban đầu<input
           v-model="createForm.password"
           class="mt-2 w-full rounded-xl border px-3 py-2.5"
+          autocomplete="new-password"
           type="password"
           minlength="8"
           required
-      /></label>
+        />
+        <span class="mt-1 block text-xs font-normal text-gray-500">
+          Tối thiểu 8 ký tự, không dùng mật khẩu phổ biến hoặc chỉ gồm chữ số.
+        </span></label
+      >
       <label class="text-sm font-medium"
         >Xác nhận mật khẩu<input
           v-model="createForm.password_confirm"
           class="mt-2 w-full rounded-xl border px-3 py-2.5"
+          autocomplete="new-password"
           type="password"
           required
       /></label>

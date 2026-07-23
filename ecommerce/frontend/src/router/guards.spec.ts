@@ -11,6 +11,7 @@ import { registerRoleGuards } from './guards'
 vi.mock('@/features/auth/api', () => ({
   authApi: {
     login: vi.fn(),
+    session: vi.fn(),
     refresh: vi.fn(),
   },
 }))
@@ -53,7 +54,9 @@ describe('role guards', () => {
   })
 
   it('redirects guests to login with the original destination', async () => {
-    vi.mocked(authApi.refresh).mockRejectedValue(new Error('guest'))
+    vi.mocked(authApi.session).mockResolvedValue({
+      data: { success: true, message: 'Không có phiên đăng nhập', data: null },
+    } as Awaited<ReturnType<typeof authApi.session>>)
     const router = buildRouter()
 
     await router.push('/admin')

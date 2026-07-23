@@ -7,6 +7,15 @@ from .models import Address, AdminProfile, CustomerProfile, SellerProfile, User
 from .validators import validate_matching_passwords, validate_new_password
 
 
+class BlankToNullDateField(serializers.DateField):
+    """Accept the empty value emitted when an optional HTML date input is cleared."""
+
+    def to_internal_value(self, value):
+        if value == "":
+            return None
+        return super().to_internal_value(value)
+
+
 class CustomerProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomerProfile
@@ -174,7 +183,7 @@ class AdminCustomerCreateSerializer(serializers.Serializer):
         allow_blank=True,
         error_messages={"invalid": "Số điện thoại không hợp lệ"},
     )
-    date_of_birth = serializers.DateField(required=False, allow_null=True)
+    date_of_birth = BlankToNullDateField(required=False, allow_null=True)
     gender = serializers.ChoiceField(
         choices=User.Gender.choices,
         required=False,
@@ -206,7 +215,7 @@ class AdminCustomerUpdateSerializer(serializers.Serializer):
         error_messages={"invalid": "Số điện thoại không hợp lệ"},
     )
     avatar_url = serializers.URLField(max_length=500, required=False, allow_blank=True)
-    date_of_birth = serializers.DateField(required=False, allow_null=True)
+    date_of_birth = BlankToNullDateField(required=False, allow_null=True)
     gender = serializers.ChoiceField(
         choices=User.Gender.choices,
         required=False,
@@ -309,6 +318,12 @@ class TokenResponseSerializer(serializers.Serializer):
     success = serializers.BooleanField()
     message = serializers.CharField()
     data = TokenDataSerializer()
+
+
+class SessionResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    message = serializers.CharField()
+    data = TokenDataSerializer(allow_null=True)
 
 
 class EmptyDataResponseSerializer(serializers.Serializer):

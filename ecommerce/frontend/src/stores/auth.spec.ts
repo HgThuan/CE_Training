@@ -10,6 +10,7 @@ vi.mock('@/features/auth/api', () => ({
   authApi: {
     login: vi.fn(),
     logout: vi.fn(),
+    session: vi.fn(),
     refresh: vi.fn(),
     register: vi.fn(),
     verifyEmail: vi.fn(),
@@ -66,14 +67,34 @@ describe('auth store', () => {
     expect(store.user).toBeNull()
   })
 
-  it('clears an invalid persisted session during bootstrap', async () => {
-    vi.mocked(authApi.refresh).mockRejectedValue(new Error('no refresh cookie'))
+  it('keeps a guest bootstrap as a successful unauthenticated state', async () => {
+    vi.mocked(authApi.session).mockResolvedValue({
+      data: { success: true, message: 'Không có phiên đăng nhập', data: null },
+    } as Awaited<ReturnType<typeof authApi.session>>)
     const store = useAuthStore()
 
     await store.restoreSession()
 
     expect(store.initialized).toBe(true)
     expect(store.isAuthenticated).toBe(false)
+    expect(authApi.refresh).not.toHaveBeenCalled()
+  })
+
+  it('restores a valid session during bootstrap', async () => {
+    vi.mocked(authApi.session).mockResolvedValue({
+      data: {
+        success: true,
+        message: 'Khôi phục phiên đăng nhập thành công',
+        data: { access: 'restored-token', access_expires_in: 900, user: customer },
+      },
+    } as Awaited<ReturnType<typeof authApi.session>>)
+    const store = useAuthStore()
+
+    await store.restoreSession()
+
+    expect(store.accessToken).toBe('restored-token')
+    expect(store.user).toEqual(customer)
+    expect(store.isAuthenticated).toBe(true)
   })
 
   it('uploads a cropped avatar and refreshes the user in memory', async () => {

@@ -46,7 +46,12 @@ export const useAuthStore = defineStore('auth', () => {
   async function restoreSession(): Promise<void> {
     if (initialized.value) return
     try {
-      await refreshAccessToken()
+      const response = await authApi.session()
+      if (response.data.data) {
+        applySession(response.data.data)
+      } else {
+        clearSession()
+      }
     } catch {
       clearSession()
     } finally {
