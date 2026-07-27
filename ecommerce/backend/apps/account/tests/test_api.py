@@ -7,6 +7,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from PIL import Image
@@ -63,6 +64,74 @@ def test_duplicate_register_returns_standard_error(api_client, customer):
 
 
 @pytest.mark.django_db
+def test_deleted_customer_email_can_register_as_a_new_account(
+    api_client,
+    customer,
+    admin_user,
+    django_capture_on_commit_callbacks,
+):
+    original_user_id = customer.pk
+    original_email = customer.email
+    api_client.force_authenticate(admin_user)
+    deleted = api_client.delete(
+        reverse("account:admin-customer-detail", kwargs={"customer_id": customer.pk}),
+    )
+
+    api_client.force_authenticate(user=None)
+    with (
+        patch("apps.account.tasks.send_verification_email.delay") as send_email,
+        django_capture_on_commit_callbacks(execute=True),
+    ):
+        registered = api_client.post(
+            reverse("account:register"),
+            {
+                "email": original_email.upper(),
+                "password": "NewStrongPass!456",
+                "password_confirm": "NewStrongPass!456",
+                "full_name": "Re-registered Customer",
+            },
+            format="json",
+        )
+
+    customer.refresh_from_db()
+    new_user = User.objects.get(email=original_email)
+    assert deleted.status_code == 200
+    assert registered.status_code == 201
+    assert new_user.pk != original_user_id
+    assert new_user.is_email_verified is False
+    assert new_user.full_name == "Re-registered Customer"
+    assert customer.is_deleted is True
+    assert customer.is_active is False
+    assert customer.email.endswith("@deleted.invalid")
+    send_email.assert_called_once_with(new_user.pk)
+
+
+@pytest.mark.django_db
+def test_registration_releases_email_from_legacy_soft_deleted_customer(api_client, customer):
+    original_user_id = customer.pk
+    customer.is_active = False
+    customer.is_deleted = True
+    customer.deleted_at = timezone.now()
+    customer.save(update_fields=["is_active", "is_deleted", "deleted_at", "updated_at"])
+
+    response = api_client.post(
+        reverse("account:register"),
+        {
+            "email": "customer@example.com",
+            "password": "NewStrongPass!456",
+            "password_confirm": "NewStrongPass!456",
+        },
+        format="json",
+    )
+
+    customer.refresh_from_db()
+    new_user = User.objects.get(email="customer@example.com")
+    assert response.status_code == 201
+    assert new_user.pk != original_user_id
+    assert customer.email.endswith("@deleted.invalid")
+
+
+@pytest.mark.django_db
 def test_login_requires_verified_email_and_sets_http_only_cookie(api_client, customer):
     customer.is_email_verified = False
     customer.save(update_fields=["is_email_verified"])
@@ -110,6 +179,45 @@ def test_refresh_rotates_and_blacklists_previous_token(api_client, customer):
     assert refreshed.status_code == 200
     assert rotated_refresh != previous_refresh
     assert reused.status_code == 401
+
+
+@pytest.mark.django_db
+def test_session_without_refresh_cookie_is_a_successful_guest_state(api_client):
+    response = api_client.post(reverse("account:session"), {}, format="json")
+
+    assert response.status_code == 200
+    assert response.data["success"] is True
+    assert response.data["data"] is None
+
+
+@pytest.mark.django_db
+def test_session_restores_login_and_rotates_refresh_cookie(api_client, customer):
+    login = api_client.post(
+        reverse("account:login"),
+        {"email": customer.email, "password": "StrongPass!234"},
+        format="json",
+    )
+    previous_refresh = login.cookies[settings.JWT_REFRESH_COOKIE_NAME].value
+
+    restored = api_client.post(reverse("account:session"), {}, format="json")
+    rotated_refresh = restored.cookies[settings.JWT_REFRESH_COOKIE_NAME].value
+
+    assert restored.status_code == 200
+    assert restored.data["data"]["user"]["id"] == customer.pk
+    assert restored.data["data"]["access"]
+    assert rotated_refresh != previous_refresh
+
+
+@pytest.mark.django_db
+def test_session_clears_an_invalid_refresh_cookie_without_an_http_error(api_client):
+    api_client.cookies[settings.JWT_REFRESH_COOKIE_NAME] = "invalid-refresh-token"
+
+    response = api_client.post(reverse("account:session"), {}, format="json")
+
+    assert response.status_code == 200
+    assert response.data["success"] is True
+    assert response.data["data"] is None
+    assert response.cookies[settings.JWT_REFRESH_COOKIE_NAME].value == ""
 
 
 @pytest.mark.django_db
@@ -486,6 +594,29 @@ def test_admin_customer_crud_is_searchable_paginated_and_audited(
     assert managed.is_deleted is True
     assert managed.is_active is False
     assert AuditLog.objects.filter(actor=admin_user, target_id=managed_id).count() == 3
+
+
+@pytest.mark.django_db
+def test_admin_create_customer_accepts_cleared_optional_birth_date(api_client, admin_user):
+    api_client.force_authenticate(admin_user)
+
+    response = api_client.post(
+        reverse("account:admin-customer-list"),
+        {
+            "email": "blank-date@example.com",
+            "password": "StrongPass!234",
+            "password_confirm": "StrongPass!234",
+            "full_name": "Blank Date Customer",
+            "phone": "",
+            "date_of_birth": "",
+            "gender": "",
+            "is_email_verified": True,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert User.objects.get(email="blank-date@example.com").date_of_birth is None
 
 
 @pytest.mark.django_db

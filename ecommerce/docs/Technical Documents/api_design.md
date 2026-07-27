@@ -25,6 +25,7 @@ Tài liệu thiết kế API RESTful cho toàn bộ hệ thống, dựa trên `D
 | POST | `/auth/verify-email` | Public | Xác thực email qua token | CUS-01 |
 | POST | `/auth/resend-verification` | Public | Gửi lại email xác thực (phản hồi chống dò email) | CUS-01 |
 | POST | `/auth/login` | Public | Đăng nhập, trả access; đặt refresh vào cookie HttpOnly | CUS-02 |
+| POST | `/auth/session` | Public | Khôi phục phiên từ cookie; trả `data: null` nếu đang là khách | CUS-02 |
 | POST | `/auth/refresh` | Public | Làm mới access token | CUS-02 |
 | POST | `/auth/logout` | Owner | Thu hồi (blacklist) refresh token | CUS-02 |
 | POST | `/auth/google` | Public | Đăng nhập bằng Google id_token | CUS-03 |
@@ -73,7 +74,9 @@ Tài liệu thiết kế API RESTful cho toàn bộ hệ thống, dựa trên `D
 Ghi chú hiện thực Nhóm 1:
 
 - Địa chỉ đầu tiên tự trở thành mặc định; khi xóa địa chỉ mặc định, hệ thống chọn một địa chỉ còn hoạt động thay thế. Mọi truy vấn địa chỉ lấy chủ sở hữu từ `request.user`.
-- `DELETE /admin/customers/{id}` đặt `is_deleted = TRUE`, `is_active = FALSE` và thu hồi toàn bộ JWT, không xóa vật lý dữ liệu.
+- `DELETE /admin/customers/{id}` đặt `is_deleted = TRUE`, `is_active = FALSE`, thu hồi toàn bộ
+  JWT và thay email đăng nhập bằng định danh vô hiệu. Bản ghi cũ vẫn được giữ cho audit/lịch sử,
+  còn email ban đầu được phép đăng ký lại thành một Customer mới và phải xác thực lại.
 - Khóa/mở khóa yêu cầu `reason`, thu hồi phiên hiện tại, ghi `AuditLog` và gửi email bằng Celery.
 - Admin reset mật khẩu sẽ vô hiệu mật khẩu cũ, thu hồi phiên, đặt `must_change_password = TRUE` và gửi link token qua email. Cờ được xóa sau khi người dùng đặt mật khẩu mới thành công.
 

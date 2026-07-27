@@ -3,7 +3,6 @@
 Nguồn: `PROJECT_OVERVIEW.md`, `TECH_STACK.md`, `ARCHITECTURE.md`, `PROJECT_CONSTITUTION.md` mục 1.
 
 ## 1. Giới thiệu
-
 | | |
 |---|---|
 | **Tên dự án** | Multi-Vendor AI E-commerce Platform |
