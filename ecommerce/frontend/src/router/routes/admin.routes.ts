@@ -21,6 +21,16 @@ export const adminRoutes: RouteRecordRaw[] = [
         name: 'admin-customers',
         component: () => import('@/features/admin-users/pages/CustomerManagementPage.vue'),
       },
+      {
+        path: 'seller-applications',
+        name: 'admin-seller-applications',
+        component: () => import('@/features/admin-sellers/pages/SellerApprovalPage.vue'),
+      },
+      {
+        path: 'sellers',
+        name: 'admin-sellers',
+        component: () => import('@/features/admin-sellers/pages/SellerManagementPage.vue'),
+      },
     ],
   },
 ]

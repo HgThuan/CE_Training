@@ -125,13 +125,36 @@ Do not generate or apply an earlier migration that uses Django's default `auth.U
 - `/api/v1/users/me/` always derives identity from the authenticated token; it never accepts a
   client-provided `user_id`.
 - `/api/v1/admin/users/{id}/assign-role/` requires Admin permission and writes an AuditLog.
+- Customer onboarding uses `/api/v1/seller-applications/me/`; identity always comes from JWT.
+- Approval changes the primary role to Seller, creates a unique-slug Shop, revokes old sessions,
+  writes a notification/audit record and queues email through Celery.
+- Seller shop reads/updates are owner-scoped. The ID-based compatibility endpoint first scopes by
+  `request.user`, so changing a shop ID cannot expose another seller's data.
+- Seller uploads Shop logo/cover directly. Backend crops and re-encodes logo to `512×512` WebP
+  and cover to `1600×480` WebP; raw image URLs are no longer accepted as update input.
+- Locked shops disappear from the public shop API and fail the shared
+  `ShopBusinessPolicy` used by future Product/Order create services.
 
 Useful browser routes:
 
 - `/auth/register`, `/auth/login`, `/auth/forgot-password`
-- `/account/profile`
-- `/seller` (Seller only)
-- `/admin` and `/admin/roles` (Admin only)
+- `/account/profile`, `/account/seller-application`
+- `/seller`, `/seller/shop` (Seller only)
+- `/admin`, `/admin/roles`, `/admin/customers`, `/admin/seller-applications`,
+  `/admin/sellers` (Admin only)
+- `/shop/:slug` (public)
+
+## Sprint 2 — RBAC and seller onboarding
+
+Implemented stories: ADM-04..11, SEL-17, SEL-18, NFR-02 and the audit part of NFR-15.
+Seller documents are JPEG/PNG/PDF files with per-document review status. Sensitive admin actions
+store `reason` and `request_id` in `AuditLog` and emit structured logs with actor `user_id`.
+Document bytes live below the Nginx-blocked `media/private/` prefix; authorized serializers expose
+only a signed five-minute `/protected-media/` capability URL.
+
+Product and Order models intentionally remain Sprint 3 scope. Sprint 2 exposes the lock policy and
+public product response contract (`products: []`); Product public selectors and create services must
+consume `ShopBusinessPolicy` when those models are introduced.
 
 ## Local quality checks
 
@@ -157,6 +180,12 @@ python manage.py check
 pytest
 ```
 
+When PostgreSQL is unavailable locally, the deterministic test profile can use SQLite:
+
+```bash
+DJANGO_SETTINGS_MODULE=config.settings.test TEST_USE_SQLITE=true pytest
+```
+
 These jobs are mirrored in `.github/workflows/ci.yml`. Core modules added later
 (cart, checkout, voucher and inventory) must reach at least 60% coverage; inventory
 must also include a concurrent oversell test.
@@ -175,7 +204,9 @@ Backend / Celery / Channels -> Redis
 Backend / Celery            -> external PostgreSQL via environment variables
 ```
 
-## Next implementation step
+## Release status
 
-Step 3 reviews the remaining mandatory requirement codes and agrees on a dependency-ordered
-delivery roadmap before another feature group is implemented.
+The codebase version remains `0.1.0`. Repository policy requires user review before creating or
+pushing a Git tag. Release 0.1 should be tagged only after running migrations and the smoke flow
+against the configured external PostgreSQL, and after Product/Order accepts the Sprint 2 shop-lock
+policy contract (or the team explicitly accepts that integration as Sprint 3 scope).

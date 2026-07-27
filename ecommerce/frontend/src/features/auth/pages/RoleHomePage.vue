@@ -21,10 +21,7 @@ async function logout(): Promise<void> {
       <h1 class="mt-3 text-4xl font-bold text-gray-950">
         Xin chào, {{ authStore.user?.full_name || authStore.user?.email }}
       </h1>
-      <p class="mt-4 text-gray-600">
-        Route này đã được bảo vệ theo vai trò. Các dashboard nghiệp vụ sẽ được triển khai ở bước
-        sau.
-      </p>
+      <p class="mt-4 text-gray-600">Workspace được bảo vệ bằng JWT và route guard theo vai trò.</p>
       <div class="mt-8 flex flex-wrap gap-3">
         <RouterLink
           class="rounded-xl bg-indigo-600 px-4 py-2 font-semibold text-white"
@@ -45,6 +42,27 @@ async function logout(): Promise<void> {
           to="/admin/customers"
         >
           Quản lý khách hàng
+        </RouterLink>
+        <RouterLink
+          v-if="authStore.user?.role === 'admin'"
+          class="rounded-xl border border-gray-300 px-4 py-2 font-semibold"
+          to="/admin/seller-applications"
+        >
+          Duyệt seller
+        </RouterLink>
+        <RouterLink
+          v-if="authStore.user?.role === 'admin'"
+          class="rounded-xl border border-gray-300 px-4 py-2 font-semibold"
+          to="/admin/sellers"
+        >
+          Quản lý seller
+        </RouterLink>
+        <RouterLink
+          v-if="authStore.user?.role === 'seller'"
+          class="rounded-xl border border-gray-300 px-4 py-2 font-semibold"
+          to="/seller/shop"
+        >
+          Hồ sơ gian hàng
         </RouterLink>
         <button class="rounded-xl border border-gray-300 px-4 py-2 font-semibold" @click="logout">
           Đăng xuất
