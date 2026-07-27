@@ -18,6 +18,12 @@ export const customerRoutes: RouteRecordRaw[] = [
         component: () => import('@/features/account/pages/AddressBookPage.vue'),
         meta: { roles: ['customer'] },
       },
+      {
+        path: 'seller-application',
+        name: 'seller-application',
+        component: () => import('@/features/seller/pages/SellerApplicationPage.vue'),
+        meta: { roles: ['customer'] },
+      },
     ],
   },
 ]

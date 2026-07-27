@@ -232,5 +232,13 @@ async function logout(): Promise<void> {
       <span>Quản lý sổ địa chỉ nhận hàng</span>
       <span aria-hidden="true">→</span>
     </RouterLink>
+    <RouterLink
+      v-if="authStore.user?.role === 'customer'"
+      class="mt-4 flex items-center justify-between rounded-2xl bg-emerald-50 p-5 font-semibold text-emerald-900 ring-1 ring-emerald-100"
+      to="/account/seller-application"
+    >
+      <span>Đăng ký trở thành nhà bán hàng</span>
+      <span aria-hidden="true">→</span>
+    </RouterLink>
   </main>
 </template>

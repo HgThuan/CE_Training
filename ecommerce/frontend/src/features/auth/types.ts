@@ -1,3 +1,5 @@
+import type { SellerApplication } from '@/features/seller/types'
+
 export type UserRole = 'admin' | 'seller' | 'customer'
 
 export interface CustomerProfile {
@@ -5,13 +7,7 @@ export interface CustomerProfile {
   wallet_balance: string
 }
 
-export interface SellerProfile {
-  onboarding_status: 'pending' | 'approved' | 'rejected'
-  rejection_reason: string
-  id_card_document_url: string
-  business_license_url: string
-  verification_status: 'unverified' | 'pending' | 'verified'
-}
+export type SellerProfile = SellerApplication
 
 export interface AdminProfile {
   permission_level: string
