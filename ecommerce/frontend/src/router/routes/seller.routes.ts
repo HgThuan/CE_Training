@@ -17,6 +17,21 @@ export const sellerRoutes: RouteRecordRaw[] = [
         component: () => import('@/features/seller/pages/ShopProfilePage.vue'),
       },
       {
+        path: 'products',
+        name: 'seller-products',
+        component: () => import('@/features/seller/pages/ProductListPage.vue'),
+      },
+      {
+        path: 'products/new',
+        name: 'seller-product-create',
+        component: () => import('@/features/seller/pages/ProductFormPage.vue'),
+      },
+      {
+        path: 'products/:productId/edit',
+        name: 'seller-product-edit',
+        component: () => import('@/features/seller/pages/ProductFormPage.vue'),
+      },
+      {
         path: 'application',
         name: 'seller-application-status',
         component: () => import('@/features/seller/pages/SellerApplicationPage.vue'),

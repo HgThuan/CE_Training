@@ -38,5 +38,6 @@ export function getErrorMessage(error: unknown): string {
     if (details.length) return details.join(' · ')
     return payload?.message ?? 'Không thể kết nối tới máy chủ'
   }
+  if (error instanceof Error && error.message) return error.message
   return 'Đã có lỗi không mong muốn xảy ra'
 }

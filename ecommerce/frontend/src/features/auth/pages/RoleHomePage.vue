@@ -58,11 +58,39 @@ async function logout(): Promise<void> {
           Quản lý seller
         </RouterLink>
         <RouterLink
+          v-if="authStore.user?.role === 'admin'"
+          class="rounded-xl border border-gray-300 px-4 py-2 font-semibold"
+          to="/admin/products"
+        >
+          Duyệt sản phẩm
+        </RouterLink>
+        <RouterLink
+          v-if="authStore.user?.role === 'admin'"
+          class="rounded-xl border border-gray-300 px-4 py-2 font-semibold"
+          to="/admin/categories"
+        >
+          Danh mục
+        </RouterLink>
+        <RouterLink
+          v-if="authStore.user?.role === 'admin'"
+          class="rounded-xl border border-gray-300 px-4 py-2 font-semibold"
+          to="/admin/brands"
+        >
+          Thương hiệu
+        </RouterLink>
+        <RouterLink
           v-if="authStore.user?.role === 'seller'"
           class="rounded-xl border border-gray-300 px-4 py-2 font-semibold"
           to="/seller/shop"
         >
           Hồ sơ gian hàng
+        </RouterLink>
+        <RouterLink
+          v-if="authStore.user?.role === 'seller'"
+          class="rounded-xl border border-gray-300 px-4 py-2 font-semibold"
+          to="/seller/products"
+        >
+          Quản lý sản phẩm
         </RouterLink>
         <button class="rounded-xl border border-gray-300 px-4 py-2 font-semibold" @click="logout">
           Đăng xuất

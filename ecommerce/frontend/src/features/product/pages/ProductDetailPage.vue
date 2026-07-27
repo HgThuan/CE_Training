@@ -1,0 +1,253 @@
+<script setup lang="ts">
+import {
+  ArrowLeftIcon,
+  BuildingStorefrontIcon,
+  CheckBadgeIcon,
+  MinusIcon,
+  PlusIcon,
+  ShieldCheckIcon,
+  ShoppingBagIcon,
+  StarIcon,
+  TruckIcon,
+} from '@heroicons/vue/24/outline'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
+
+import FormMessage from '@/features/auth/components/FormMessage.vue'
+import { getErrorMessage } from '@/features/auth/errors'
+import { formatVnd } from '@/shared/lib/formatters'
+
+import ProductGallery from '../components/ProductGallery.vue'
+import VariantSelector from '../components/VariantSelector.vue'
+import { useProductStore } from '../store'
+import type { ProductVariant } from '../types'
+
+const route = useRoute()
+const productStore = useProductStore()
+const errorMessage = ref('')
+const selectedVariant = ref<ProductVariant | null>(null)
+const quantity = ref(1)
+const cartNotice = ref('')
+
+const product = computed(() => productStore.detail)
+const displayPrice = computed(() => {
+  if (selectedVariant.value) return formatVnd(selectedVariant.value.sale_price)
+  if (!product.value) return ''
+  if (product.value.min_price === product.value.max_price) return formatVnd(product.value.min_price)
+  return `${formatVnd(product.value.min_price)} – ${formatVnd(product.value.max_price)}`
+})
+const canAdd = computed(() => Boolean(product.value && selectedVariant.value))
+
+function updateQuantity(amount: number): void {
+  quantity.value = Math.min(99, Math.max(1, quantity.value + amount))
+}
+
+function prepareCart(action: 'cart' | 'buy'): void {
+  cartNotice.value =
+    action === 'cart'
+      ? `Đã chuẩn bị ${quantity.value} sản phẩm cho giỏ hàng. Tính năng lưu giỏ sẽ mở ở Sprint tiếp theo.`
+      : 'Luồng mua ngay đã sẵn sàng và sẽ được nối với Checkout ở Sprint tiếp theo.'
+}
+
+onMounted(async () => {
+  try {
+    await productStore.loadDetail(
+      String(route.params.slug),
+      typeof route.query.shop === 'string' ? route.query.shop : undefined,
+    )
+    if (!product.value?.attributes.length && product.value?.variants.length === 1) {
+      selectedVariant.value = product.value.variants[0] ?? null
+    }
+  } catch (error) {
+    errorMessage.value = getErrorMessage(error)
+  }
+})
+</script>
+
+<template>
+  <div class="min-h-screen bg-[#f8fafc]">
+    <header class="border-b border-slate-200 bg-white">
+      <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
+        <RouterLink class="flex items-center gap-3" to="/">
+          <span
+            class="grid h-10 w-10 place-items-center rounded-2xl bg-indigo-600 font-black text-white"
+            >M</span
+          >
+          <span class="font-black tracking-tight">Mercato</span>
+        </RouterLink>
+        <RouterLink class="text-sm font-bold text-slate-600 hover:text-indigo-700" to="/products">
+          Tất cả sản phẩm
+        </RouterLink>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-12">
+      <RouterLink
+        class="inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-indigo-700"
+        to="/products"
+      >
+        <ArrowLeftIcon class="h-4 w-4" />
+        Quay lại catalog
+      </RouterLink>
+
+      <FormMessage v-if="errorMessage" class="mt-6" :message="errorMessage" />
+
+      <div v-if="productStore.loading" class="mt-8 grid animate-pulse gap-10 lg:grid-cols-2">
+        <div class="aspect-square rounded-[2rem] bg-slate-200" />
+        <div class="space-y-5 pt-4">
+          <div class="h-4 w-1/4 rounded bg-slate-200" />
+          <div class="h-12 rounded bg-slate-200" />
+          <div class="h-8 w-1/3 rounded bg-slate-200" />
+          <div class="h-32 rounded bg-slate-200" />
+        </div>
+      </div>
+
+      <template v-else-if="product">
+        <div class="mt-8 grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
+          <ProductGallery :media="product.media" :product-name="product.name" />
+
+          <section class="lg:pt-2">
+            <div class="flex flex-wrap items-center gap-2 text-sm font-semibold">
+              <span class="rounded-full bg-indigo-50 px-3 py-1 text-indigo-700">
+                {{ product.category.name }}
+              </span>
+              <span v-if="product.brand" class="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+                {{ product.brand.name }}
+              </span>
+            </div>
+            <h1 class="mt-5 text-3xl font-black tracking-tight text-slate-950 sm:text-5xl">
+              {{ product.name }}
+            </h1>
+            <div class="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-600">
+              <span class="inline-flex items-center gap-1.5">
+                <StarIcon class="h-5 w-5 fill-amber-400 text-amber-400" />
+                <strong class="text-slate-950">{{
+                  Number(product.rating_average).toFixed(1)
+                }}</strong>
+                ({{ product.rating_count }} đánh giá)
+              </span>
+              <span>{{ product.sold_count }} đã bán</span>
+              <span class="inline-flex items-center gap-1 text-emerald-700">
+                <CheckBadgeIcon class="h-5 w-5" />
+                Đã kiểm duyệt
+              </span>
+            </div>
+            <p class="mt-7 text-3xl font-black tracking-tight text-indigo-700">
+              {{ displayPrice }}
+            </p>
+            <p v-if="product.short_description" class="mt-5 leading-7 text-slate-600">
+              {{ product.short_description }}
+            </p>
+
+            <div class="my-8 h-px bg-slate-200" />
+
+            <VariantSelector
+              v-if="product.attributes.length"
+              :attributes="product.attributes"
+              :variants="product.variants"
+              @change="selectedVariant = $event"
+            />
+
+            <div class="mt-8 flex flex-wrap items-center gap-4">
+              <div
+                class="inline-flex h-12 items-center rounded-xl border border-slate-300 bg-white p-1"
+                aria-label="Số lượng"
+              >
+                <button
+                  class="grid h-10 w-10 place-items-center rounded-lg hover:bg-slate-100 disabled:opacity-40"
+                  type="button"
+                  aria-label="Giảm số lượng"
+                  :disabled="quantity === 1"
+                  @click="updateQuantity(-1)"
+                >
+                  <MinusIcon class="h-4 w-4" />
+                </button>
+                <span class="w-10 text-center font-bold">{{ quantity }}</span>
+                <button
+                  class="grid h-10 w-10 place-items-center rounded-lg hover:bg-slate-100"
+                  type="button"
+                  aria-label="Tăng số lượng"
+                  @click="updateQuantity(1)"
+                >
+                  <PlusIcon class="h-4 w-4" />
+                </button>
+              </div>
+              <button
+                class="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border-2 border-indigo-600 px-5 font-bold text-indigo-700 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400"
+                type="button"
+                :disabled="!canAdd"
+                @click="prepareCart('cart')"
+              >
+                <ShoppingBagIcon class="h-5 w-5" />
+                Thêm vào giỏ
+              </button>
+              <button
+                class="h-12 flex-1 rounded-xl bg-indigo-600 px-5 font-bold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                type="button"
+                :disabled="!canAdd"
+                @click="prepareCart('buy')"
+              >
+                Mua ngay
+              </button>
+            </div>
+
+            <p
+              v-if="cartNotice"
+              class="mt-4 rounded-xl bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-900"
+              role="status"
+            >
+              {{ cartNotice }}
+            </p>
+
+            <div class="mt-8 grid grid-cols-3 gap-3">
+              <div class="rounded-2xl bg-white p-4 text-center ring-1 ring-slate-200">
+                <TruckIcon class="mx-auto h-6 w-6 text-indigo-600" />
+                <p class="mt-2 text-xs font-bold text-slate-700">Giao hàng toàn quốc</p>
+              </div>
+              <div class="rounded-2xl bg-white p-4 text-center ring-1 ring-slate-200">
+                <ShieldCheckIcon class="mx-auto h-6 w-6 text-indigo-600" />
+                <p class="mt-2 text-xs font-bold text-slate-700">Mua sắm an tâm</p>
+              </div>
+              <div class="rounded-2xl bg-white p-4 text-center ring-1 ring-slate-200">
+                <CheckBadgeIcon class="mx-auto h-6 w-6 text-indigo-600" />
+                <p class="mt-2 text-xs font-bold text-slate-700">Shop xác thực</p>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <section class="mt-12 grid gap-6 lg:grid-cols-[1fr_340px]">
+          <article class="rounded-3xl bg-white p-6 ring-1 ring-slate-200 sm:p-8">
+            <h2 class="text-2xl font-black">Mô tả sản phẩm</h2>
+            <p class="mt-5 whitespace-pre-line leading-8 text-slate-700">
+              {{ product.description || product.short_description || 'Sản phẩm chưa có mô tả.' }}
+            </p>
+          </article>
+          <RouterLink
+            :to="`/shop/${product.shop.slug}`"
+            class="group rounded-3xl bg-slate-950 p-6 text-white transition hover:bg-indigo-700"
+          >
+            <div class="flex items-center gap-4">
+              <img
+                v-if="product.shop.logo_url"
+                :src="product.shop.logo_url"
+                :alt="product.shop.name"
+                class="h-14 w-14 rounded-2xl bg-white object-cover"
+              />
+              <span v-else class="grid h-14 w-14 place-items-center rounded-2xl bg-white/10">
+                <BuildingStorefrontIcon class="h-7 w-7" />
+              </span>
+              <div>
+                <p class="text-xs font-bold uppercase tracking-widest text-indigo-200">Nhà bán</p>
+                <h2 class="mt-1 font-black">{{ product.shop.name }}</h2>
+              </div>
+            </div>
+            <p class="mt-6 text-sm text-slate-300 group-hover:text-white">
+              Xem gian hàng và các sản phẩm khác →
+            </p>
+          </RouterLink>
+        </section>
+      </template>
+    </main>
+  </div>
+</template>

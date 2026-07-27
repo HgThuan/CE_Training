@@ -12,6 +12,16 @@ export const publicRoutes: RouteRecordRaw[] = [
     component: () => import('@/features/shop/pages/PublicShopPage.vue'),
   },
   {
+    path: '/products',
+    name: 'product-list',
+    component: () => import('@/features/product/pages/ProductListPage.vue'),
+  },
+  {
+    path: '/products/:slug',
+    name: 'product-detail',
+    component: () => import('@/features/product/pages/ProductDetailPage.vue'),
+  },
+  {
     path: '/auth/login',
     name: 'login',
     component: () => import('@/features/auth/pages/LoginPage.vue'),
