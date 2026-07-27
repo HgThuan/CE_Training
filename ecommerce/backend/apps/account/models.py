@@ -19,10 +19,12 @@ def seller_document_upload_to(instance, filename: str) -> str:
     return f"private/seller-documents/{instance.seller_profile.user_id}/{uuid4().hex}{extension}"
 
 
+# Kept for migration 0004 compatibility. Shop images are URL-only from migration 0005 onward.
 def shop_logo_upload_to(instance, filename: str) -> str:
     return f"shops/{instance.owner_id}/logo/{uuid4().hex}.webp"
 
 
+# Kept for migration 0004 compatibility. Shop images are URL-only from migration 0005 onward.
 def shop_cover_upload_to(instance, filename: str) -> str:
     return f"shops/{instance.owner_id}/cover/{uuid4().hex}.webp"
 
@@ -306,8 +308,6 @@ class Shop(TimeStampedModel):
     name = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255, unique=True)
     description = models.TextField(blank=True)
-    logo = models.ImageField(upload_to=shop_logo_upload_to, blank=True)
-    cover = models.ImageField(upload_to=shop_cover_upload_to, blank=True)
     logo_url = models.URLField(max_length=500, blank=True)
     cover_url = models.URLField(max_length=500, blank=True)
     status = models.CharField(

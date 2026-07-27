@@ -6,7 +6,6 @@ from django.urls import reverse
 from PIL import Image, UnidentifiedImageError
 from rest_framework import serializers
 
-from .constants import SHOP_COVER_SIZE, SHOP_LOGO_SIZE
 from .models import (
     Address,
     AdminProfile,
@@ -421,10 +420,6 @@ class ShopSerializer(serializers.ModelSerializer):
     owner_id = serializers.IntegerField(read_only=True)
     owner_email = serializers.EmailField(source="owner.email", read_only=True)
     total_products = serializers.SerializerMethodField()
-    logo_url = serializers.SerializerMethodField()
-    cover_url = serializers.SerializerMethodField()
-    logo_size = serializers.SerializerMethodField()
-    cover_size = serializers.SerializerMethodField()
 
     class Meta:
         model = Shop
@@ -437,8 +432,6 @@ class ShopSerializer(serializers.ModelSerializer):
             "description",
             "logo_url",
             "cover_url",
-            "logo_size",
-            "cover_size",
             "status",
             "lock_reason",
             "locked_at",
@@ -454,8 +447,6 @@ class ShopSerializer(serializers.ModelSerializer):
             "slug",
             "logo_url",
             "cover_url",
-            "logo_size",
-            "cover_size",
             "status",
             "lock_reason",
             "locked_at",
@@ -468,43 +459,12 @@ class ShopSerializer(serializers.ModelSerializer):
     def get_total_products(self, obj) -> int:
         return 0
 
-    def _absolute_file_url(self, file_field, legacy_url: str) -> str:
-        if not file_field:
-            return legacy_url
-        request = self.context.get("request")
-        url = file_field.url
-        return request.build_absolute_uri(url) if request else url
-
-    def get_logo_url(self, obj) -> str:
-        return self._absolute_file_url(obj.logo, obj.logo_url)
-
-    def get_cover_url(self, obj) -> str:
-        return self._absolute_file_url(obj.cover, obj.cover_url)
-
-    def get_logo_size(self, obj) -> dict[str, int]:
-        return {"width": SHOP_LOGO_SIZE[0], "height": SHOP_LOGO_SIZE[1]}
-
-    def get_cover_size(self, obj) -> dict[str, int]:
-        return {"width": SHOP_COVER_SIZE[0], "height": SHOP_COVER_SIZE[1]}
-
 
 class ShopUpdateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=255, required=False)
     description = serializers.CharField(required=False, allow_blank=True)
-
-
-class ShopImageUploadSerializer(serializers.Serializer):
-    image = serializers.ImageField(write_only=True)
-
-    def validate_image(self, value):
-        max_bytes = settings.MAX_SHOP_IMAGE_UPLOAD_MB * 1024 * 1024
-        if value.size > max_bytes:
-            raise serializers.ValidationError(
-                f"Ảnh gian hàng không được vượt quá {settings.MAX_SHOP_IMAGE_UPLOAD_MB} MB"
-            )
-        if value.content_type not in {"image/jpeg", "image/png", "image/webp"}:
-            raise serializers.ValidationError("Chỉ chấp nhận ảnh JPEG, PNG hoặc WebP")
-        return value
+    logo_url = serializers.URLField(max_length=500, required=False, allow_blank=True)
+    cover_url = serializers.URLField(max_length=500, required=False, allow_blank=True)
 
 
 class AdminSellerSerializer(serializers.ModelSerializer):

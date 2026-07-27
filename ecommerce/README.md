@@ -130,8 +130,8 @@ Do not generate or apply an earlier migration that uses Django's default `auth.U
   writes a notification/audit record and queues email through Celery.
 - Seller shop reads/updates are owner-scoped. The ID-based compatibility endpoint first scopes by
   `request.user`, so changing a shop ID cannot expose another seller's data.
-- Seller uploads Shop logo/cover directly. Backend crops and re-encodes logo to `512×512` WebP
-  and cover to `1600×480` WebP; raw image URLs are no longer accepted as update input.
+- Seller sets public `logo_url` and `cover_url` values through the owner-scoped Shop update API;
+  the application stores only the URLs and does not upload Shop images.
 - Locked shops disappear from the public shop API and fail the shared
   `ShopBusinessPolicy` used by future Product/Order create services.
 

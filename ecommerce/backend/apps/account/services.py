@@ -22,7 +22,6 @@ from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, Ou
 from apps.common.exceptions import BusinessError
 from apps.common.models import AuditLog
 
-from .constants import SHOP_IMAGE_SIZES
 from .models import (
     Address,
     AdminProfile,
@@ -966,53 +965,6 @@ class ShopBusinessPolicy:
 
 
 class ShopService:
-    @staticmethod
-    @transaction.atomic
-    def update_shop_image(*, user, image_type: str, uploaded_file):
-        target_size = SHOP_IMAGE_SIZES.get(image_type)
-        if target_size is None:
-            raise BusinessError(
-                "Loại ảnh gian hàng không hợp lệ",
-                errors={"image_type": ["Chỉ chấp nhận logo hoặc cover"]},
-            )
-        shop = Shop.objects.select_for_update().filter(owner=user, is_deleted=False).first()
-        if shop is None:
-            raise BusinessError("Không tìm thấy gian hàng", http_status=404)
-
-        try:
-            uploaded_file.seek(0)
-            with Image.open(uploaded_file) as candidate:
-                candidate.verify()
-            uploaded_file.seek(0)
-            with Image.open(uploaded_file) as source:
-                if source.width * source.height > 40_000_000:
-                    raise BusinessError(
-                        "Ảnh gian hàng có độ phân giải quá lớn",
-                        errors={"image": ["Ảnh không được vượt quá 40 triệu điểm ảnh"]},
-                    )
-                normalized = ImageOps.exif_transpose(source).convert("RGB")
-                normalized = ImageOps.fit(
-                    normalized,
-                    target_size,
-                    method=Image.Resampling.LANCZOS,
-                    centering=(0.5, 0.5),
-                )
-                output = BytesIO()
-                normalized.save(output, format="WEBP", quality=88, method=6)
-        except (UnidentifiedImageError, OSError, ValueError) as exc:
-            raise BusinessError(
-                "Tệp ảnh gian hàng không hợp lệ",
-                errors={"image": ["Nội dung tệp không phải JPEG, PNG hoặc WebP hợp lệ"]},
-            ) from exc
-
-        image_field = getattr(shop, image_type)
-        previous_name = image_field.name
-        image_field.save(f"{uuid4().hex}.webp", ContentFile(output.getvalue()), save=False)
-        shop.save(update_fields=[image_type, "updated_at"])
-        if previous_name:
-            transaction.on_commit(partial(default_storage.delete, previous_name))
-        return shop
-
     @staticmethod
     @transaction.atomic
     def update_own_shop(*, user, shop_data: dict):

@@ -30,8 +30,8 @@ Admin operations protect the current Admin and Superuser accounts from self-lock
 - `SellerDocumentService` owns per-document verification and derives the aggregate profile
   verification status.
 - `ShopService` owns owner updates, Admin edits, lock/unlock and seller soft deletion.
-- `ShopService.update_shop_image` validates real image content, applies EXIF orientation, center
-  crops and writes a fixed `512×512` logo or `1600×480` cover as WebP.
+- Shop logo and cover are public URLs validated by `ShopUpdateSerializer`; the application stores
+  only `logo_url` and `cover_url` instead of Shop image files.
 - `ShopBusinessPolicy` is the single contract that Product/Order create services must call; a
   locked/deleted shop cannot create new resources.
 - `selectors.py` scopes Seller queries by authenticated user before resolving object IDs.

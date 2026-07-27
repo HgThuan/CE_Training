@@ -187,9 +187,7 @@ Toàn bộ endpoint dưới đây tự động scope theo `shop_id` của Seller
 | GET | `/seller-applications/me` | Owner | Theo dõi trạng thái hồ sơ của chính user | SEL-18 |
 | POST | `/seller-applications/me/documents` | Owner (Customer) | Bước 2: upload JPEG/PNG/PDF | SEL-18 |
 | GET | `/seller/shop` | Seller/Owner | Lấy shop từ JWT, không nhận `shop_id` client | SEL-17, NFR-02 |
-| PATCH | `/seller/shop` | Seller/Owner | Cập nhật shop của chính seller | SEL-17, NFR-02 |
-| POST | `/seller/shop/logo` | Seller/Owner | Upload JPEG/PNG/WebP; crop và lưu WebP 512×512 | SEL-17 |
-| POST | `/seller/shop/cover` | Seller/Owner | Upload JPEG/PNG/WebP; crop và lưu WebP 1600×480 | SEL-17 |
+| PATCH | `/seller/shop` | Seller/Owner | Cập nhật shop và URL logo/cover của chính seller | SEL-17, NFR-02 |
 | GET/PATCH | `/seller/shops/{id}` | Seller/Owner | Endpoint kiểm tra object-level; ID vẫn bị scope theo owner | NFR-02 |
 
 Ghi chú SEL-17/ADM-11 trong Sprint 2:
@@ -199,8 +197,8 @@ Ghi chú SEL-17/ADM-11 trong Sprint 2:
 - Public selector chỉ trả Shop `approved`; Shop `locked` nhận 404.
 - `ShopBusinessPolicy.ensure_can_create_new_resource()` là contract bắt buộc cho service tạo
   Product/Order mới. Xử lý order đã tồn tại không dùng policy này, nên vẫn hoạt động khi shop khóa.
-- `PATCH /seller/shop` không nhận `logo_url`/`cover_url`; ảnh phải đi qua hai endpoint multipart để
-  backend xác minh nội dung, chuẩn hóa kích thước và tránh hotlink ảnh ngoài.
+- `PATCH /seller/shop` nhận `logo_url`/`cover_url` hợp lệ; hệ thống chỉ lưu URL công khai và không
+  lưu file logo/cover của Shop.
 
 ---
 
