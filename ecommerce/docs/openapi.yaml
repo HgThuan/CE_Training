@@ -1,0 +1,2377 @@
+openapi: 3.0.3
+info:
+  title: Multi-Vendor AI E-commerce API
+  version: 1.0.0
+  description: REST API for the multi-vendor AI e-commerce platform.
+paths:
+  /api/health/:
+    get:
+      operationId: health_retrieve
+      tags:
+      - health
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckSuccessResponse'
+          description: ''
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckErrorResponse'
+          description: ''
+  /api/v1/admin/customers/:
+    get:
+      operationId: admin_customers_list
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCustomerListResponse'
+          description: ''
+    post:
+      operationId: v1_admin_customers_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminCustomerCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdminCustomerCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdminCustomerCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCustomerResponse'
+          description: ''
+  /api/v1/admin/customers/{customer_id}/:
+    get:
+      operationId: admin_customers_retrieve
+      parameters:
+      - in: path
+        name: customer_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCustomerResponse'
+          description: ''
+    patch:
+      operationId: v1_admin_customers_partial_update
+      parameters:
+      - in: path
+        name: customer_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAdminCustomerUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAdminCustomerUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAdminCustomerUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCustomerResponse'
+          description: ''
+    delete:
+      operationId: v1_admin_customers_destroy
+      parameters:
+      - in: path
+        name: customer_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyDataResponse'
+          description: ''
+  /api/v1/admin/seller-applications/:
+    get:
+      operationId: admin_seller_applications_list
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerApplicationListResponse'
+          description: ''
+  /api/v1/admin/seller-applications/{profile_id}/:
+    get:
+      operationId: admin_seller_applications_retrieve
+      parameters:
+      - in: path
+        name: profile_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerApplicationResponse'
+          description: ''
+  /api/v1/admin/seller-applications/{profile_id}/approve/:
+    post:
+      operationId: v1_admin_seller_applications_approve_create
+      parameters:
+      - in: path
+        name: profile_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SellerApplicationReview'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SellerApplicationReview'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SellerApplicationReview'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerApplicationResponse'
+          description: ''
+  /api/v1/admin/seller-applications/{profile_id}/reject/:
+    post:
+      operationId: v1_admin_seller_applications_reject_create
+      parameters:
+      - in: path
+        name: profile_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SellerApplicationReview'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SellerApplicationReview'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SellerApplicationReview'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerApplicationResponse'
+          description: ''
+  /api/v1/admin/seller-documents/{document_id}/review/:
+    post:
+      operationId: v1_admin_seller_documents_review_create
+      parameters:
+      - in: path
+        name: document_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SellerDocumentReview'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SellerDocumentReview'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SellerDocumentReview'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerDocumentResponse'
+          description: ''
+  /api/v1/admin/sellers/:
+    get:
+      operationId: admin_sellers_list
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSellerListResponse'
+          description: ''
+  /api/v1/admin/sellers/{user_id}/:
+    get:
+      operationId: admin_sellers_retrieve
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSellerResponse'
+          description: ''
+    patch:
+      operationId: v1_admin_sellers_partial_update
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedShopUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedShopUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedShopUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSellerResponse'
+          description: ''
+    delete:
+      operationId: v1_admin_sellers_destroy
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyDataResponse'
+          description: ''
+  /api/v1/admin/shops/{shop_id}/lock/:
+    post:
+      operationId: v1_admin_shops_lock_create
+      parameters:
+      - in: path
+        name: shop_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountStatus'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AccountStatus'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AccountStatus'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShopResponse'
+          description: ''
+  /api/v1/admin/shops/{shop_id}/unlock/:
+    post:
+      operationId: v1_admin_shops_unlock_create
+      parameters:
+      - in: path
+        name: shop_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountStatus'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AccountStatus'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AccountStatus'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShopResponse'
+          description: ''
+  /api/v1/admin/users/{user_id}/assign-role/:
+    post:
+      operationId: v1_admin_users_assign_role_create
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignRole'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AssignRole'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AssignRole'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+          description: ''
+  /api/v1/admin/users/{user_id}/lock/:
+    post:
+      operationId: v1_admin_users_lock_create
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountStatus'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AccountStatus'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AccountStatus'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+          description: ''
+  /api/v1/admin/users/{user_id}/reset-password/:
+    post:
+      operationId: v1_admin_users_reset_password_create
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminResetPassword'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdminResetPassword'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdminResetPassword'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyDataResponse'
+          description: ''
+  /api/v1/admin/users/{user_id}/unlock/:
+    post:
+      operationId: v1_admin_users_unlock_create
+      parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountStatus'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AccountStatus'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AccountStatus'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+          description: ''
+  /api/v1/auth/forgot-password/:
+    post:
+      operationId: v1_auth_forgot_password_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Email'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Email'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Email'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyDataResponse'
+          description: ''
+  /api/v1/auth/login/:
+    post:
+      operationId: v1_auth_login_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Login'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Login'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+          description: ''
+  /api/v1/auth/logout/:
+    post:
+      operationId: v1_auth_logout_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Refresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Refresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Refresh'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyDataResponse'
+          description: ''
+  /api/v1/auth/refresh/:
+    post:
+      operationId: v1_auth_refresh_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Refresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Refresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Refresh'
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+          description: ''
+  /api/v1/auth/register/:
+    post:
+      operationId: v1_auth_register_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Register'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Register'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Register'
+        required: true
+      security:
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+          description: ''
+  /api/v1/auth/resend-verification/:
+    post:
+      operationId: v1_auth_resend_verification_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Email'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Email'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Email'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyDataResponse'
+          description: ''
+  /api/v1/auth/reset-password/:
+    post:
+      operationId: v1_auth_reset_password_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPassword'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ResetPassword'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ResetPassword'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyDataResponse'
+          description: ''
+  /api/v1/auth/session/:
+    post:
+      operationId: v1_auth_session_create
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+          description: ''
+  /api/v1/auth/verify-email/:
+    post:
+      operationId: v1_auth_verify_email_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmail'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VerifyEmail'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VerifyEmail'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+          description: ''
+  /api/v1/seller-applications/me/:
+    get:
+      operationId: v1_seller_applications_me_retrieve
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerApplicationResponse'
+          description: ''
+    post:
+      operationId: v1_seller_applications_me_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SellerApplicationSubmit'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SellerApplicationSubmit'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SellerApplicationSubmit'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerApplicationResponse'
+          description: ''
+  /api/v1/seller-applications/me/documents/:
+    post:
+      operationId: v1_seller_applications_me_documents_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SellerDocumentUpload'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SellerDocumentUpload'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerDocumentResponse'
+          description: ''
+  /api/v1/seller/shop/:
+    get:
+      operationId: v1_seller_shop_retrieve
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShopResponse'
+          description: ''
+    patch:
+      operationId: v1_seller_shop_partial_update
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedShopUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedShopUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedShopUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShopResponse'
+          description: ''
+  /api/v1/seller/shop/cover/:
+    post:
+      operationId: v1_seller_shop_cover_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ShopImageUpload'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ShopImageUpload'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShopResponse'
+          description: ''
+  /api/v1/seller/shop/logo/:
+    post:
+      operationId: v1_seller_shop_logo_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ShopImageUpload'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ShopImageUpload'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShopResponse'
+          description: ''
+  /api/v1/seller/shops/{shop_id}/:
+    get:
+      operationId: v1_seller_shops_retrieve
+      parameters:
+      - in: path
+        name: shop_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShopResponse'
+          description: ''
+    patch:
+      operationId: v1_seller_shops_partial_update
+      parameters:
+      - in: path
+        name: shop_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedShopUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedShopUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedShopUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShopResponse'
+          description: ''
+  /api/v1/shops/{slug}/:
+    get:
+      operationId: v1_shops_retrieve
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShopResponse'
+          description: ''
+  /api/v1/users/me/:
+    get:
+      operationId: v1_users_me_retrieve
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+          description: ''
+    patch:
+      operationId: v1_users_me_partial_update
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+          description: ''
+  /api/v1/users/me/addresses/:
+    get:
+      operationId: v1_users_me_addresses_retrieve
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressListResponse'
+          description: ''
+    post:
+      operationId: v1_users_me_addresses_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Address'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Address'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Address'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressResponse'
+          description: ''
+  /api/v1/users/me/addresses/{address_id}/:
+    patch:
+      operationId: v1_users_me_addresses_partial_update
+      parameters:
+      - in: path
+        name: address_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAddress'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAddress'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAddress'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressResponse'
+          description: ''
+    delete:
+      operationId: v1_users_me_addresses_destroy
+      parameters:
+      - in: path
+        name: address_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyDataResponse'
+          description: ''
+  /api/v1/users/me/addresses/{address_id}/set-default/:
+    post:
+      operationId: v1_users_me_addresses_set_default_create
+      parameters:
+      - in: path
+        name: address_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressResponse'
+          description: ''
+  /api/v1/users/me/avatar/:
+    post:
+      operationId: v1_users_me_avatar_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AvatarUpload'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AvatarUpload'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+          description: ''
+  /api/v1/users/me/change-password/:
+    post:
+      operationId: v1_users_me_change_password_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChangePassword'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmptyDataResponse'
+          description: ''
+components:
+  schemas:
+    AccountStatus:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          minLength: 3
+      required:
+      - reason
+    Address:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        recipient_name:
+          type: string
+          maxLength: 255
+        phone:
+          type: string
+          pattern: ^\+?[0-9]{9,15}$
+          maxLength: 20
+        province:
+          type: string
+          maxLength: 100
+        district:
+          type: string
+          maxLength: 100
+        ward:
+          type: string
+          maxLength: 100
+        detail_address:
+          type: string
+          maxLength: 500
+        is_default:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - detail_address
+      - district
+      - id
+      - phone
+      - province
+      - recipient_name
+      - updated_at
+      - ward
+    AddressListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Address'
+      required:
+      - data
+      - message
+      - success
+    AddressResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/Address'
+      required:
+      - data
+      - message
+      - success
+    AdminCustomerCreate:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        password:
+          type: string
+          writeOnly: true
+        password_confirm:
+          type: string
+          writeOnly: true
+        full_name:
+          type: string
+          maxLength: 255
+        phone:
+          oneOf:
+          - type: string
+            pattern: ^\+?[0-9]{9,15}$
+          - type: string
+            maxLength: 0
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        gender:
+          oneOf:
+          - $ref: '#/components/schemas/GenderEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        is_email_verified:
+          type: boolean
+          default: false
+      required:
+      - email
+      - password
+      - password_confirm
+    AdminCustomerDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        is_email_verified:
+          type: boolean
+          readOnly: true
+        must_change_password:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        avatar_url:
+          type: string
+          format: uri
+          readOnly: true
+        date_of_birth:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        gender:
+          allOf:
+          - $ref: '#/components/schemas/GenderEnum'
+          readOnly: true
+        is_deleted:
+          type: boolean
+          readOnly: true
+        deleted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        lock_reason:
+          type: string
+          readOnly: true
+        locked_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        profile:
+          allOf:
+          - $ref: '#/components/schemas/CustomerProfile'
+          readOnly: true
+        addresses:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - addresses
+      - avatar_url
+      - created_at
+      - date_of_birth
+      - deleted_at
+      - email
+      - full_name
+      - gender
+      - id
+      - is_active
+      - is_deleted
+      - is_email_verified
+      - lock_reason
+      - locked_at
+      - must_change_password
+      - phone
+      - profile
+      - updated_at
+    AdminCustomerList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        is_email_verified:
+          type: boolean
+          readOnly: true
+        must_change_password:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - email
+      - full_name
+      - id
+      - is_active
+      - is_email_verified
+      - must_change_password
+      - phone
+    AdminCustomerListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminCustomerList'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+      required:
+      - data
+      - message
+      - meta
+      - success
+    AdminCustomerResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/AdminCustomerDetail'
+      required:
+      - data
+      - message
+      - success
+    AdminResetPassword:
+      type: object
+      properties:
+        reason:
+          oneOf:
+          - type: string
+            maxLength: 500
+            minLength: 3
+          - type: string
+            maxLength: 0
+    AdminSeller:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+        seller_profile:
+          allOf:
+          - $ref: '#/components/schemas/SellerProfile'
+          readOnly: true
+        shop:
+          allOf:
+          - $ref: '#/components/schemas/Shop'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - email
+      - full_name
+      - id
+      - is_active
+      - phone
+      - role
+      - seller_profile
+      - shop
+      - updated_at
+    AdminSellerListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminSeller'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+      required:
+      - data
+      - message
+      - meta
+      - success
+    AdminSellerResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/AdminSeller'
+      required:
+      - data
+      - message
+      - success
+    AssignRole:
+      type: object
+      properties:
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+      required:
+      - role
+    AvatarUpload:
+      type: object
+      properties:
+        avatar:
+          type: string
+          format: uri
+          writeOnly: true
+      required:
+      - avatar
+    BlankEnum:
+      enum:
+      - ''
+    ChangePassword:
+      type: object
+      properties:
+        old_password:
+          type: string
+          writeOnly: true
+        new_password:
+          type: string
+          writeOnly: true
+        new_password_confirm:
+          type: string
+          writeOnly: true
+      required:
+      - new_password
+      - new_password_confirm
+      - old_password
+    CustomerProfile:
+      type: object
+      properties:
+        loyalty_points:
+          type: integer
+          readOnly: true
+        wallet_balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,0})?$
+          readOnly: true
+      required:
+      - loyalty_points
+      - wallet_balance
+    DocumentTypeEnum:
+      enum:
+      - id_card
+      - business_license
+      - tax_registration
+      - other
+      type: string
+      description: |-
+        * `id_card` - CCCD/CMND
+        * `business_license` - Giấy phép kinh doanh
+        * `tax_registration` - Đăng ký thuế
+        * `other` - Khác
+    Email:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+      required:
+      - email
+    EmptyDataResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          nullable: true
+      required:
+      - data
+      - message
+      - success
+    GenderEnum:
+      enum:
+      - male
+      - female
+      - other
+      type: string
+      description: |-
+        * `male` - Nam
+        * `female` - Nữ
+        * `other` - Khác
+    HealthCheckData:
+      type: object
+      properties:
+        status:
+          type: string
+        checks:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+      - checks
+      - status
+    HealthCheckErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        errors:
+          $ref: '#/components/schemas/HealthCheckData'
+      required:
+      - errors
+      - message
+      - success
+    HealthCheckSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/HealthCheckData'
+      required:
+      - data
+      - message
+      - success
+    Login:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - email
+      - password
+    OnboardingStatusEnum:
+      enum:
+      - pending
+      - approved
+      - rejected
+      type: string
+      description: |-
+        * `pending` - Chờ duyệt
+        * `approved` - Đã duyệt
+        * `rejected` - Từ chối
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total_items:
+          type: integer
+        total_pages:
+          type: integer
+      required:
+      - page
+      - page_size
+      - total_items
+      - total_pages
+    PatchedAddress:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        recipient_name:
+          type: string
+          maxLength: 255
+        phone:
+          type: string
+          pattern: ^\+?[0-9]{9,15}$
+          maxLength: 20
+        province:
+          type: string
+          maxLength: 100
+        district:
+          type: string
+          maxLength: 100
+        ward:
+          type: string
+          maxLength: 100
+        detail_address:
+          type: string
+          maxLength: 500
+        is_default:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedAdminCustomerUpdate:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        full_name:
+          type: string
+          maxLength: 255
+        phone:
+          oneOf:
+          - type: string
+            pattern: ^\+?[0-9]{9,15}$
+          - type: string
+            maxLength: 0
+        avatar_url:
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 500
+          - type: string
+            maxLength: 0
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        gender:
+          oneOf:
+          - $ref: '#/components/schemas/GenderEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        is_email_verified:
+          type: boolean
+    PatchedShopUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+    PatchedUser:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        is_email_verified:
+          type: boolean
+          readOnly: true
+        must_change_password:
+          type: boolean
+          readOnly: true
+        avatar_url:
+          type: string
+          format: uri
+          readOnly: true
+        full_name:
+          type: string
+          maxLength: 255
+        phone:
+          oneOf:
+          - type: string
+            pattern: ^\+?[0-9]{9,15}$
+            maxLength: 20
+          - type: string
+            maxLength: 0
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        gender:
+          oneOf:
+          - $ref: '#/components/schemas/GenderEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        profile:
+          type: object
+          additionalProperties: {}
+          nullable: true
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    Refresh:
+      type: object
+      properties:
+        refresh:
+          type: string
+    Register:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        password:
+          type: string
+          writeOnly: true
+        password_confirm:
+          type: string
+          writeOnly: true
+        full_name:
+          type: string
+          maxLength: 255
+      required:
+      - email
+      - password
+      - password_confirm
+    ResetPassword:
+      type: object
+      properties:
+        uid:
+          type: string
+        token:
+          type: string
+        new_password:
+          type: string
+          writeOnly: true
+        new_password_confirm:
+          type: string
+          writeOnly: true
+      required:
+      - new_password
+      - new_password_confirm
+      - token
+      - uid
+    ReviewStatusEnum:
+      enum:
+      - pending
+      - verified
+      - additional_required
+      type: string
+      description: |-
+        * `pending` - Chờ xác minh
+        * `verified` - Đã xác minh
+        * `additional_required` - Yêu cầu bổ sung
+    RoleEnum:
+      enum:
+      - admin
+      - seller
+      - customer
+      type: string
+      description: |-
+        * `admin` - Admin
+        * `seller` - Seller
+        * `customer` - Customer
+    SellerApplicationListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SellerProfile'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+      required:
+      - data
+      - message
+      - meta
+      - success
+    SellerApplicationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          allOf:
+          - $ref: '#/components/schemas/SellerProfile'
+          nullable: true
+      required:
+      - data
+      - message
+      - success
+    SellerApplicationReview:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 1000
+    SellerApplicationSubmit:
+      type: object
+      properties:
+        business_name:
+          type: string
+          maxLength: 255
+        business_address:
+          type: string
+          maxLength: 500
+        tax_code:
+          type: string
+          maxLength: 50
+        contact_phone:
+          type: string
+          pattern: ^\+?[0-9]{9,15}$
+      required:
+      - business_address
+      - business_name
+      - contact_phone
+      - tax_code
+    SellerDocument:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        document_type:
+          allOf:
+          - $ref: '#/components/schemas/DocumentTypeEnum'
+          readOnly: true
+        file_url:
+          type: string
+          readOnly: true
+        original_name:
+          type: string
+          readOnly: true
+        review_status:
+          allOf:
+          - $ref: '#/components/schemas/ReviewStatusEnum'
+          readOnly: true
+        review_reason:
+          type: string
+          readOnly: true
+        reviewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - document_type
+      - file_url
+      - id
+      - original_name
+      - review_reason
+      - review_status
+      - reviewed_at
+      - updated_at
+    SellerDocumentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/SellerDocument'
+      required:
+      - data
+      - message
+      - success
+    SellerDocumentReview:
+      type: object
+      properties:
+        review_status:
+          $ref: '#/components/schemas/ReviewStatusEnum'
+        reason:
+          type: string
+          maxLength: 1000
+      required:
+      - review_status
+    SellerDocumentUpload:
+      type: object
+      properties:
+        document_type:
+          $ref: '#/components/schemas/DocumentTypeEnum'
+        document:
+          type: string
+          format: uri
+          writeOnly: true
+      required:
+      - document
+      - document_type
+    SellerProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        business_name:
+          type: string
+          readOnly: true
+        business_address:
+          type: string
+          readOnly: true
+        tax_code:
+          type: string
+          readOnly: true
+        contact_phone:
+          type: string
+          readOnly: true
+        onboarding_status:
+          allOf:
+          - $ref: '#/components/schemas/OnboardingStatusEnum'
+          readOnly: true
+        rejection_reason:
+          type: string
+          readOnly: true
+        verification_status:
+          allOf:
+          - $ref: '#/components/schemas/VerificationStatusEnum'
+          readOnly: true
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reviewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        documents:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - business_address
+      - business_name
+      - contact_phone
+      - created_at
+      - documents
+      - id
+      - onboarding_status
+      - rejection_reason
+      - reviewed_at
+      - submitted_at
+      - tax_code
+      - updated_at
+      - verification_status
+    SessionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          allOf:
+          - $ref: '#/components/schemas/TokenData'
+          nullable: true
+      required:
+      - data
+      - message
+      - success
+    Shop:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        owner_id:
+          type: integer
+          readOnly: true
+        owner_email:
+          type: string
+          format: email
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        slug:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        description:
+          type: string
+        logo_url:
+          type: string
+          readOnly: true
+        cover_url:
+          type: string
+          readOnly: true
+        logo_size:
+          type: object
+          additionalProperties:
+            type: integer
+          readOnly: true
+        cover_size:
+          type: object
+          additionalProperties:
+            type: integer
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StatusEnum'
+          readOnly: true
+        lock_reason:
+          type: string
+          readOnly: true
+        locked_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        average_rating:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,1}(?:\.\d{0,2})?$
+          readOnly: true
+        total_products:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - average_rating
+      - cover_size
+      - cover_url
+      - created_at
+      - id
+      - lock_reason
+      - locked_at
+      - logo_size
+      - logo_url
+      - name
+      - owner_email
+      - owner_id
+      - slug
+      - status
+      - total_products
+      - updated_at
+    ShopImageUpload:
+      type: object
+      properties:
+        image:
+          type: string
+          format: uri
+          writeOnly: true
+      required:
+      - image
+    ShopResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/Shop'
+      required:
+      - data
+      - message
+      - success
+    StatusEnum:
+      enum:
+      - pending
+      - approved
+      - rejected
+      - locked
+      type: string
+      description: |-
+        * `pending` - Chờ duyệt
+        * `approved` - Đã duyệt
+        * `rejected` - Từ chối
+        * `locked` - Bị khóa
+    TokenData:
+      type: object
+      properties:
+        access:
+          type: string
+        access_expires_in:
+          type: integer
+        user:
+          $ref: '#/components/schemas/User'
+      required:
+      - access
+      - access_expires_in
+      - user
+    TokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/TokenData'
+      required:
+      - data
+      - message
+      - success
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        is_email_verified:
+          type: boolean
+          readOnly: true
+        must_change_password:
+          type: boolean
+          readOnly: true
+        avatar_url:
+          type: string
+          format: uri
+          readOnly: true
+        full_name:
+          type: string
+          maxLength: 255
+        phone:
+          oneOf:
+          - type: string
+            pattern: ^\+?[0-9]{9,15}$
+            maxLength: 20
+          - type: string
+            maxLength: 0
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        gender:
+          oneOf:
+          - $ref: '#/components/schemas/GenderEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        profile:
+          type: object
+          additionalProperties: {}
+          nullable: true
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - avatar_url
+      - created_at
+      - email
+      - id
+      - is_active
+      - is_email_verified
+      - must_change_password
+      - profile
+      - role
+      - updated_at
+    UserResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/User'
+      required:
+      - data
+      - message
+      - success
+    VerificationStatusEnum:
+      enum:
+      - unverified
+      - pending
+      - verified
+      type: string
+      description: |-
+        * `unverified` - Chưa xác minh
+        * `pending` - Chờ xác minh
+        * `verified` - Đã xác minh
+    VerifyEmail:
+      type: object
+      properties:
+        token:
+          type: string
+      required:
+      - token
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

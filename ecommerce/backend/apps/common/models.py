@@ -11,6 +11,8 @@ class AuditLog(models.Model):
     action = models.CharField(max_length=100)
     target_type = models.CharField(max_length=50)
     target_id = models.PositiveBigIntegerField()
+    reason = models.TextField(blank=True)
+    request_id = models.CharField(max_length=64, blank=True, db_index=True)
     diff = models.JSONField(default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

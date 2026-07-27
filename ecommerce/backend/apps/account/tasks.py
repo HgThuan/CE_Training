@@ -98,3 +98,46 @@ def send_account_status_email(user_id: int, is_active: bool, reason: str) -> int
     )
     logger.info("Account status email accepted by email backend", extra={"user_id": user_id})
     return sent_count
+
+
+@shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
+def send_seller_application_status_email(
+    user_id: int,
+    approved: bool,
+    reason: str,
+) -> int:
+    user = User.objects.filter(pk=user_id, is_deleted=False).first()
+    if user is None:
+        return 0
+    status_text = "đã được duyệt" if approved else "đã bị từ chối"
+    detail = (
+        "Bạn có thể đăng nhập lại để truy cập Seller workspace." if approved else f"Lý do: {reason}"
+    )
+    sent_count = _send_one_email(
+        subject=f"Hồ sơ seller {status_text}",
+        message=f"Chào bạn,\n\nHồ sơ seller của bạn {status_text}.\n{detail}",
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[user.email],
+    )
+    logger.info("Seller application email accepted by email backend", extra={"user_id": user_id})
+    return sent_count
+
+
+@shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
+def send_shop_status_email(user_id: int, locked: bool, reason: str) -> int:
+    user = User.objects.filter(pk=user_id, is_deleted=False).first()
+    if user is None:
+        return 0
+    status_text = "bị khóa" if locked else "được mở khóa"
+    sent_count = _send_one_email(
+        subject=f"Gian hàng đã {status_text}",
+        message=(
+            f"Chào bạn,\n\nGian hàng của bạn đã {status_text}.\n"
+            f"Lý do/Ghi chú: {reason}\n\n"
+            "Gian hàng bị khóa không thể tạo sản phẩm hoặc đơn hàng mới."
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[user.email],
+    )
+    logger.info("Shop status email accepted by email backend", extra={"user_id": user_id})
+    return sent_count

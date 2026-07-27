@@ -4,6 +4,7 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from apps.account.views import seller_document_download
 from apps.common.views import HealthCheckView
 
 urlpatterns = [
@@ -16,6 +17,11 @@ urlpatterns = [
         name="api-docs",
     ),
     path("api/v1/", include("apps.account.urls")),
+    path(
+        "protected-media/seller-documents/<str:token>/",
+        seller_document_download,
+        name="seller-document-download",
+    ),
 ]
 
 if settings.DEBUG:

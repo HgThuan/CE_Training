@@ -1,5 +1,7 @@
+import logging
 from functools import partial
 from io import BytesIO
+from pathlib import Path
 from uuid import uuid4
 
 from django.conf import settings
@@ -13,17 +15,28 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.utils.text import slugify
 from PIL import Image, ImageOps, UnidentifiedImageError
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 
 from apps.common.exceptions import BusinessError
 from apps.common.models import AuditLog
 
-from .models import Address, AdminProfile, CustomerProfile, SellerProfile
+from .constants import SHOP_IMAGE_SIZES
+from .models import (
+    Address,
+    AdminProfile,
+    CustomerProfile,
+    Notification,
+    SellerDocument,
+    SellerProfile,
+    Shop,
+)
 from .selectors import get_user_by_email
 from .tokens import AuthTokenService, EmailVerificationTokenService
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class AccountService:
@@ -222,7 +235,7 @@ class AccountService:
 
     @staticmethod
     @transaction.atomic
-    def assign_role(*, actor, target_user_id: int, role: str):
+    def assign_role(*, actor, target_user_id: int, role: str, request_id: str = ""):
         target = User.objects.select_for_update().filter(pk=target_user_id).first()
         if target is None:
             raise BusinessError("Không tìm thấy người dùng", http_status=404)
@@ -240,18 +253,46 @@ class AccountService:
         old_role = target.role
         if old_role == role:
             return target
-
         target.role = role
         target.is_staff = role == User.Role.ADMIN
         target.save(update_fields=["role", "is_staff", "updated_at"])
         AccountService.ensure_role_profile(user=target)
+        if role == User.Role.SELLER:
+            profile = SellerProfile.objects.select_for_update().get(user=target)
+            if profile.onboarding_status != SellerProfile.OnboardingStatus.APPROVED:
+                profile.business_name = profile.business_name or target.full_name or target.email
+                profile.onboarding_status = SellerProfile.OnboardingStatus.APPROVED
+                profile.rejection_reason = ""
+                profile.reviewed_by = actor
+                profile.reviewed_at = timezone.now()
+                profile.save()
+            SellerOnboardingService._create_shop(profile=profile)
+        if old_role == User.Role.SELLER and role != User.Role.SELLER:
+            Shop.objects.filter(owner=target, is_deleted=False).update(
+                status=Shop.Status.LOCKED,
+                lock_reason="Vai trò Seller đã bị thu hồi",
+                locked_at=timezone.now(),
+                updated_at=timezone.now(),
+            )
         AccountService.invalidate_all_sessions(user=target)
         AuditLog.objects.create(
             actor=actor,
             action="assign_role",
             target_type="User",
             target_id=target.pk,
+            reason="Thay đổi vai trò người dùng",
+            request_id=request_id,
             diff={"role": {"before": old_role, "after": role}},
+        )
+        logger.info(
+            "Admin changed user role",
+            extra={
+                "request_id": request_id,
+                "user_id": actor.pk,
+                "target_user_id": target.pk,
+                "old_role": old_role,
+                "new_role": role,
+            },
         )
         return target
 
@@ -510,6 +551,7 @@ class AccountService:
         target_user_id: int,
         is_active: bool,
         reason: str,
+        request_id: str = "",
     ):
         target = AccountService._get_protected_admin_target(
             actor=actor,
@@ -532,9 +574,20 @@ class AccountService:
             action="unlock_user" if is_active else "lock_user",
             target_type="User",
             target_id=target.pk,
+            reason=normalized_reason,
+            request_id=request_id,
             diff={
                 "is_active": {"before": previous, "after": is_active},
                 "reason": normalized_reason,
+            },
+        )
+        logger.info(
+            "Admin changed account status",
+            extra={
+                "request_id": request_id,
+                "user_id": actor.pk,
+                "target_user_id": target.pk,
+                "is_active": is_active,
             },
         )
 
@@ -552,7 +605,13 @@ class AccountService:
 
     @staticmethod
     @transaction.atomic
-    def admin_reset_password(*, actor, target_user_id: int, reason: str = ""):
+    def admin_reset_password(
+        *,
+        actor,
+        target_user_id: int,
+        reason: str = "",
+        request_id: str = "",
+    ):
         target = AccountService._get_protected_admin_target(
             actor=actor,
             target_user_id=target_user_id,
@@ -572,6 +631,8 @@ class AccountService:
             action="admin_reset_password",
             target_type="User",
             target_id=target.pk,
+            reason=reason.strip(),
+            request_id=request_id,
             diff={"reason": reason.strip(), "sessions_revoked": True},
         )
 
@@ -595,3 +656,495 @@ class AccountService:
             "uid": urlsafe_base64_encode(force_bytes(user.pk)),
             "token": default_token_generator.make_token(user),
         }
+
+
+class SellerOnboardingService:
+    @staticmethod
+    @transaction.atomic
+    def submit_application(*, user, application_data: dict):
+        locked_user = User.objects.select_for_update().get(pk=user.pk, is_deleted=False)
+        profile, _ = SellerProfile.objects.select_for_update().get_or_create(user=locked_user)
+        if profile.onboarding_status == SellerProfile.OnboardingStatus.APPROVED:
+            raise BusinessError(
+                "Hồ sơ seller đã được duyệt",
+                errors={"application": ["Không thể nộp lại hồ sơ đã được duyệt"]},
+            )
+        if (
+            profile.onboarding_status == SellerProfile.OnboardingStatus.PENDING
+            and profile.submitted_at
+        ):
+            raise BusinessError(
+                "Hồ sơ đang chờ duyệt",
+                errors={"application": ["Vui lòng chờ Admin xử lý hồ sơ hiện tại"]},
+            )
+
+        for field, value in application_data.items():
+            setattr(profile, field, value)
+        profile.onboarding_status = SellerProfile.OnboardingStatus.PENDING
+        profile.rejection_reason = ""
+        profile.submitted_at = timezone.now()
+        profile.reviewed_at = None
+        profile.reviewed_by = None
+        profile.is_deleted = False
+        profile.deleted_at = None
+        profile.save()
+        return profile
+
+    @staticmethod
+    @transaction.atomic
+    def add_document(*, user, document_type: str, uploaded_file):
+        profile = (
+            SellerProfile.objects.select_for_update().filter(user=user, is_deleted=False).first()
+        )
+        if profile is None or not profile.submitted_at:
+            raise BusinessError(
+                "Chưa có hồ sơ seller",
+                errors={"application": ["Hãy hoàn tất bước thông tin trước khi tải giấy tờ"]},
+            )
+        if profile.onboarding_status == SellerProfile.OnboardingStatus.APPROVED:
+            raise BusinessError(
+                "Hồ sơ seller đã được duyệt",
+                errors={"document": ["Không thể thay đổi giấy tờ onboarding"]},
+            )
+
+        previous_documents = SellerDocument.objects.select_for_update().filter(
+            seller_profile=profile,
+            document_type=document_type,
+            is_deleted=False,
+        )
+        now = timezone.now()
+        previous_documents.update(is_deleted=True, deleted_at=now, updated_at=now)
+        document = SellerDocument.objects.create(
+            seller_profile=profile,
+            document_type=document_type,
+            file=uploaded_file,
+            original_name=Path(uploaded_file.name).name,
+        )
+        profile.verification_status = SellerProfile.VerificationStatus.PENDING
+        profile.save(update_fields=["verification_status", "updated_at"])
+        return document
+
+    @staticmethod
+    @transaction.atomic
+    def review_application(
+        *,
+        actor,
+        profile_id: int,
+        approved: bool,
+        reason: str = "",
+        request_id: str = "",
+    ):
+        profile = (
+            SellerProfile.objects.select_for_update()
+            .select_related("user")
+            .filter(pk=profile_id, is_deleted=False)
+            .first()
+        )
+        if profile is None:
+            raise BusinessError("Không tìm thấy hồ sơ seller", http_status=404)
+        if profile.onboarding_status != SellerProfile.OnboardingStatus.PENDING:
+            raise BusinessError(
+                "Hồ sơ không còn ở trạng thái chờ duyệt",
+                errors={"status": [profile.get_onboarding_status_display()]},
+            )
+
+        normalized_reason = reason.strip()
+        if not approved and not normalized_reason:
+            raise BusinessError(
+                "Lý do từ chối là bắt buộc",
+                errors={"reason": ["Vui lòng nhập lý do từ chối"]},
+            )
+        if (
+            approved
+            and not SellerDocument.objects.filter(
+                seller_profile=profile,
+                is_deleted=False,
+            ).exists()
+        ):
+            raise BusinessError(
+                "Hồ sơ chưa có giấy tờ",
+                errors={"documents": ["Cần ít nhất một giấy tờ trước khi duyệt"]},
+            )
+
+        previous_status = profile.onboarding_status
+        profile.onboarding_status = (
+            SellerProfile.OnboardingStatus.APPROVED
+            if approved
+            else SellerProfile.OnboardingStatus.REJECTED
+        )
+        profile.rejection_reason = "" if approved else normalized_reason
+        profile.reviewed_by = actor
+        profile.reviewed_at = timezone.now()
+        profile.save(
+            update_fields=[
+                "onboarding_status",
+                "rejection_reason",
+                "reviewed_by",
+                "reviewed_at",
+                "updated_at",
+            ],
+        )
+
+        shop = None
+        if approved:
+            shop = SellerOnboardingService._create_shop(profile=profile)
+            profile.user.role = User.Role.SELLER
+            profile.user.is_staff = False
+            profile.user.save(update_fields=["role", "is_staff", "updated_at"])
+            AccountService.invalidate_all_sessions(user=profile.user)
+
+        action = "approve_seller" if approved else "reject_seller"
+        title = "Hồ sơ seller đã được duyệt" if approved else "Hồ sơ seller bị từ chối"
+        message = f"Gian hàng {shop.name} đã sẵn sàng." if shop else f"Lý do: {normalized_reason}"
+        Notification.objects.create(
+            user=profile.user,
+            kind=Notification.Kind.SELLER_APPLICATION,
+            title=title,
+            message=message,
+            metadata={"seller_profile_id": profile.pk, "shop_id": shop.pk if shop else None},
+        )
+        AuditLog.objects.create(
+            actor=actor,
+            action=action,
+            target_type="SellerProfile",
+            target_id=profile.pk,
+            reason=normalized_reason,
+            request_id=request_id,
+            diff={
+                "onboarding_status": {
+                    "before": previous_status,
+                    "after": profile.onboarding_status,
+                },
+                "shop_id": shop.pk if shop else None,
+            },
+        )
+        logger.info(
+            "Admin reviewed seller application",
+            extra={
+                "request_id": request_id,
+                "user_id": actor.pk,
+                "target_user_id": profile.user_id,
+                "approved": approved,
+            },
+        )
+
+        from .tasks import send_seller_application_status_email
+
+        transaction.on_commit(
+            partial(
+                send_seller_application_status_email.delay,
+                profile.user_id,
+                approved,
+                normalized_reason,
+            ),
+        )
+        return profile
+
+    @staticmethod
+    def _create_shop(*, profile: SellerProfile):
+        existing_shop = Shop.objects.select_for_update().filter(owner=profile.user).first()
+        if existing_shop:
+            if existing_shop.is_deleted:
+                existing_shop.is_deleted = False
+                existing_shop.deleted_at = None
+                existing_shop.status = Shop.Status.APPROVED
+                existing_shop.lock_reason = ""
+                existing_shop.locked_at = None
+                existing_shop.save()
+            return existing_shop
+
+        base_slug = slugify(profile.business_name) or f"shop-{profile.user_id}"
+        slug = base_slug
+        suffix = 2
+        while Shop.objects.filter(slug=slug).exists():
+            slug = f"{base_slug}-{suffix}"
+            suffix += 1
+        return Shop.objects.create(
+            owner=profile.user,
+            name=profile.business_name,
+            slug=slug,
+            description="",
+            status=Shop.Status.APPROVED,
+        )
+
+
+class SellerDocumentService:
+    @staticmethod
+    @transaction.atomic
+    def review_document(
+        *,
+        actor,
+        document_id: int,
+        review_status: str,
+        reason: str = "",
+        request_id: str = "",
+    ):
+        document = (
+            SellerDocument.objects.select_for_update()
+            .select_related("seller_profile__user")
+            .filter(pk=document_id, is_deleted=False)
+            .first()
+        )
+        if document is None:
+            raise BusinessError("Không tìm thấy giấy tờ seller", http_status=404)
+        normalized_reason = reason.strip()
+        if (
+            review_status == SellerDocument.ReviewStatus.ADDITIONAL_REQUIRED
+            and not normalized_reason
+        ):
+            raise BusinessError(
+                "Lý do yêu cầu bổ sung là bắt buộc",
+                errors={"reason": ["Vui lòng mô tả giấy tờ cần bổ sung"]},
+            )
+
+        previous_status = document.review_status
+        document.review_status = review_status
+        document.review_reason = normalized_reason
+        document.reviewed_by = actor
+        document.reviewed_at = timezone.now()
+        document.save(
+            update_fields=[
+                "review_status",
+                "review_reason",
+                "reviewed_by",
+                "reviewed_at",
+                "updated_at",
+            ],
+        )
+        profile = document.seller_profile
+        active_documents = SellerDocument.objects.filter(
+            seller_profile=profile,
+            is_deleted=False,
+        )
+        if active_documents.filter(
+            review_status=SellerDocument.ReviewStatus.ADDITIONAL_REQUIRED
+        ).exists():
+            profile.verification_status = SellerProfile.VerificationStatus.UNVERIFIED
+        elif (
+            active_documents.exists()
+            and not active_documents.exclude(
+                review_status=SellerDocument.ReviewStatus.VERIFIED
+            ).exists()
+        ):
+            profile.verification_status = SellerProfile.VerificationStatus.VERIFIED
+        else:
+            profile.verification_status = SellerProfile.VerificationStatus.PENDING
+        profile.save(update_fields=["verification_status", "updated_at"])
+
+        Notification.objects.create(
+            user=profile.user,
+            kind=Notification.Kind.DOCUMENT_REVIEW,
+            title="Cập nhật xác minh giấy tờ",
+            message=normalized_reason or document.get_review_status_display(),
+            metadata={"document_id": document.pk, "review_status": review_status},
+        )
+        AuditLog.objects.create(
+            actor=actor,
+            action="review_seller_document",
+            target_type="SellerDocument",
+            target_id=document.pk,
+            reason=normalized_reason,
+            request_id=request_id,
+            diff={"review_status": {"before": previous_status, "after": review_status}},
+        )
+        return document
+
+
+class ShopBusinessPolicy:
+    @staticmethod
+    def can_create_new_resource(*, shop: Shop) -> bool:
+        return not shop.is_deleted and shop.status == Shop.Status.APPROVED
+
+    @staticmethod
+    def ensure_can_create_new_resource(*, shop: Shop) -> None:
+        if not ShopBusinessPolicy.can_create_new_resource(shop=shop):
+            raise BusinessError(
+                "Gian hàng đang bị khóa",
+                errors={"shop": ["Không thể tạo sản phẩm hoặc đơn hàng mới"]},
+                http_status=403,
+            )
+
+
+class ShopService:
+    @staticmethod
+    @transaction.atomic
+    def update_shop_image(*, user, image_type: str, uploaded_file):
+        target_size = SHOP_IMAGE_SIZES.get(image_type)
+        if target_size is None:
+            raise BusinessError(
+                "Loại ảnh gian hàng không hợp lệ",
+                errors={"image_type": ["Chỉ chấp nhận logo hoặc cover"]},
+            )
+        shop = Shop.objects.select_for_update().filter(owner=user, is_deleted=False).first()
+        if shop is None:
+            raise BusinessError("Không tìm thấy gian hàng", http_status=404)
+
+        try:
+            uploaded_file.seek(0)
+            with Image.open(uploaded_file) as candidate:
+                candidate.verify()
+            uploaded_file.seek(0)
+            with Image.open(uploaded_file) as source:
+                if source.width * source.height > 40_000_000:
+                    raise BusinessError(
+                        "Ảnh gian hàng có độ phân giải quá lớn",
+                        errors={"image": ["Ảnh không được vượt quá 40 triệu điểm ảnh"]},
+                    )
+                normalized = ImageOps.exif_transpose(source).convert("RGB")
+                normalized = ImageOps.fit(
+                    normalized,
+                    target_size,
+                    method=Image.Resampling.LANCZOS,
+                    centering=(0.5, 0.5),
+                )
+                output = BytesIO()
+                normalized.save(output, format="WEBP", quality=88, method=6)
+        except (UnidentifiedImageError, OSError, ValueError) as exc:
+            raise BusinessError(
+                "Tệp ảnh gian hàng không hợp lệ",
+                errors={"image": ["Nội dung tệp không phải JPEG, PNG hoặc WebP hợp lệ"]},
+            ) from exc
+
+        image_field = getattr(shop, image_type)
+        previous_name = image_field.name
+        image_field.save(f"{uuid4().hex}.webp", ContentFile(output.getvalue()), save=False)
+        shop.save(update_fields=[image_type, "updated_at"])
+        if previous_name:
+            transaction.on_commit(partial(default_storage.delete, previous_name))
+        return shop
+
+    @staticmethod
+    @transaction.atomic
+    def update_own_shop(*, user, shop_data: dict):
+        shop = Shop.objects.select_for_update().filter(owner=user, is_deleted=False).first()
+        if shop is None:
+            raise BusinessError("Không tìm thấy gian hàng", http_status=404)
+        for field, value in shop_data.items():
+            setattr(shop, field, value)
+        shop.save()
+        return shop
+
+    @staticmethod
+    @transaction.atomic
+    def update_shop_by_admin(*, actor, shop_id: int, shop_data: dict, request_id: str = ""):
+        shop = Shop.objects.select_for_update().filter(pk=shop_id, is_deleted=False).first()
+        if shop is None:
+            raise BusinessError("Không tìm thấy gian hàng", http_status=404)
+        diff = {}
+        for field, value in shop_data.items():
+            previous = getattr(shop, field)
+            if previous != value:
+                setattr(shop, field, value)
+                diff[field] = {"before": previous, "after": value}
+        if diff:
+            shop.save()
+            AuditLog.objects.create(
+                actor=actor,
+                action="update_shop",
+                target_type="Shop",
+                target_id=shop.pk,
+                request_id=request_id,
+                diff=diff,
+            )
+        return shop
+
+    @staticmethod
+    @transaction.atomic
+    def set_shop_locked(
+        *,
+        actor,
+        shop_id: int,
+        locked: bool,
+        reason: str,
+        request_id: str = "",
+    ):
+        shop = (
+            Shop.objects.select_for_update()
+            .select_related("owner")
+            .filter(pk=shop_id, is_deleted=False)
+            .first()
+        )
+        if shop is None:
+            raise BusinessError("Không tìm thấy gian hàng", http_status=404)
+        normalized_reason = reason.strip()
+        target_status = Shop.Status.LOCKED if locked else Shop.Status.APPROVED
+        if shop.status == target_status:
+            return shop
+
+        previous_status = shop.status
+        shop.status = target_status
+        shop.lock_reason = normalized_reason if locked else ""
+        shop.locked_at = timezone.now() if locked else None
+        shop.save(update_fields=["status", "lock_reason", "locked_at", "updated_at"])
+        Notification.objects.create(
+            user=shop.owner,
+            kind=Notification.Kind.SHOP_STATUS,
+            title="Gian hàng bị khóa" if locked else "Gian hàng đã được mở khóa",
+            message=normalized_reason,
+            metadata={"shop_id": shop.pk, "status": target_status},
+        )
+        AuditLog.objects.create(
+            actor=actor,
+            action="lock_shop" if locked else "unlock_shop",
+            target_type="Shop",
+            target_id=shop.pk,
+            reason=normalized_reason,
+            request_id=request_id,
+            diff={"status": {"before": previous_status, "after": target_status}},
+        )
+        logger.info(
+            "Admin changed shop status",
+            extra={
+                "request_id": request_id,
+                "user_id": actor.pk,
+                "shop_id": shop.pk,
+                "locked": locked,
+            },
+        )
+
+        from .tasks import send_shop_status_email
+
+        transaction.on_commit(
+            partial(send_shop_status_email.delay, shop.owner_id, locked, normalized_reason),
+        )
+        return shop
+
+    @staticmethod
+    @transaction.atomic
+    def soft_delete_seller(*, actor, target_user_id: int, reason: str, request_id: str = ""):
+        target = (
+            User.objects.select_for_update()
+            .filter(pk=target_user_id, role=User.Role.SELLER, is_deleted=False)
+            .first()
+        )
+        if target is None:
+            raise BusinessError("Không tìm thấy seller", http_status=404)
+        now = timezone.now()
+        Shop.objects.select_for_update().filter(owner=target, is_deleted=False).update(
+            is_deleted=True,
+            deleted_at=now,
+            status=Shop.Status.LOCKED,
+            lock_reason=reason.strip(),
+            locked_at=now,
+            updated_at=now,
+        )
+        SellerProfile.objects.select_for_update().filter(user=target, is_deleted=False).update(
+            is_deleted=True,
+            deleted_at=now,
+            updated_at=now,
+        )
+        target.is_active = False
+        target.is_deleted = True
+        target.deleted_at = now
+        AccountService._release_deleted_email(target)
+        target.save(update_fields=["is_active", "is_deleted", "deleted_at", "updated_at"])
+        AccountService.invalidate_all_sessions(user=target)
+        AuditLog.objects.create(
+            actor=actor,
+            action="delete_seller",
+            target_type="User",
+            target_id=target.pk,
+            reason=reason.strip(),
+            request_id=request_id,
+            diff={"is_deleted": {"before": False, "after": True}},
+        )

@@ -246,6 +246,29 @@ Các giá trị sau phải được suy ra hoặc xác minh ở backend:
 
 Các bảng bonus chỉ được migration vào nhánh chính khi tính năng tương ứng được đưa vào scope triển khai.
 
+### 4.3. Mapping vật lý đã triển khai — Sprint 2
+
+Thiết kế vật lý hiện dùng primary key `BigAutoField` mặc định Django, không dùng UUID. RBAC dùng
+một cột primary role trên `account_user`; bảng `roles`/`user_roles` trong thiết kế dài hạn chưa
+được tạo vì Sprint 2 chỉ yêu cầu một trong ba role tại một thời điểm.
+
+| Django model / table | Quan hệ và trường chính | Soft delete / index |
+|---|---|---|
+| `User` / `account_user` | `role`, `is_active`, `lock_reason`, `must_change_password`, `token_version` | `is_deleted`, `deleted_at`; index email/role/active |
+| `SellerProfile` / `account_sellerprofile` | one-to-one User; thông tin doanh nghiệp, onboarding/verification status, reviewer/timestamps | `is_deleted`, `deleted_at`; status + created index |
+| `SellerDocument` / `account_sellerdocument` | FK SellerProfile; type, private file path, review status/reason/reviewer | `is_deleted`, `deleted_at`; profile + active index |
+| `Shop` / `account_shop` | one-to-one owner User; unique slug; `logo` 512×512, `cover` 1600×480; status pending/approved/rejected/locked; rating | `is_deleted`, `deleted_at`; status + active, created index |
+| `Notification` / `account_notification` | FK User; kind, title, message, metadata, read status | `is_deleted`, `deleted_at`; user + read + created index |
+| `AuditLog` / `common_auditlog` | actor, action, target type/id, reason, request_id, JSON diff | append-only; actor/target/request indexes |
+
+`SellerProfile` đồng thời là hồ sơ onboarding và hồ sơ seller sau duyệt. Phương án một bảng tránh
+copy dữ liệu và quan hệ giấy tờ khi duyệt. Trạng thái cùng reviewer/timestamp giữ lịch sử quyết định;
+`AuditLog` giữ diff hành động. Hai URL giấy tờ cũ trên profile được giữ tạm để migration tương thích
+nhưng API Sprint 2 chỉ dùng `SellerDocument`.
+
+`SellerDocument.file` dùng tên UUID dưới `private/seller-documents/{user_id}/`. Nginx từ chối
+`/media/private/`; serializer có quyền tạo URL download ký số với TTL 5 phút, không lộ storage path.
+
 ---
 
 ## 5. ERD cấp domain
@@ -254,16 +277,20 @@ Các bảng bonus chỉ được migration vào nhánh chính khi tính năng t�
 
 ```mermaid
 erDiagram
-    USERS ||--o{ USER_ROLES : assigned
-    ROLES ||--o{ USER_ROLES : contains
     USERS ||--o| ADMIN_PROFILES : has
     USERS ||--o| CUSTOMER_PROFILES : has
-    USERS ||--o| SELLER_PROFILES : has
+    USERS ||--o| SELLER_PROFILES : submits_and_becomes
     USERS ||--o{ ADDRESSES : owns
-    USERS ||--o{ SELLER_APPLICATIONS : submits
-    SELLER_APPLICATIONS ||--o{ SELLER_VERIFICATION_DOCUMENTS : includes
-    SELLER_PROFILES ||--|| SHOPS : operates
+    SELLER_PROFILES ||--o{ SELLER_DOCUMENTS : includes
+    USERS ||--o| SHOPS : owns
+    USERS ||--o{ NOTIFICATIONS : receives
+    USERS ||--o{ AUDIT_LOGS : acts
 ```
+
+Tenant isolation tại Shop không nhận owner từ client. Service/selector resolve `owner=request.user`
+trước khi dùng object ID; object permission kiểm tra lại `shop.owner_id == request.user.id`.
+Logo và cover dùng `ImageField`; service re-encode WebP kích thước cố định. Hai cột URL cũ được giữ
+tạm cho dữ liệu legacy nhưng không còn là input API và sẽ được loại bỏ ở migration dọn dữ liệu sau.
 
 ### 5.2. Catalog và biến thể
 

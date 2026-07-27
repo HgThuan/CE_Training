@@ -1,7 +1,16 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 
-from .models import Address, AdminProfile, CustomerProfile, SellerProfile, User
+from .models import (
+    Address,
+    AdminProfile,
+    CustomerProfile,
+    Notification,
+    SellerDocument,
+    SellerProfile,
+    Shop,
+    User,
+)
 
 
 @admin.register(User)
@@ -67,4 +76,7 @@ class UserAdmin(DjangoUserAdmin):
 admin.site.register(CustomerProfile)
 admin.site.register(Address)
 admin.site.register(SellerProfile)
+admin.site.register(SellerDocument)
+admin.site.register(Shop)
+admin.site.register(Notification)
 admin.site.register(AdminProfile)

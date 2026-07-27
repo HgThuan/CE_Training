@@ -58,6 +58,7 @@ Tài liệu thiết kế API RESTful cho toàn bộ hệ thống, dựa trên `D
 | GET | `/admin/sellers` | Admin | Danh sách seller (filter theo trạng thái) | ADM-05 |
 | GET | `/admin/sellers/{id}` | Admin | Chi tiết seller + shop | ADM-05 |
 | PATCH | `/admin/sellers/{id}` | Admin | Sửa thông tin gian hàng | ADM-05 |
+| DELETE | `/admin/sellers/{id}` | Admin | Xóa mềm seller và shop, kèm lý do | ADM-05 |
 | POST | `/admin/users/{id}/lock` | Admin | Khóa tài khoản (kèm lý do) | ADM-06 |
 | POST | `/admin/users/{id}/unlock` | Admin | Mở khóa tài khoản | ADM-06 |
 | POST | `/admin/users/{id}/reset-password` | Admin | Reset mật khẩu người dùng | ADM-07 |
@@ -66,7 +67,7 @@ Tài liệu thiết kế API RESTful cho toàn bộ hệ thống, dựa trên `D
 | GET | `/admin/seller-applications/{id}` | Admin | Chi tiết hồ sơ | ADM-09 |
 | POST | `/admin/seller-applications/{id}/approve` | Admin | Duyệt hồ sơ seller | ADM-09 |
 | POST | `/admin/seller-applications/{id}/reject` | Admin | Từ chối kèm lý do | ADM-09 |
-| POST | `/admin/seller-applications/{id}/request-documents` | Admin | Yêu cầu bổ sung giấy tờ | ADM-10 |
+| POST | `/admin/seller-documents/{id}/review` | Admin | Xác minh hoặc yêu cầu bổ sung từng giấy tờ | ADM-10 |
 | POST | `/admin/shops/{id}/lock` | Admin | Khóa gian hàng | ADM-11 |
 | POST | `/admin/shops/{id}/unlock` | Admin | Mở khóa gian hàng | ADM-11 |
 | GET | `/admin/shops/{id}/revenue` | Admin | Doanh thu seller theo tháng | ADM-12 |
@@ -79,6 +80,12 @@ Ghi chú hiện thực Nhóm 1:
   còn email ban đầu được phép đăng ký lại thành một Customer mới và phải xác thực lại.
 - Khóa/mở khóa yêu cầu `reason`, thu hồi phiên hiện tại, ghi `AuditLog` và gửi email bằng Celery.
 - Admin reset mật khẩu sẽ vô hiệu mật khẩu cũ, thu hồi phiên, đặt `must_change_password = TRUE` và gửi link token qua email. Cờ được xóa sau khi người dùng đặt mật khẩu mới thành công.
+- Duyệt hồ sơ seller chạy trong transaction: chuyển role, tạo Shop có slug duy nhất, thu hồi
+  session cũ, tạo Notification/AuditLog và chỉ enqueue email sau commit.
+- Giấy tờ lưu dưới private media prefix; API có quyền chỉ trả signed download URL sống 5 phút,
+  không trả đường dẫn storage thô.
+- `reason` và `request_id` của thao tác khóa/mở/duyệt/từ chối được lưu vào `AuditLog`; log runtime
+  có `request_id`, actor `user_id` và target.
 
 ## 3. Admin — Quản lý sản phẩm & Danh mục
 
@@ -175,10 +182,25 @@ Toàn bộ endpoint dưới đây tự động scope theo `shop_id` của Seller
 | GET | `/seller/conversations` | Seller | Danh sách hội thoại | SEL-16 |
 | GET | `/seller/conversations/{id}/messages` | Seller | Lịch sử tin nhắn | SEL-16 |
 | WS | `/ws/chat/{conversation_id}` | Seller/Customer | Kênh chat realtime | SEL-16, CUS-20 |
-| GET | `/shops/{slug}` | Public | Trang gian hàng công khai | SEL-17 |
-| GET | `/shops/{slug}/products` | Public | Sản phẩm của shop (phân trang, lọc) | SEL-17 |
-| POST | `/seller/onboarding/apply` | Owner (Customer) | Nộp hồ sơ đăng ký bán hàng | SEL-18 |
-| GET | `/seller/onboarding/status` | Owner | Theo dõi trạng thái hồ sơ | SEL-18 |
+| GET | `/shops/{slug}` | Public | Info shop + danh sách sản phẩm phân trang trong một response | SEL-17 |
+| POST | `/seller-applications/me` | Owner (Customer) | Bước 1: nộp thông tin đăng ký seller | SEL-18 |
+| GET | `/seller-applications/me` | Owner | Theo dõi trạng thái hồ sơ của chính user | SEL-18 |
+| POST | `/seller-applications/me/documents` | Owner (Customer) | Bước 2: upload JPEG/PNG/PDF | SEL-18 |
+| GET | `/seller/shop` | Seller/Owner | Lấy shop từ JWT, không nhận `shop_id` client | SEL-17, NFR-02 |
+| PATCH | `/seller/shop` | Seller/Owner | Cập nhật shop của chính seller | SEL-17, NFR-02 |
+| POST | `/seller/shop/logo` | Seller/Owner | Upload JPEG/PNG/WebP; crop và lưu WebP 512×512 | SEL-17 |
+| POST | `/seller/shop/cover` | Seller/Owner | Upload JPEG/PNG/WebP; crop và lưu WebP 1600×480 | SEL-17 |
+| GET/PATCH | `/seller/shops/{id}` | Seller/Owner | Endpoint kiểm tra object-level; ID vẫn bị scope theo owner | NFR-02 |
+
+Ghi chú SEL-17/ADM-11 trong Sprint 2:
+
+- Do Product chưa có model, public shop trả `products: []`, `available_filters`,
+  `available_sorts` và `meta` đúng contract để Sprint 3 nối selector thật.
+- Public selector chỉ trả Shop `approved`; Shop `locked` nhận 404.
+- `ShopBusinessPolicy.ensure_can_create_new_resource()` là contract bắt buộc cho service tạo
+  Product/Order mới. Xử lý order đã tồn tại không dùng policy này, nên vẫn hoạt động khi shop khóa.
+- `PATCH /seller/shop` không nhận `logo_url`/`cover_url`; ảnh phải đi qua hai endpoint multipart để
+  backend xác minh nội dung, chuẩn hóa kích thước và tránh hotlink ảnh ngoài.
 
 ---
 

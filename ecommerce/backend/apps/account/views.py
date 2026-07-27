@@ -1,5 +1,7 @@
 from django.conf import settings
 from django.contrib.auth.models import update_last_login
+from django.core import signing
+from django.http import FileResponse, Http404
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema
 from rest_framework import filters, generics
@@ -13,9 +15,19 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from apps.common.exceptions import BusinessError
 from apps.common.responses import success_response
 
-from .models import Address, User
-from .permissions import IsAdmin, IsCustomer
-from .selectors import get_customer_for_admin, get_user_for_profile
+from .models import Address, SellerDocument, User
+from .permissions import IsAdmin, IsCustomer, IsSellerApplicationOwner, IsShopOwner
+from .selectors import (
+    get_customer_for_admin,
+    get_public_shop,
+    get_seller_application_for_admin,
+    get_seller_application_for_user,
+    get_seller_for_admin,
+    get_shop_for_owner,
+    get_user_for_profile,
+    seller_applications_for_admin,
+    sellers_for_admin,
+)
 from .serializers import (
     AccountStatusSerializer,
     AddressListResponseSerializer,
@@ -28,6 +40,9 @@ from .serializers import (
     AdminCustomerResponseSerializer,
     AdminCustomerUpdateSerializer,
     AdminResetPasswordSerializer,
+    AdminSellerListResponseSerializer,
+    AdminSellerResponseSerializer,
+    AdminSellerSerializer,
     AssignRoleSerializer,
     AvatarUploadSerializer,
     ChangePasswordSerializer,
@@ -37,14 +52,56 @@ from .serializers import (
     RefreshSerializer,
     RegisterSerializer,
     ResetPasswordSerializer,
+    SellerApplicationListResponseSerializer,
+    SellerApplicationResponseSerializer,
+    SellerApplicationReviewSerializer,
+    SellerApplicationSubmitSerializer,
+    SellerDocumentResponseSerializer,
+    SellerDocumentReviewSerializer,
+    SellerDocumentSerializer,
+    SellerDocumentUploadSerializer,
+    SellerProfileSerializer,
     SessionResponseSerializer,
+    ShopImageUploadSerializer,
+    ShopResponseSerializer,
+    ShopSerializer,
+    ShopUpdateSerializer,
     TokenResponseSerializer,
     UserResponseSerializer,
     UserSerializer,
     VerifyEmailSerializer,
 )
-from .services import AccountService
+from .services import AccountService, SellerDocumentService, SellerOnboardingService, ShopService
 from .tokens import VersionedTokenRefreshSerializer
+
+
+def seller_document_download(request, token: str):
+    try:
+        payload = signing.loads(
+            token,
+            salt="seller-document-download",
+            max_age=settings.SELLER_DOCUMENT_LINK_MAX_AGE_SECONDS,
+        )
+    except signing.BadSignature as exc:
+        raise Http404("Liên kết giấy tờ không hợp lệ hoặc đã hết hạn") from exc
+
+    document = (
+        SellerDocument.objects.select_related("seller_profile__user")
+        .filter(
+            pk=payload.get("document_id"),
+            is_deleted=False,
+            seller_profile__is_deleted=False,
+            seller_profile__user__is_deleted=False,
+        )
+        .first()
+    )
+    if document is None or not document.file:
+        raise Http404("Không tìm thấy giấy tờ")
+    return FileResponse(
+        document.file.open("rb"),
+        as_attachment=True,
+        filename=document.original_name,
+    )
 
 
 def set_refresh_cookie(response, refresh_token: str) -> None:
@@ -330,6 +387,7 @@ class AssignRoleView(APIView):
         user = AccountService.assign_role(
             actor=request.user,
             target_user_id=user_id,
+            request_id=request.request_id,
             **serializer.validated_data,
         )
         return success_response(
@@ -501,6 +559,7 @@ class LockUserView(APIView):
             actor=request.user,
             target_user_id=user_id,
             is_active=False,
+            request_id=request.request_id,
             **serializer.validated_data,
         )
         return success_response(
@@ -520,6 +579,7 @@ class UnlockUserView(APIView):
             actor=request.user,
             target_user_id=user_id,
             is_active=True,
+            request_id=request.request_id,
             **serializer.validated_data,
         )
         return success_response(
@@ -541,8 +601,380 @@ class AdminResetPasswordView(APIView):
         AccountService.admin_reset_password(
             actor=request.user,
             target_user_id=user_id,
+            request_id=request.request_id,
             **serializer.validated_data,
         )
         return success_response(
             message="Đã thu hồi mật khẩu cũ và gửi liên kết đặt lại qua email",
+        )
+
+
+class SellerApplicationView(APIView):
+    def get_permissions(self):
+        classes = [IsCustomer] if self.request.method == "POST" else [IsSellerApplicationOwner]
+        return [permission() for permission in classes]
+
+    @extend_schema(responses={200: SellerApplicationResponseSerializer})
+    def get(self, request):
+        profile = get_seller_application_for_user(request.user)
+        if profile is not None:
+            self.check_object_permissions(request, profile)
+        return success_response(
+            message="Lấy trạng thái hồ sơ seller thành công",
+            data=(
+                SellerProfileSerializer(profile, context={"request": request}).data
+                if profile
+                else None
+            ),
+        )
+
+    @extend_schema(
+        request=SellerApplicationSubmitSerializer,
+        responses={201: SellerApplicationResponseSerializer},
+    )
+    def post(self, request):
+        serializer = SellerApplicationSubmitSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        profile = SellerOnboardingService.submit_application(
+            user=request.user,
+            application_data=dict(serializer.validated_data),
+        )
+        self.check_object_permissions(request, profile)
+        return success_response(
+            message="Đã gửi hồ sơ seller để xét duyệt",
+            data=SellerProfileSerializer(profile, context={"request": request}).data,
+            status_code=201,
+        )
+
+
+class SellerDocumentUploadView(APIView):
+    permission_classes = [IsCustomer]
+    parser_classes = [MultiPartParser, FormParser]
+
+    @extend_schema(
+        request=SellerDocumentUploadSerializer,
+        responses={201: SellerDocumentResponseSerializer},
+    )
+    def post(self, request):
+        serializer = SellerDocumentUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        document = SellerOnboardingService.add_document(
+            user=request.user,
+            document_type=serializer.validated_data["document_type"],
+            uploaded_file=serializer.validated_data["document"],
+        )
+        return success_response(
+            message="Tải giấy tờ seller thành công",
+            data=SellerDocumentSerializer(document, context={"request": request}).data,
+            status_code=201,
+        )
+
+
+class AdminSellerApplicationListView(generics.GenericAPIView):
+    permission_classes = [IsAdmin]
+    serializer_class = SellerProfileSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ("onboarding_status", "verification_status")
+    search_fields = ("business_name", "tax_code", "user__email", "user__full_name")
+    ordering_fields = ("submitted_at", "created_at", "business_name")
+    ordering = ("-submitted_at",)
+
+    def get_queryset(self):
+        return seller_applications_for_admin()
+
+    @extend_schema(
+        operation_id="admin_seller_applications_list",
+        responses={200: SellerApplicationListResponseSerializer},
+    )
+    def get(self, request):
+        page = self.paginate_queryset(self.filter_queryset(self.get_queryset()))
+        serializer = self.get_serializer(page, many=True, context={"request": request})
+        return self.get_paginated_response(serializer.data)
+
+
+class AdminSellerApplicationDetailView(APIView):
+    permission_classes = [IsAdmin]
+
+    @extend_schema(
+        operation_id="admin_seller_applications_retrieve",
+        responses={200: SellerApplicationResponseSerializer},
+    )
+    def get(self, request, profile_id: int):
+        profile = get_seller_application_for_admin(profile_id)
+        if profile is None:
+            raise BusinessError("Không tìm thấy hồ sơ seller", http_status=404)
+        return success_response(
+            data=SellerProfileSerializer(profile, context={"request": request}).data,
+        )
+
+
+class AdminSellerApplicationApproveView(APIView):
+    permission_classes = [IsAdmin]
+
+    @extend_schema(
+        request=SellerApplicationReviewSerializer,
+        responses={200: SellerApplicationResponseSerializer},
+    )
+    def post(self, request, profile_id: int):
+        serializer = SellerApplicationReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        profile = SellerOnboardingService.review_application(
+            actor=request.user,
+            profile_id=profile_id,
+            approved=True,
+            request_id=request.request_id,
+            **serializer.validated_data,
+        )
+        return success_response(
+            message="Duyệt hồ sơ seller thành công",
+            data=SellerProfileSerializer(profile, context={"request": request}).data,
+        )
+
+
+class AdminSellerApplicationRejectView(APIView):
+    permission_classes = [IsAdmin]
+
+    @extend_schema(
+        request=SellerApplicationReviewSerializer,
+        responses={200: SellerApplicationResponseSerializer},
+    )
+    def post(self, request, profile_id: int):
+        serializer = SellerApplicationReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        profile = SellerOnboardingService.review_application(
+            actor=request.user,
+            profile_id=profile_id,
+            approved=False,
+            request_id=request.request_id,
+            **serializer.validated_data,
+        )
+        return success_response(
+            message="Đã từ chối hồ sơ seller",
+            data=SellerProfileSerializer(profile, context={"request": request}).data,
+        )
+
+
+class AdminSellerDocumentReviewView(APIView):
+    permission_classes = [IsAdmin]
+
+    @extend_schema(
+        request=SellerDocumentReviewSerializer,
+        responses={200: SellerDocumentResponseSerializer},
+    )
+    def post(self, request, document_id: int):
+        serializer = SellerDocumentReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        document = SellerDocumentService.review_document(
+            actor=request.user,
+            document_id=document_id,
+            request_id=request.request_id,
+            **serializer.validated_data,
+        )
+        return success_response(
+            message="Cập nhật xác minh giấy tờ thành công",
+            data=SellerDocumentSerializer(document, context={"request": request}).data,
+        )
+
+
+class AdminSellerListView(generics.GenericAPIView):
+    permission_classes = [IsAdmin]
+    serializer_class = AdminSellerSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ("is_active", "shop__status")
+    search_fields = ("email", "full_name", "phone", "shop__name")
+    ordering_fields = ("created_at", "email", "shop__name")
+    ordering = ("-created_at",)
+
+    def get_queryset(self):
+        return sellers_for_admin()
+
+    @extend_schema(
+        operation_id="admin_sellers_list",
+        responses={200: AdminSellerListResponseSerializer},
+    )
+    def get(self, request):
+        page = self.paginate_queryset(self.filter_queryset(self.get_queryset()))
+        serializer = self.get_serializer(page, many=True, context={"request": request})
+        return self.get_paginated_response(serializer.data)
+
+
+class AdminSellerDetailView(APIView):
+    permission_classes = [IsAdmin]
+
+    @staticmethod
+    def get_seller(user_id: int):
+        seller = get_seller_for_admin(user_id)
+        if seller is None:
+            raise BusinessError("Không tìm thấy seller", http_status=404)
+        return seller
+
+    @extend_schema(
+        operation_id="admin_sellers_retrieve",
+        responses={200: AdminSellerResponseSerializer},
+    )
+    def get(self, request, user_id: int):
+        seller = self.get_seller(user_id)
+        return success_response(
+            data=AdminSellerSerializer(seller, context={"request": request}).data,
+        )
+
+    @extend_schema(request=ShopUpdateSerializer, responses={200: AdminSellerResponseSerializer})
+    def patch(self, request, user_id: int):
+        seller = self.get_seller(user_id)
+        shop = get_shop_for_owner(seller)
+        if shop is None:
+            raise BusinessError("Seller chưa có gian hàng", http_status=404)
+        serializer = ShopUpdateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        ShopService.update_shop_by_admin(
+            actor=request.user,
+            shop_id=shop.pk,
+            shop_data=dict(serializer.validated_data),
+            request_id=request.request_id,
+        )
+        seller = self.get_seller(user_id)
+        return success_response(
+            message="Cập nhật gian hàng seller thành công",
+            data=AdminSellerSerializer(seller, context={"request": request}).data,
+        )
+
+    @extend_schema(request=AccountStatusSerializer, responses={200: EmptyDataResponseSerializer})
+    def delete(self, request, user_id: int):
+        serializer = AccountStatusSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        ShopService.soft_delete_seller(
+            actor=request.user,
+            target_user_id=user_id,
+            request_id=request.request_id,
+            **serializer.validated_data,
+        )
+        return success_response(message="Xóa seller thành công")
+
+
+class SellerShopView(APIView):
+    permission_classes = [IsShopOwner]
+
+    def get_shop(self, request, shop_id: int | None = None):
+        shop = get_shop_for_owner(request.user, shop_id)
+        if shop is None:
+            raise BusinessError("Không tìm thấy gian hàng", http_status=404)
+        self.check_object_permissions(request, shop)
+        return shop
+
+    @extend_schema(responses={200: ShopResponseSerializer})
+    def get(self, request, shop_id: int | None = None):
+        shop = self.get_shop(request, shop_id)
+        return success_response(
+            data=ShopSerializer(shop, context={"request": request}).data,
+        )
+
+    @extend_schema(request=ShopUpdateSerializer, responses={200: ShopResponseSerializer})
+    def patch(self, request, shop_id: int | None = None):
+        self.get_shop(request, shop_id)
+        serializer = ShopUpdateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        shop = ShopService.update_own_shop(
+            user=request.user,
+            shop_data=dict(serializer.validated_data),
+        )
+        return success_response(
+            message="Cập nhật gian hàng thành công",
+            data=ShopSerializer(shop, context={"request": request}).data,
+        )
+
+
+class SellerShopImageUploadView(APIView):
+    permission_classes = [IsShopOwner]
+    parser_classes = [MultiPartParser, FormParser]
+    image_type = ""
+
+    @extend_schema(request=ShopImageUploadSerializer, responses={200: ShopResponseSerializer})
+    def post(self, request):
+        shop = get_shop_for_owner(request.user)
+        if shop is None:
+            raise BusinessError("Không tìm thấy gian hàng", http_status=404)
+        self.check_object_permissions(request, shop)
+        serializer = ShopImageUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        shop = ShopService.update_shop_image(
+            user=request.user,
+            image_type=self.image_type,
+            uploaded_file=serializer.validated_data["image"],
+        )
+        return success_response(
+            message="Cập nhật ảnh gian hàng thành công",
+            data=ShopSerializer(shop, context={"request": request}).data,
+        )
+
+
+class AdminShopLockView(APIView):
+    permission_classes = [IsAdmin]
+
+    @extend_schema(request=AccountStatusSerializer, responses={200: ShopResponseSerializer})
+    def post(self, request, shop_id: int):
+        serializer = AccountStatusSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        shop = ShopService.set_shop_locked(
+            actor=request.user,
+            shop_id=shop_id,
+            locked=True,
+            request_id=request.request_id,
+            **serializer.validated_data,
+        )
+        return success_response(
+            message="Khóa gian hàng thành công",
+            data=ShopSerializer(shop).data,
+        )
+
+
+class AdminShopUnlockView(APIView):
+    permission_classes = [IsAdmin]
+
+    @extend_schema(request=AccountStatusSerializer, responses={200: ShopResponseSerializer})
+    def post(self, request, shop_id: int):
+        serializer = AccountStatusSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        shop = ShopService.set_shop_locked(
+            actor=request.user,
+            shop_id=shop_id,
+            locked=False,
+            request_id=request.request_id,
+            **serializer.validated_data,
+        )
+        return success_response(
+            message="Mở khóa gian hàng thành công",
+            data=ShopSerializer(shop).data,
+        )
+
+
+class PublicShopView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(responses={200: ShopResponseSerializer})
+    def get(self, request, slug: str):
+        shop = get_public_shop(slug)
+        if shop is None:
+            raise BusinessError("Không tìm thấy gian hàng", http_status=404)
+        try:
+            page = max(int(request.query_params.get("page", 1)), 1)
+            page_size = min(max(int(request.query_params.get("page_size", 20)), 1), 100)
+        except ValueError as exc:
+            raise BusinessError(
+                "Tham số phân trang không hợp lệ",
+                errors={"pagination": ["page và page_size phải là số nguyên"]},
+            ) from exc
+        return success_response(
+            message="Lấy thông tin gian hàng thành công",
+            data={
+                "shop": ShopSerializer(shop, context={"request": request}).data,
+                "products": [],
+                "available_filters": [],
+                "available_sorts": ["newest", "price_asc", "price_desc", "rating"],
+            },
+            meta={
+                "page": page,
+                "page_size": page_size,
+                "total_items": 0,
+                "total_pages": 1,
+            },
         )

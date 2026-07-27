@@ -1,4 +1,6 @@
 from decimal import Decimal
+from pathlib import Path
+from uuid import uuid4
 
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
@@ -10,6 +12,19 @@ phone_validator = RegexValidator(
     regex=r"^\+?[0-9]{9,15}$",
     message="Số điện thoại phải gồm 9-15 chữ số và có thể bắt đầu bằng dấu +",
 )
+
+
+def seller_document_upload_to(instance, filename: str) -> str:
+    extension = Path(filename).suffix.lower()
+    return f"private/seller-documents/{instance.seller_profile.user_id}/{uuid4().hex}{extension}"
+
+
+def shop_logo_upload_to(instance, filename: str) -> str:
+    return f"shops/{instance.owner_id}/logo/{uuid4().hex}.webp"
+
+
+def shop_cover_upload_to(instance, filename: str) -> str:
+    return f"shops/{instance.owner_id}/cover/{uuid4().hex}.webp"
 
 
 class UserManager(BaseUserManager):
@@ -179,10 +194,19 @@ class SellerProfile(TimeStampedModel):
         on_delete=models.CASCADE,
         related_name="seller_profile",
     )
+    business_name = models.CharField(max_length=255, blank=True)
+    business_address = models.CharField(max_length=500, blank=True)
+    tax_code = models.CharField(max_length=50, blank=True)
+    contact_phone = models.CharField(
+        max_length=20,
+        blank=True,
+        validators=[phone_validator],
+    )
     onboarding_status = models.CharField(
         max_length=20,
         choices=OnboardingStatus.choices,
         default=OnboardingStatus.PENDING,
+        db_index=True,
     )
     rejection_reason = models.TextField(blank=True)
     id_card_document_url = models.URLField(max_length=500, blank=True)
@@ -191,7 +215,151 @@ class SellerProfile(TimeStampedModel):
         max_length=20,
         choices=VerificationStatus.choices,
         default=VerificationStatus.UNVERIFIED,
+        db_index=True,
     )
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_seller_profiles",
+        null=True,
+        blank=True,
+    )
+    is_deleted = models.BooleanField(default=False, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-submitted_at", "-created_at")
+        indexes = [
+            models.Index(
+                fields=["onboarding_status", "created_at"],
+                name="seller_status_created_idx",
+            ),
+        ]
+
+
+class SellerDocument(TimeStampedModel):
+    class DocumentType(models.TextChoices):
+        ID_CARD = "id_card", "CCCD/CMND"
+        BUSINESS_LICENSE = "business_license", "Giấy phép kinh doanh"
+        TAX_REGISTRATION = "tax_registration", "Đăng ký thuế"
+        OTHER = "other", "Khác"
+
+    class ReviewStatus(models.TextChoices):
+        PENDING = "pending", "Chờ xác minh"
+        VERIFIED = "verified", "Đã xác minh"
+        ADDITIONAL_REQUIRED = "additional_required", "Yêu cầu bổ sung"
+
+    seller_profile = models.ForeignKey(
+        SellerProfile,
+        on_delete=models.CASCADE,
+        related_name="documents",
+    )
+    document_type = models.CharField(
+        max_length=30,
+        choices=DocumentType.choices,
+        db_index=True,
+    )
+    file = models.FileField(upload_to=seller_document_upload_to)
+    original_name = models.CharField(max_length=255)
+    review_status = models.CharField(
+        max_length=30,
+        choices=ReviewStatus.choices,
+        default=ReviewStatus.PENDING,
+        db_index=True,
+    )
+    review_reason = models.TextField(blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_seller_documents",
+        null=True,
+        blank=True,
+    )
+    is_deleted = models.BooleanField(default=False, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("document_type", "-created_at")
+        indexes = [
+            models.Index(
+                fields=["seller_profile", "is_deleted"],
+                name="seller_doc_profile_active_idx",
+            ),
+        ]
+
+
+class Shop(TimeStampedModel):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Chờ duyệt"
+        APPROVED = "approved", "Đã duyệt"
+        REJECTED = "rejected", "Từ chối"
+        LOCKED = "locked", "Bị khóa"
+
+    owner = models.OneToOneField(
+        User,
+        on_delete=models.PROTECT,
+        related_name="shop",
+    )
+    name = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=255, unique=True)
+    description = models.TextField(blank=True)
+    logo = models.ImageField(upload_to=shop_logo_upload_to, blank=True)
+    cover = models.ImageField(upload_to=shop_cover_upload_to, blank=True)
+    logo_url = models.URLField(max_length=500, blank=True)
+    cover_url = models.URLField(max_length=500, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.APPROVED,
+        db_index=True,
+    )
+    lock_reason = models.TextField(blank=True)
+    locked_at = models.DateTimeField(null=True, blank=True)
+    average_rating = models.DecimalField(max_digits=3, decimal_places=2, default=Decimal("0"))
+    is_deleted = models.BooleanField(default=False, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [
+            models.Index(fields=["status", "is_deleted"], name="shop_status_active_idx"),
+            models.Index(fields=["created_at"], name="shop_created_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class Notification(TimeStampedModel):
+    class Kind(models.TextChoices):
+        SELLER_APPLICATION = "seller_application", "Hồ sơ seller"
+        DOCUMENT_REVIEW = "document_review", "Xác minh giấy tờ"
+        SHOP_STATUS = "shop_status", "Trạng thái gian hàng"
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+    )
+    kind = models.CharField(max_length=30, choices=Kind.choices, db_index=True)
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    metadata = models.JSONField(default=dict, blank=True)
+    is_read = models.BooleanField(default=False, db_index=True)
+    is_deleted = models.BooleanField(default=False, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [
+            models.Index(
+                fields=["user", "is_read", "created_at"],
+                name="notif_user_read_created_idx",
+            ),
+        ]
 
 
 class AdminProfile(TimeStampedModel):
