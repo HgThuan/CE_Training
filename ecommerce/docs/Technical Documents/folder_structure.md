@@ -80,10 +80,16 @@ backend/
 │   │   └── tests/
 │   │
 │   ├── catalog/                        # Module 3: Category, Brand
+│   │   ├── apps.py
+│   │   ├── admin.py
 │   │   ├── models.py
 │   │   ├── serializers.py
 │   │   ├── views.py
 │   │   ├── urls.py
+│   │   ├── services.py
+│   │   ├── selectors.py
+│   │   ├── migrations/
+│   │   ├── README.md
 │   │   └── tests/
 │   │
 │   ├── shop/                             # Module 6: Shop, ShopFollower
@@ -96,16 +102,20 @@ backend/
 │   │   └── tests/
 │   │
 │   ├── product/                          # Module 4: Product, Variant, Media, Attribute
+│   │   ├── apps.py
 │   │   ├── models.py
 │   │   ├── serializers.py
 │   │   ├── views.py
 │   │   ├── urls.py
 │   │   ├── services.py
+│   │   ├── state_machine.py                 # ProductStateMachine
 │   │   ├── repositories.py
 │   │   ├── selectors.py
 │   │   ├── permissions.py
 │   │   ├── validators.py
 │   │   ├── signals.py                        # Cập nhật avg_rating, trigger re-index embedding
+│   │   ├── migrations/
+│   │   ├── README.md
 │   │   └── tests/
 │   │
 │   ├── inventory/                          # Module 5: StockEntry, StockMovement, StockAlert

@@ -613,6 +613,15 @@ Quy tắc:
 | `is_deleted` | `boolean` | Không | Default `false` |  |
 | `deleted_at` | `timestamptz` | Có |  |  |
 
+Mapping vật lý triển khai tại `apps.catalog`:
+
+- `Category` và `Brand` dùng UUID primary key và abstract `TimeStampedModel` từ
+  `apps.common.models`;
+- migration khởi tạo: `catalog.0001_initial`;
+- API chỉ soft-delete; Django Admin không cung cấp hard-delete;
+- `CategoryService` chặn cycle và chặn soft-delete khi còn category con hoặc Product active;
+- FK `Product.category` dùng `PROTECT` để chặn hard-delete Category đang được Product sử dụng.
+
 ### 8.3. `products`
 
 | Cột | Kiểu | Null | Ràng buộc / index | Mô tả |
@@ -715,6 +724,7 @@ Danh sách giá trị thuộc tính được phép dùng cho một product.
 | `product_id` | `uuid` | Không | FK `products`, index |
 | `attribute_value_id` | `uuid` | Không | FK `attribute_values` |
 | `created_at` | `timestamptz` | Không |  |
+| `updated_at` | `timestamptz` | Không | Bổ sung theo Constitution mục 9 |
 
 Unique `(product_id, attribute_value_id)`.
 
@@ -755,11 +765,39 @@ Sự nhất quán `product.shop_id = variant.shop_id` phải được Service La
 | `attribute_id` | `uuid` | Không | FK `attributes` |
 | `attribute_value_id` | `uuid` | Không | FK `attribute_values` |
 | `created_at` | `timestamptz` | Không |  |
+| `updated_at` | `timestamptz` | Không | Bổ sung theo Constitution mục 9 |
 
 Unique:
 
 - `(variant_id, attribute_id)` — mỗi variant chỉ có một giá trị cho một thuộc tính;
 - `(variant_id, attribute_value_id)`.
+
+### 8.9.1. Mapping vật lý đã triển khai — Product schema
+
+- App: `apps.product`; migration: `product.0001_initial`.
+- Các model: `Product`, `ProductMedia`, `Attribute`, `AttributeValue`,
+  `ProductAttributeValue`, `ProductVariant`, `VariantAttributeValue`.
+- `ix_products_public_feed` là partial index trên `(status, created_at DESC)` khi
+  `is_deleted = false`.
+- Product slug dùng partial unique `(shop_id, slug)` khi chưa xóa.
+- Attribute global và Attribute theo Shop dùng các partial unique riêng để xử lý đúng
+  semantics của `NULL`.
+- `ProductService`, `MediaService`, `VariantService` và `ProductStateMachine` là write path duy
+  nhất cho business rule Product; các thao tác nhiều bước dùng transaction và row lock.
+- Mọi write path của Seller khóa Product/Variant bằng đồng thời primary key và `shop_id` suy ra từ
+  authenticated user; `shop_id` trên object/request body không được tin cậy.
+- `VariantService.validate_shop_consistency()` bảo vệ invariant
+  `product.shop_id = variant.shop_id`; SKU/barcode unique theo Shop và giá cache được tính lại từ
+  variants active, chưa xóa.
+- Rich text được sanitize bằng allow-list trước khi lưu. `MediaService` xác minh magic bytes/Pillow,
+  giới hạn 9 ảnh + 1 video, và lưu qua Django Storage.
+- `ProductStateMachine` triển khai đúng transition tại BASIC_DESIGN §14.1; approve/reject/hide ghi
+  `AuditLog` với UUID Product dưới dạng chuỗi. Migration `common.0003` đổi `AuditLog.target_id`
+  sang `varchar(64)` để hỗ trợ đồng thời ID số và UUID.
+- `serializers.py`, `views.py`, `permissions.py` và `urls.py` đã nối Seller/Admin/Public API.
+  `ProductSelector` giữ filter/search/sort và eager loading; View không chứa business write.
+- `IsShopOwner` dùng quan hệ vật lý `Shop.owner` và mọi nested Media/Variant endpoint lấy Product
+  từ Seller-scoped queryset trước khi xử lý object con.
 
 ### 8.10. `product_translations` — OPTIONAL
 

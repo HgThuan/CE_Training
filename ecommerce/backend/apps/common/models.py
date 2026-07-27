@@ -2,7 +2,15 @@ from django.conf import settings
 from django.db import models
 
 
-class AuditLog(models.Model):
+class TimeStampedModel(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True
+
+
+class AuditLog(TimeStampedModel):
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -10,12 +18,12 @@ class AuditLog(models.Model):
     )
     action = models.CharField(max_length=100)
     target_type = models.CharField(max_length=50)
-    target_id = models.PositiveBigIntegerField()
+    # Generic audit targets use both integer IDs (account/shop) and UUIDs
+    # (catalog/product), so the storage type must support both identifiers.
+    target_id = models.CharField(max_length=64)
     reason = models.TextField(blank=True)
     request_id = models.CharField(max_length=64, blank=True, db_index=True)
     diff = models.JSONField(default=dict)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ("-created_at",)

@@ -8,6 +8,8 @@ from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models.functions import Lower
 
+from apps.common.models import TimeStampedModel
+
 phone_validator = RegexValidator(
     regex=r"^\+?[0-9]{9,15}$",
     message="Số điện thoại phải gồm 9-15 chữ số và có thể bắt đầu bằng dấu +",
@@ -66,14 +68,6 @@ class UserManager(BaseUserManager):
         user = self._create_user(email, password, **extra_fields)
         AdminProfile.objects.get_or_create(user=user)
         return user
-
-
-class TimeStampedModel(models.Model):
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        abstract = True
 
 
 class User(AbstractBaseUser, PermissionsMixin, TimeStampedModel):

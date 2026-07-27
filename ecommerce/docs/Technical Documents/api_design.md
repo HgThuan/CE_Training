@@ -97,12 +97,16 @@ Ghi chú hiện thực Nhóm 1:
 | POST | `/admin/products/{id}/hide` | Admin | Ẩn sản phẩm vi phạm | ADM-14 |
 | DELETE | `/admin/products/{id}` | Admin | Xóa mềm sản phẩm vi phạm | ADM-14 |
 | GET | `/categories` | Public | Cây danh mục | ADM-15 |
+| GET | `/admin/categories` | Admin | Danh sách danh mục gồm cả inactive, có phân trang | ADM-15 |
 | POST | `/admin/categories` | Admin | Tạo danh mục | ADM-15 |
+| GET | `/admin/categories/{id}` | Admin | Chi tiết danh mục | ADM-15 |
 | PATCH | `/admin/categories/{id}` | Admin | Sửa danh mục | ADM-15 |
 | DELETE | `/admin/categories/{id}` | Admin | Xóa danh mục | ADM-15 |
 | POST | `/admin/categories/reorder` | Admin | Sắp xếp lại thứ tự (kéo thả) | ADM-15 |
 | GET | `/brands` | Public | Danh sách thương hiệu | ADM-16 |
+| GET | `/admin/brands` | Admin | Danh sách thương hiệu gồm cả inactive, có phân trang | ADM-16 |
 | POST | `/admin/brands` | Admin | Tạo thương hiệu | ADM-16 |
+| GET | `/admin/brands/{id}` | Admin | Chi tiết thương hiệu | ADM-16 |
 | PATCH | `/admin/brands/{id}` | Admin | Sửa thương hiệu | ADM-16 |
 | DELETE | `/admin/brands/{id}` | Admin | Xóa thương hiệu | ADM-16 |
 
@@ -217,6 +221,15 @@ Ghi chú SEL-17/ADM-11 trong Sprint 2:
 | GET | `/products/{id}/questions` | Public | Danh sách Q&A | CUS-11 |
 | POST | `/products/{id}/questions` | Owner (Customer) | Đặt câu hỏi | CUS-11 |
 | POST | `/questions/{id}/answers` | Seller | Trả lời câu hỏi | CUS-11 |
+
+Ghi chú triển khai Product API ngày 27/07/2026:
+
+- Các endpoint Product trả envelope `{success, message, data}`; list có thêm `meta` chuẩn.
+- Filter được validate trước khi gọi selector: category, brand, khoảng giá, status Seller, search
+  theo tên và sort theo thời gian/giá/lượt bán/rating.
+- Vì database quy định Product slug unique theo Shop, `GET /products/{slug}` nhận thêm query
+  `shop_slug` khi slug tồn tại ở nhiều Shop; API trả lỗi rõ ràng thay vì chọn ngẫu nhiên.
+- Admin DELETE vẫn tuân thủ state machine: chỉ Product `DRAFT` hoặc `HIDDEN` được soft-delete.
 
 ## 8. Customer — Wishlist, Giỏ hàng, Checkout, Thanh toán
 

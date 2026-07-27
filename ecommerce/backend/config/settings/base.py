@@ -37,8 +37,10 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "drf_spectacular",
     "channels",
-    "apps.account.apps.AccountConfig",
     "apps.common.apps.CommonConfig",
+    "apps.account.apps.AccountConfig",
+    "apps.catalog.apps.CatalogConfig",
+    "apps.product.apps.ProductConfig",
 ]
 
 MIDDLEWARE = [
@@ -123,6 +125,8 @@ MEDIA_ROOT = Path(env("MEDIA_ROOT", default=str(BASE_DIR / "media")))
 MAX_AVATAR_UPLOAD_MB = env.int("MAX_AVATAR_UPLOAD_MB", default=5)
 MAX_SHOP_IMAGE_UPLOAD_MB = env.int("MAX_SHOP_IMAGE_UPLOAD_MB", default=10)
 MAX_SELLER_DOCUMENT_UPLOAD_MB = env.int("MAX_SELLER_DOCUMENT_UPLOAD_MB", default=10)
+MAX_IMAGE_UPLOAD_MB = env.int("MAX_IMAGE_UPLOAD_MB", default=10)
+MAX_VIDEO_UPLOAD_MB = env.int("MAX_VIDEO_UPLOAD_MB", default=100)
 SELLER_DOCUMENT_LINK_MAX_AGE_SECONDS = env.int(
     "SELLER_DOCUMENT_LINK_MAX_AGE_SECONDS",
     default=300,
@@ -178,6 +182,9 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "REST API for the multi-vendor AI e-commerce platform.",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "ENUM_NAME_OVERRIDES": {
+        "ProductStatusEnum": "apps.product.models.Product.Status",
+    },
 }
 
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")

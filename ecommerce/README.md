@@ -152,9 +152,12 @@ store `reason` and `request_id` in `AuditLog` and emit structured logs with acto
 Document bytes live below the Nginx-blocked `media/private/` prefix; authorized serializers expose
 only a signed five-minute `/protected-media/` capability URL.
 
-Product and Order models intentionally remain Sprint 3 scope. Sprint 2 exposes the lock policy and
-public product response contract (`products: []`); Product public selectors and create services must
-consume `ShopBusinessPolicy` when those models are introduced.
+Catalog/Product are being delivered in Sprint 3. The current foundation includes Category/Brand
+APIs, Product/Media/Attribute/Variant models, a product state machine, tenant-scoped write services,
+magic-byte media validation, variant combination generation and optimized public/Seller/Admin
+selectors. Product HTTP APIs are connected and documented; frontend Product screens remain
+pending. Until the public Shop page consumes the Product API, the Sprint 2 Shop response continues
+to expose the compatibility contract `products: []`.
 
 ## Local quality checks
 

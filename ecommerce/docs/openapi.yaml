@@ -24,6 +24,254 @@ paths:
               schema:
                 $ref: '#/components/schemas/HealthCheckErrorResponse'
           description: ''
+  /api/v1/admin/brands/:
+    get:
+      operationId: admin_brands_list
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrandListResponse'
+          description: ''
+    post:
+      operationId: admin_brands_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrandCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BrandCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BrandCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrandResponse'
+          description: ''
+  /api/v1/admin/brands/{brand_id}/:
+    get:
+      operationId: admin_brands_retrieve
+      parameters:
+      - in: path
+        name: brand_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrandResponse'
+          description: ''
+    patch:
+      operationId: admin_brands_update
+      parameters:
+      - in: path
+        name: brand_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedBrandUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedBrandUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedBrandUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrandResponse'
+          description: ''
+    delete:
+      operationId: admin_brands_delete
+      parameters:
+      - in: path
+        name: brand_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteResponse'
+          description: ''
+  /api/v1/admin/categories/:
+    get:
+      operationId: admin_categories_list
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryListResponse'
+          description: ''
+    post:
+      operationId: admin_categories_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CategoryCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CategoryCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+          description: ''
+  /api/v1/admin/categories/{category_id}/:
+    get:
+      operationId: admin_categories_retrieve
+      parameters:
+      - in: path
+        name: category_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+          description: ''
+    patch:
+      operationId: admin_categories_update
+      parameters:
+      - in: path
+        name: category_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCategoryUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCategoryUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCategoryUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+          description: ''
+    delete:
+      operationId: admin_categories_delete
+      parameters:
+      - in: path
+        name: category_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteResponse'
+          description: ''
+  /api/v1/admin/categories/reorder/:
+    post:
+      operationId: admin_categories_reorder
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryReorder'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CategoryReorder'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CategoryReorder'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryReorderResponse'
+          description: ''
   /api/v1/admin/customers/:
     get:
       operationId: admin_customers_list
@@ -131,6 +379,116 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EmptyDataResponse'
+          description: ''
+  /api/v1/admin/products/{product_id}/:
+    delete:
+      operationId: admin_products_delete
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDeleteResponse'
+          description: ''
+  /api/v1/admin/products/{product_id}/approve/:
+    post:
+      operationId: admin_products_approve
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminProductResponse'
+          description: ''
+  /api/v1/admin/products/{product_id}/hide/:
+    post:
+      operationId: admin_products_hide
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminProductResponse'
+          description: ''
+  /api/v1/admin/products/{product_id}/reject/:
+    post:
+      operationId: admin_products_reject
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminProductReject'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AdminProductReject'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AdminProductReject'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminProductResponse'
+          description: ''
+  /api/v1/admin/products/pending/:
+    get:
+      operationId: admin_products_pending
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminProductListResponse'
           description: ''
   /api/v1/admin/seller-applications/:
     get:
@@ -754,6 +1112,148 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserResponse'
           description: ''
+  /api/v1/brands/:
+    get:
+      operationId: public_brands_list
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrandListResponse'
+          description: ''
+  /api/v1/categories/:
+    get:
+      operationId: public_categories_tree
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryTreeResponse'
+          description: ''
+  /api/v1/products/:
+    get:
+      operationId: public_products_list
+      parameters:
+      - in: query
+        name: brand_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: category_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: max_price
+        schema:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
+      - in: query
+        name: min_price
+        schema:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+          maxLength: 255
+          minLength: 1
+      - in: query
+        name: sort
+        schema:
+          enum:
+          - created_at
+          - -created_at
+          - price
+          - -price
+          - sold_count
+          - -sold_count
+          - rating
+          - -rating
+          type: string
+          default: -created_at
+          minLength: 1
+        description: |-
+          * `created_at` - created_at
+          * `-created_at` - -created_at
+          * `price` - price
+          * `-price` - -price
+          * `sold_count` - sold_count
+          * `-sold_count` - -sold_count
+          * `rating` - rating
+          * `-rating` - -rating
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPublicProductListResponseList'
+          description: ''
+  /api/v1/products/{slug}/:
+    get:
+      operationId: public_products_retrieve
+      parameters:
+      - in: query
+        name: shop_slug
+        schema:
+          type: string
+        description: Bắt buộc khi nhiều shop có cùng product slug.
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicProductResponse'
+          description: ''
   /api/v1/seller-applications/me/:
     get:
       operationId: v1_seller_applications_me_retrieve
@@ -815,6 +1315,389 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SellerDocumentResponse'
+          description: ''
+  /api/v1/seller/attributes/:
+    get:
+      operationId: seller_attributes_list
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttributeListResponse'
+          description: ''
+  /api/v1/seller/products/:
+    get:
+      operationId: seller_products_list
+      parameters:
+      - in: query
+        name: category_id
+        schema:
+          type: string
+          format: uuid
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+          maxLength: 255
+          minLength: 1
+      - in: query
+        name: sort
+        schema:
+          enum:
+          - created_at
+          - -created_at
+          - price
+          - -price
+          - sold_count
+          - -sold_count
+          - rating
+          - -rating
+          type: string
+          default: -created_at
+          minLength: 1
+        description: |-
+          * `created_at` - created_at
+          * `-created_at` - -created_at
+          * `price` - price
+          * `-price` - -price
+          * `sold_count` - sold_count
+          * `-sold_count` - -sold_count
+          * `rating` - rating
+          * `-rating` - -rating
+      - in: query
+        name: status
+        schema:
+          enum:
+          - draft
+          - pending_review
+          - approved
+          - rejected
+          - hidden
+          - suspended
+          type: string
+          minLength: 1
+        description: |-
+          * `draft` - Bản nháp
+          * `pending_review` - Chờ duyệt
+          * `approved` - Đã duyệt
+          * `rejected` - Bị từ chối
+          * `hidden` - Đã ẩn
+          * `suspended` - Tạm ngưng
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSellerProductListResponseList'
+          description: ''
+    post:
+      operationId: seller_products_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SellerProductCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SellerProductCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SellerProductCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerProductResponse'
+          description: ''
+  /api/v1/seller/products/{product_id}/:
+    get:
+      operationId: seller_products_retrieve
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerProductResponse'
+          description: ''
+    patch:
+      operationId: seller_products_update
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSellerProductUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSellerProductUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedSellerProductUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerProductResponse'
+          description: ''
+    delete:
+      operationId: seller_products_delete
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDeleteResponse'
+          description: ''
+  /api/v1/seller/products/{product_id}/media/:
+    post:
+      operationId: seller_products_media_upload
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MediaUpload'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MediaUpload'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MediaUpload'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaResponse'
+          description: ''
+  /api/v1/seller/products/{product_id}/media/{media_id}/:
+    delete:
+      operationId: seller_products_media_delete
+      parameters:
+      - in: path
+        name: media_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: product_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDeleteResponse'
+          description: ''
+  /api/v1/seller/products/{product_id}/media/reorder/:
+    post:
+      operationId: seller_products_media_reorder
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MediaReorder'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MediaReorder'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MediaReorder'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerProductResponse'
+          description: ''
+  /api/v1/seller/products/{product_id}/submit/:
+    post:
+      operationId: seller_products_submit
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerProductResponse'
+          description: ''
+  /api/v1/seller/products/{product_id}/variants/{variant_id}/:
+    patch:
+      operationId: seller_products_variants_update
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: variant_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedVariantUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedVariantUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedVariantUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VariantResponse'
+          description: ''
+  /api/v1/seller/products/{product_id}/variants/generate/:
+    post:
+      operationId: seller_products_variants_generate
+      parameters:
+      - in: path
+        name: product_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VariantGenerate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VariantGenerate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VariantGenerate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VariantListResponse'
           description: ''
   /api/v1/seller/shop/:
     get:
@@ -1448,6 +2331,119 @@ components:
       - data
       - message
       - success
+    AdminProductList:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        slug:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ProductStatusEnum'
+          readOnly: true
+        rejection_reason:
+          type: string
+          readOnly: true
+          nullable: true
+        thumbnail:
+          type: string
+          nullable: true
+          readOnly: true
+        min_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
+          readOnly: true
+          nullable: true
+        max_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
+          readOnly: true
+          nullable: true
+        category:
+          allOf:
+          - $ref: '#/components/schemas/CategorySummary'
+          readOnly: true
+        shop_name:
+          type: string
+          readOnly: true
+        seller_id:
+          type: integer
+          readOnly: true
+        seller_email:
+          type: string
+          format: email
+          readOnly: true
+        seller_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - category
+      - created_at
+      - id
+      - max_price
+      - min_price
+      - name
+      - rejection_reason
+      - seller_email
+      - seller_id
+      - seller_name
+      - shop_name
+      - slug
+      - status
+      - thumbnail
+    AdminProductListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminProductList'
+        meta:
+          $ref: '#/components/schemas/ProductPaginationMeta'
+      required:
+      - data
+      - message
+      - meta
+      - success
+    AdminProductReject:
+      type: object
+      properties:
+        rejection_reason:
+          type: string
+          maxLength: 2000
+      required:
+      - rejection_reason
+    AdminProductResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/AdminProductList'
+      required:
+      - data
+      - message
+      - success
     AdminResetPassword:
       type: object
       properties:
@@ -1546,6 +2542,87 @@ components:
           $ref: '#/components/schemas/RoleEnum'
       required:
       - role
+    AttributeList:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+        display_type:
+          allOf:
+          - $ref: '#/components/schemas/DisplayTypeEnum'
+          readOnly: true
+        sort_order:
+          type: integer
+          readOnly: true
+        scope:
+          type: string
+          readOnly: true
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttributeValue'
+          readOnly: true
+      required:
+      - code
+      - display_type
+      - id
+      - name
+      - scope
+      - sort_order
+      - values
+    AttributeListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttributeList'
+        meta:
+          $ref: '#/components/schemas/ProductPaginationMeta'
+      required:
+      - data
+      - message
+      - meta
+      - success
+    AttributeValue:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        value:
+          type: string
+          readOnly: true
+        display_value:
+          type: string
+          readOnly: true
+          nullable: true
+        color_code:
+          type: string
+          readOnly: true
+          nullable: true
+        sort_order:
+          type: integer
+          readOnly: true
+      required:
+      - color_code
+      - display_value
+      - id
+      - sort_order
+      - value
     AvatarUpload:
       type: object
       properties:
@@ -1558,6 +2635,329 @@ components:
     BlankEnum:
       enum:
       - ''
+    BrandCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        slug:
+          type: string
+          maxLength: 180
+          pattern: ^[-a-zA-Z0-9_]+$
+        logo_url:
+          nullable: true
+          oneOf:
+          - type: string
+            format: uri
+          - type: string
+            maxLength: 0
+        description:
+          type: string
+          nullable: true
+        is_active:
+          type: boolean
+      required:
+      - name
+    BrandList:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        slug:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        logo_url:
+          type: string
+          readOnly: true
+          nullable: true
+        description:
+          type: string
+          readOnly: true
+          nullable: true
+        is_active:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - description
+      - id
+      - is_active
+      - logo_url
+      - name
+      - slug
+      - updated_at
+    BrandListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/BrandList'
+        meta:
+          $ref: '#/components/schemas/CatalogPaginationMeta'
+      required:
+      - data
+      - message
+      - meta
+      - success
+    BrandResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/BrandList'
+      required:
+      - data
+      - message
+      - success
+    BrandSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        slug:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        logo_url:
+          type: string
+          readOnly: true
+          nullable: true
+      required:
+      - id
+      - logo_url
+      - name
+      - slug
+    CatalogPaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total_items:
+          type: integer
+        total_pages:
+          type: integer
+      required:
+      - page
+      - page_size
+      - total_items
+      - total_pages
+    CategoryCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        slug:
+          type: string
+          maxLength: 180
+          pattern: ^[-a-zA-Z0-9_]+$
+        parent:
+          type: string
+          format: uuid
+          nullable: true
+        image_url:
+          nullable: true
+          oneOf:
+          - type: string
+            format: uri
+          - type: string
+            maxLength: 0
+        sort_order:
+          type: integer
+          minimum: 0
+          default: 0
+        is_active:
+          type: boolean
+      required:
+      - name
+    CategoryListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryTree'
+        meta:
+          $ref: '#/components/schemas/CatalogPaginationMeta'
+      required:
+      - data
+      - message
+      - meta
+      - success
+    CategoryReorder:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryReorderItem'
+      required:
+      - items
+    CategoryReorderItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+        sort_order:
+          type: integer
+          minimum: 0
+      required:
+      - id
+      - sort_order
+    CategoryReorderResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryTree'
+      required:
+      - data
+      - message
+      - success
+    CategoryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/CategoryTree'
+      required:
+      - data
+      - message
+      - success
+    CategorySummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        slug:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+      required:
+      - id
+      - name
+      - slug
+    CategoryTree:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        parent_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        name:
+          type: string
+          readOnly: true
+        slug:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        image_url:
+          type: string
+          readOnly: true
+          nullable: true
+        sort_order:
+          type: integer
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        children:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - children
+      - created_at
+      - id
+      - image_url
+      - is_active
+      - name
+      - parent_id
+      - slug
+      - sort_order
+      - updated_at
+    CategoryTreeResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryTree'
+      required:
+      - data
+      - message
+      - success
     ChangePassword:
       type: object
       properties:
@@ -1588,6 +2988,30 @@ components:
       required:
       - loyalty_points
       - wallet_balance
+    DeleteResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          additionalProperties: {}
+      required:
+      - data
+      - message
+      - success
+    DisplayTypeEnum:
+      enum:
+      - text
+      - color
+      - image
+      type: string
+      description: |-
+        * `text` - Văn bản
+        * `color` - Màu sắc
+        * `image` - Hình ảnh
     DocumentTypeEnum:
       enum:
       - id_card
@@ -1683,6 +3107,48 @@ components:
       required:
       - email
       - password
+    MediaReorder:
+      type: object
+      properties:
+        ordered_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required:
+      - ordered_ids
+    MediaResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/ProductMedia'
+      required:
+      - data
+      - message
+      - success
+    MediaTypeEnum:
+      enum:
+      - image
+      - video
+      type: string
+      description: |-
+        * `image` - Hình ảnh
+        * `video` - Video
+    MediaUpload:
+      type: object
+      properties:
+        file:
+          type: string
+          format: uri
+        media_type:
+          $ref: '#/components/schemas/MediaTypeEnum'
+      required:
+      - file
+      - media_type
     OnboardingStatusEnum:
       enum:
       - pending
@@ -1693,6 +3159,52 @@ components:
         * `pending` - Chờ duyệt
         * `approved` - Đã duyệt
         * `rejected` - Từ chối
+    PaginatedPublicProductListResponseList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicProductListResponse'
+    PaginatedSellerProductListResponseList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SellerProductListResponse'
     PaginationMeta:
       type: object
       properties:
@@ -1777,6 +3289,73 @@ components:
           - $ref: '#/components/schemas/BlankEnum'
         is_email_verified:
           type: boolean
+    PatchedBrandUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        slug:
+          type: string
+          maxLength: 180
+          pattern: ^[-a-zA-Z0-9_]+$
+        logo_url:
+          nullable: true
+          oneOf:
+          - type: string
+            format: uri
+          - type: string
+            maxLength: 0
+        description:
+          type: string
+          nullable: true
+        is_active:
+          type: boolean
+    PatchedCategoryUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 150
+        slug:
+          type: string
+          maxLength: 180
+          pattern: ^[-a-zA-Z0-9_]+$
+        parent:
+          type: string
+          format: uuid
+          nullable: true
+        image_url:
+          nullable: true
+          oneOf:
+          - type: string
+            format: uri
+          - type: string
+            maxLength: 0
+        sort_order:
+          type: integer
+          minimum: 0
+        is_active:
+          type: boolean
+    PatchedSellerProductUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        category_id:
+          type: string
+          format: uuid
+        brand_id:
+          type: string
+          format: uuid
+          nullable: true
+        short_description:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
     PatchedShopUpdate:
       type: object
       properties:
@@ -1843,6 +3422,386 @@ components:
           type: string
           format: date-time
           readOnly: true
+    PatchedVariantUpdate:
+      type: object
+      properties:
+        sku:
+          type: string
+          maxLength: 100
+        barcode:
+          type: string
+          nullable: true
+          maxLength: 100
+        original_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
+        sale_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
+        cost_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
+          nullable: true
+        weight_grams:
+          type: integer
+          minimum: 1
+        is_active:
+          type: boolean
+    ProductDeleteResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          additionalProperties: {}
+      required:
+      - data
+      - message
+      - success
+    ProductMedia:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        variant_id:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        media_type:
+          allOf:
+          - $ref: '#/components/schemas/MediaTypeEnum'
+          readOnly: true
+        file_url:
+          type: string
+          readOnly: true
+        thumbnail_url:
+          type: string
+          readOnly: true
+          nullable: true
+        alt_text:
+          type: string
+          readOnly: true
+          nullable: true
+        sort_order:
+          type: integer
+          readOnly: true
+        is_primary:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - alt_text
+      - created_at
+      - file_url
+      - id
+      - is_primary
+      - media_type
+      - sort_order
+      - thumbnail_url
+      - variant_id
+    ProductPaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total_items:
+          type: integer
+        total_pages:
+          type: integer
+      required:
+      - page
+      - page_size
+      - total_items
+      - total_pages
+    ProductStatusEnum:
+      enum:
+      - draft
+      - pending_review
+      - approved
+      - rejected
+      - hidden
+      - suspended
+      type: string
+      description: |-
+        * `draft` - Bản nháp
+        * `pending_review` - Chờ duyệt
+        * `approved` - Đã duyệt
+        * `rejected` - Bị từ chối
+        * `hidden` - Đã ẩn
+        * `suspended` - Tạm ngưng
+    PublicProductDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        slug:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        short_description:
+          type: string
+          readOnly: true
+          nullable: true
+        description:
+          type: string
+          readOnly: true
+          nullable: true
+        category:
+          allOf:
+          - $ref: '#/components/schemas/CategorySummary'
+          readOnly: true
+        brand:
+          allOf:
+          - $ref: '#/components/schemas/BrandSummary'
+          readOnly: true
+        shop:
+          allOf:
+          - $ref: '#/components/schemas/PublicShopSummary'
+          readOnly: true
+        media:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductMedia'
+          readOnly: true
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicProductVariant'
+          readOnly: true
+        attributes:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          readOnly: true
+        min_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
+          readOnly: true
+          nullable: true
+        max_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
+          readOnly: true
+          nullable: true
+        rating_average:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,1}(?:\.\d{0,2})?$
+          readOnly: true
+        rating_count:
+          type: integer
+          readOnly: true
+        sold_count:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - attributes
+      - brand
+      - category
+      - created_at
+      - description
+      - id
+      - max_price
+      - media
+      - min_price
+      - name
+      - rating_average
+      - rating_count
+      - shop
+      - short_description
+      - slug
+      - sold_count
+      - updated_at
+      - variants
+    PublicProductList:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        slug:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        thumbnail:
+          type: string
+          nullable: true
+          readOnly: true
+        min_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
+          readOnly: true
+          nullable: true
+        max_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
+          readOnly: true
+          nullable: true
+        rating_average:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,1}(?:\.\d{0,2})?$
+          readOnly: true
+        rating_count:
+          type: integer
+          readOnly: true
+        sold_count:
+          type: integer
+          readOnly: true
+        shop_name:
+          type: string
+          readOnly: true
+        shop_slug:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+      required:
+      - id
+      - max_price
+      - min_price
+      - name
+      - rating_average
+      - rating_count
+      - shop_name
+      - shop_slug
+      - slug
+      - sold_count
+      - thumbnail
+    PublicProductListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicProductList'
+        meta:
+          $ref: '#/components/schemas/ProductPaginationMeta'
+      required:
+      - data
+      - message
+      - meta
+      - success
+    PublicProductResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/PublicProductDetail'
+      required:
+      - data
+      - message
+      - success
+    PublicProductVariant:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        sku:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+          nullable: true
+        original_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
+          readOnly: true
+        sale_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
+          readOnly: true
+        weight_grams:
+          type: integer
+          readOnly: true
+          nullable: true
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/VariantAttributeValue'
+          readOnly: true
+      required:
+      - attributes
+      - id
+      - name
+      - original_price
+      - sale_price
+      - sku
+      - weight_grams
+    PublicShopSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        slug:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        logo_url:
+          type: string
+          readOnly: true
+        average_rating:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,1}(?:\.\d{0,2})?$
+          readOnly: true
+      required:
+      - average_rating
+      - id
+      - logo_url
+      - name
+      - slug
     Refresh:
       type: object
       properties:
@@ -2046,6 +4005,278 @@ components:
       required:
       - document
       - document_type
+    SellerProductCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        category_id:
+          type: string
+          format: uuid
+        brand_id:
+          type: string
+          format: uuid
+          nullable: true
+        short_description:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+      required:
+      - category_id
+      - name
+    SellerProductDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        slug:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        short_description:
+          type: string
+          readOnly: true
+          nullable: true
+        description:
+          type: string
+          readOnly: true
+          nullable: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ProductStatusEnum'
+          readOnly: true
+        rejection_reason:
+          type: string
+          readOnly: true
+          nullable: true
+        category:
+          allOf:
+          - $ref: '#/components/schemas/CategorySummary'
+          readOnly: true
+        brand:
+          allOf:
+          - $ref: '#/components/schemas/BrandSummary'
+          readOnly: true
+        media:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductMedia'
+          readOnly: true
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/SellerProductVariant'
+          readOnly: true
+        attributes:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          readOnly: true
+        min_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
+          readOnly: true
+          nullable: true
+        max_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
+          readOnly: true
+          nullable: true
+        rating_average:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,1}(?:\.\d{0,2})?$
+          readOnly: true
+        rating_count:
+          type: integer
+          readOnly: true
+        sold_count:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - attributes
+      - brand
+      - category
+      - created_at
+      - description
+      - id
+      - max_price
+      - media
+      - min_price
+      - name
+      - rating_average
+      - rating_count
+      - rejection_reason
+      - short_description
+      - slug
+      - sold_count
+      - status
+      - updated_at
+      - variants
+    SellerProductList:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        slug:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ProductStatusEnum'
+          readOnly: true
+        thumbnail:
+          type: string
+          nullable: true
+          readOnly: true
+        min_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
+          readOnly: true
+          nullable: true
+        max_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - max_price
+      - min_price
+      - name
+      - slug
+      - status
+      - thumbnail
+    SellerProductListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SellerProductList'
+        meta:
+          $ref: '#/components/schemas/ProductPaginationMeta'
+      required:
+      - data
+      - message
+      - meta
+      - success
+    SellerProductResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/SellerProductDetail'
+      required:
+      - data
+      - message
+      - success
+    SellerProductVariant:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        sku:
+          type: string
+          readOnly: true
+        barcode:
+          type: string
+          readOnly: true
+          nullable: true
+        name:
+          type: string
+          readOnly: true
+          nullable: true
+        original_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
+          readOnly: true
+        sale_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
+          readOnly: true
+        cost_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
+          readOnly: true
+          nullable: true
+        weight_grams:
+          type: integer
+          readOnly: true
+          nullable: true
+        is_active:
+          type: boolean
+          readOnly: true
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/VariantAttributeValue'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - attributes
+      - barcode
+      - cost_price
+      - created_at
+      - id
+      - is_active
+      - name
+      - original_price
+      - sale_price
+      - sku
+      - updated_at
+      - weight_grams
     SellerProfile:
       type: object
       properties:
@@ -2168,7 +4399,7 @@ components:
           readOnly: true
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusEnum'
+          - $ref: '#/components/schemas/ShopStatusEnum'
           readOnly: true
         lock_reason:
           type: string
@@ -2233,7 +4464,7 @@ components:
       - data
       - message
       - success
-    StatusEnum:
+    ShopStatusEnum:
       enum:
       - pending
       - approved
@@ -2349,6 +4580,76 @@ components:
           type: string
         data:
           $ref: '#/components/schemas/User'
+      required:
+      - data
+      - message
+      - success
+    VariantAttributeValue:
+      type: object
+      properties:
+        attribute_id:
+          type: string
+          format: uuid
+          readOnly: true
+        attribute_name:
+          type: string
+          readOnly: true
+        attribute_value_id:
+          type: string
+          format: uuid
+          readOnly: true
+        value:
+          type: string
+          readOnly: true
+        display_value:
+          type: string
+          readOnly: true
+          nullable: true
+        color_code:
+          type: string
+          readOnly: true
+          nullable: true
+      required:
+      - attribute_id
+      - attribute_name
+      - attribute_value_id
+      - color_code
+      - display_value
+      - value
+    VariantGenerate:
+      type: object
+      properties:
+        attribute_value_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required:
+      - attribute_value_ids
+    VariantListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SellerProductVariant'
+      required:
+      - data
+      - message
+      - success
+    VariantResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/SellerProductVariant'
       required:
       - data
       - message
