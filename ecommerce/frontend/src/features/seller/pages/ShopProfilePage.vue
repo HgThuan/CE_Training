@@ -11,13 +11,8 @@ const shop = ref<Shop | null>(null)
 const form = reactive<ShopUpdatePayload>({})
 const loading = ref(true)
 const saving = ref(false)
-const uploading = ref<'logo' | 'cover' | null>(null)
 const message = ref('')
 const errorMessage = ref('')
-const logoFile = ref<File | null>(null)
-const coverFile = ref<File | null>(null)
-const logoPreview = ref('')
-const coverPreview = ref('')
 
 async function loadShop(): Promise<void> {
   try {
@@ -25,9 +20,9 @@ async function loadShop(): Promise<void> {
     Object.assign(form, {
       name: shop.value.name,
       description: shop.value.description,
+      logo_url: shop.value.logo_url,
+      cover_url: shop.value.cover_url,
     })
-    logoPreview.value = shop.value.logo_url
-    coverPreview.value = shop.value.cover_url
   } catch (error) {
     errorMessage.value = getErrorMessage(error)
   } finally {
@@ -37,50 +32,22 @@ async function loadShop(): Promise<void> {
 
 async function saveShop(): Promise<void> {
   saving.value = true
+  message.value = ''
+  errorMessage.value = ''
   try {
     const response = await sellerApi.updateShop({ ...form })
     shop.value = response.data.data
+    Object.assign(form, {
+      name: shop.value.name,
+      description: shop.value.description,
+      logo_url: shop.value.logo_url,
+      cover_url: shop.value.cover_url,
+    })
     message.value = response.data.message
   } catch (error) {
     errorMessage.value = getErrorMessage(error)
   } finally {
     saving.value = false
-  }
-}
-
-function selectImage(event: Event, imageType: 'logo' | 'cover'): void {
-  const input = event.target as HTMLInputElement
-  const selectedFile = input.files?.[0] ?? null
-  if (imageType === 'logo') {
-    logoFile.value = selectedFile
-    logoPreview.value = selectedFile
-      ? URL.createObjectURL(selectedFile)
-      : (shop.value?.logo_url ?? '')
-  } else {
-    coverFile.value = selectedFile
-    coverPreview.value = selectedFile
-      ? URL.createObjectURL(selectedFile)
-      : (shop.value?.cover_url ?? '')
-  }
-}
-
-async function uploadImage(imageType: 'logo' | 'cover'): Promise<void> {
-  const image = imageType === 'logo' ? logoFile.value : coverFile.value
-  if (!image) return
-  uploading.value = imageType
-  errorMessage.value = ''
-  try {
-    const response = await sellerApi.uploadShopImage(imageType, image)
-    shop.value = response.data.data
-    logoPreview.value = response.data.data.logo_url
-    coverPreview.value = response.data.data.cover_url
-    if (imageType === 'logo') logoFile.value = null
-    else coverFile.value = null
-    message.value = response.data.message
-  } catch (error) {
-    errorMessage.value = getErrorMessage(error)
-  } finally {
-    uploading.value = null
   }
 }
 
@@ -119,12 +86,11 @@ onMounted(loadShop)
       <section class="rounded-2xl border p-5">
         <h2 class="font-bold">Logo gian hàng</h2>
         <p class="mt-1 text-sm text-gray-600">
-          Kích thước cố định: <strong>512 × 512 px</strong>. Ảnh sẽ được crop giữa thành hình vuông
-          và chuyển sang WebP.
+          Nhập URL ảnh công khai. Khuyến nghị ảnh vuông <strong>512 × 512 px</strong>.
         </p>
         <img
-          v-if="logoPreview"
-          :src="logoPreview"
+          v-if="form.logo_url"
+          :src="form.logo_url"
           alt="Xem trước logo gian hàng"
           class="mt-4 size-32 rounded-2xl object-cover ring-1 ring-gray-200"
         />
@@ -135,30 +101,23 @@ onMounted(loadShop)
           Chưa có logo
         </div>
         <input
-          accept="image/jpeg,image/png,image/webp"
-          class="mt-4 block w-full text-sm"
-          type="file"
-          @change="selectImage($event, 'logo')"
+          v-model.trim="form.logo_url"
+          class="mt-4 block w-full rounded-xl border px-3 py-2.5 text-sm"
+          name="logo_url"
+          placeholder="https://cdn.example.com/shop/logo.webp"
+          type="url"
         />
-        <button
-          class="mt-3 rounded-xl bg-gray-950 px-4 py-2.5 font-bold text-white disabled:opacity-50"
-          :disabled="!logoFile || uploading !== null"
-          type="button"
-          @click="uploadImage('logo')"
-        >
-          {{ uploading === 'logo' ? 'Đang tải logo…' : 'Tải logo lên' }}
-        </button>
       </section>
 
       <section class="rounded-2xl border p-5">
         <h2 class="font-bold">Ảnh bìa gian hàng</h2>
         <p class="mt-1 text-sm text-gray-600">
-          Kích thước cố định: <strong>1600 × 480 px</strong>. Ảnh sẽ được crop giữa theo tỷ lệ 10:3
-          và chuyển sang WebP.
+          Nhập URL ảnh công khai. Khuyến nghị tỷ lệ 10:3, kích thước
+          <strong>1600 × 480 px</strong>.
         </p>
         <img
-          v-if="coverPreview"
-          :src="coverPreview"
+          v-if="form.cover_url"
+          :src="form.cover_url"
           alt="Xem trước ảnh bìa gian hàng"
           class="mt-4 aspect-[10/3] w-full rounded-2xl object-cover ring-1 ring-gray-200"
         />
@@ -169,19 +128,12 @@ onMounted(loadShop)
           Chưa có ảnh bìa
         </div>
         <input
-          accept="image/jpeg,image/png,image/webp"
-          class="mt-4 block w-full text-sm"
-          type="file"
-          @change="selectImage($event, 'cover')"
+          v-model.trim="form.cover_url"
+          class="mt-4 block w-full rounded-xl border px-3 py-2.5 text-sm"
+          name="cover_url"
+          placeholder="https://cdn.example.com/shop/cover.webp"
+          type="url"
         />
-        <button
-          class="mt-3 rounded-xl bg-gray-950 px-4 py-2.5 font-bold text-white disabled:opacity-50"
-          :disabled="!coverFile || uploading !== null"
-          type="button"
-          @click="uploadImage('cover')"
-        >
-          {{ uploading === 'cover' ? 'Đang tải ảnh bìa…' : 'Tải ảnh bìa lên' }}
-        </button>
       </section>
       <div class="flex flex-wrap gap-3">
         <button class="rounded-xl bg-indigo-600 px-5 py-3 font-bold text-white" :disabled="saving">

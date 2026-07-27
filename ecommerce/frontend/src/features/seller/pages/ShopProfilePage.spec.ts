@@ -9,7 +9,6 @@ vi.mock('../api', () => ({
   sellerApi: {
     getShop: vi.fn(),
     updateShop: vi.fn(),
-    uploadShopImage: vi.fn(),
   },
 }))
 
@@ -20,10 +19,8 @@ const shop: Shop = {
   name: 'Future Shop',
   slug: 'future-shop',
   description: 'Shop description',
-  logo_url: '/media/shops/10/logo.webp',
-  cover_url: '/media/shops/10/cover.webp',
-  logo_size: { width: 512, height: 512 },
-  cover_size: { width: 1600, height: 480 },
+  logo_url: 'https://cdn.example.com/shops/10/logo.webp',
+  cover_url: 'https://cdn.example.com/shops/10/cover.webp',
   status: 'approved',
   lock_reason: '',
   locked_at: null,
@@ -36,18 +33,15 @@ const shop: Shop = {
 describe('ShopProfilePage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.stubGlobal('URL', {
-      createObjectURL: vi.fn(() => 'blob:preview'),
-    })
     vi.mocked(sellerApi.getShop).mockResolvedValue({
       data: { success: true, message: 'ok', data: shop },
     } as Awaited<ReturnType<typeof sellerApi.getShop>>)
-    vi.mocked(sellerApi.uploadShopImage).mockResolvedValue({
-      data: { success: true, message: 'uploaded', data: shop },
-    } as Awaited<ReturnType<typeof sellerApi.uploadShopImage>>)
+    vi.mocked(sellerApi.updateShop).mockResolvedValue({
+      data: { success: true, message: 'updated', data: shop },
+    } as Awaited<ReturnType<typeof sellerApi.updateShop>>)
   })
 
-  it('shows fixed image dimensions and uploads a logo file directly', async () => {
+  it('loads logo and cover URLs and saves them with the shop profile', async () => {
     const wrapper = mount(ShopProfilePage, {
       global: {
         stubs: {
@@ -61,16 +55,16 @@ describe('ShopProfilePage', () => {
     expect(wrapper.text()).toContain('512 × 512 px')
     expect(wrapper.text()).toContain('1600 × 480 px')
 
-    const logoInput = wrapper.findAll('input[type="file"]')[0]
-    const logo = new File(['image'], 'logo.png', { type: 'image/png' })
-    Object.defineProperty(logoInput.element, 'files', { value: [logo] })
-    await logoInput.trigger('change')
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Tải logo'))!
-      .trigger('click')
+    const logoUrl = 'https://images.example.com/new-logo.webp'
+    await wrapper.find('input[name="logo_url"]').setValue(logoUrl)
+    await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(sellerApi.uploadShopImage).toHaveBeenCalledWith('logo', logo)
+    expect(sellerApi.updateShop).toHaveBeenCalledWith({
+      name: shop.name,
+      description: shop.description,
+      logo_url: logoUrl,
+      cover_url: shop.cover_url,
+    })
   })
 })

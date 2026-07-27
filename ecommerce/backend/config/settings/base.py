@@ -123,7 +123,6 @@ STATIC_ROOT = Path(env("STATIC_ROOT", default=str(BASE_DIR / "staticfiles")))
 MEDIA_URL = "/media/"
 MEDIA_ROOT = Path(env("MEDIA_ROOT", default=str(BASE_DIR / "media")))
 MAX_AVATAR_UPLOAD_MB = env.int("MAX_AVATAR_UPLOAD_MB", default=5)
-MAX_SHOP_IMAGE_UPLOAD_MB = env.int("MAX_SHOP_IMAGE_UPLOAD_MB", default=10)
 MAX_SELLER_DOCUMENT_UPLOAD_MB = env.int("MAX_SELLER_DOCUMENT_UPLOAD_MB", default=10)
 MAX_IMAGE_UPLOAD_MB = env.int("MAX_IMAGE_UPLOAD_MB", default=10)
 MAX_VIDEO_UPLOAD_MB = env.int("MAX_VIDEO_UPLOAD_MB", default=100)

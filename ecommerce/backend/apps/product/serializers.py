@@ -393,18 +393,12 @@ class PublicShopSummarySerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     name = serializers.CharField(read_only=True)
     slug = serializers.SlugField(read_only=True)
-    logo_url = serializers.SerializerMethodField()
+    logo_url = serializers.URLField(read_only=True)
     average_rating = serializers.DecimalField(
         max_digits=3,
         decimal_places=2,
         read_only=True,
     )
-
-    def get_logo_url(self, shop) -> str:
-        if shop.logo:
-            request = self.context.get("request")
-            return request.build_absolute_uri(shop.logo.url) if request else shop.logo.url
-        return shop.logo_url
 
 
 class PublicProductDetailSerializer(

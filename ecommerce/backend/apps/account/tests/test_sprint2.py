@@ -1,11 +1,9 @@
-from io import BytesIO
 from unittest.mock import patch
 from urllib.parse import urlparse
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
-from PIL import Image
 
 from apps.account.models import Notification, SellerDocument, SellerProfile, Shop, User
 from apps.account.services import SellerOnboardingService, ShopBusinessPolicy
@@ -256,7 +254,7 @@ def test_seller_a_cannot_read_or_update_seller_b_shop_by_changing_url_id(api_cli
 
 
 @pytest.mark.django_db
-def test_seller_uploads_fixed_size_logo_and_cover(api_client):
+def test_seller_updates_logo_and_cover_urls(api_client):
     seller = UserFactory(role=User.Role.SELLER)
     SellerProfileFactory(
         user=seller,
@@ -265,31 +263,15 @@ def test_seller_uploads_fixed_size_logo_and_cover(api_client):
     shop = ShopFactory(owner=seller)
     api_client.force_authenticate(seller)
 
-    logo_bytes = BytesIO()
-    Image.new("RGB", (1200, 800), "#4f46e5").save(logo_bytes, format="PNG")
-    logo_response = api_client.post(
-        reverse("account:seller-shop-logo-upload"),
+    logo_url = "https://cdn.example.com/shops/seller/logo.webp"
+    cover_url = "https://cdn.example.com/shops/seller/cover.webp"
+    response = api_client.patch(
+        reverse("account:seller-shop"),
         {
-            "image": SimpleUploadedFile(
-                "logo.png",
-                logo_bytes.getvalue(),
-                content_type="image/png",
-            ),
+            "logo_url": logo_url,
+            "cover_url": cover_url,
         },
-        format="multipart",
-    )
-    cover_bytes = BytesIO()
-    Image.new("RGB", (900, 1200), "#0f172a").save(cover_bytes, format="JPEG")
-    cover_response = api_client.post(
-        reverse("account:seller-shop-cover-upload"),
-        {
-            "image": SimpleUploadedFile(
-                "cover.jpg",
-                cover_bytes.getvalue(),
-                content_type="image/jpeg",
-            ),
-        },
-        format="multipart",
+        format="json",
     )
 
     shop.refresh_from_db()
@@ -297,24 +279,18 @@ def test_seller_uploads_fixed_size_logo_and_cover(api_client):
     public_response = api_client.get(
         reverse("account:public-shop", kwargs={"slug": shop.slug}),
     )
-    with Image.open(shop.logo.path) as logo:
-        assert logo.size == (512, 512)
-        assert logo.format == "WEBP"
-    with Image.open(shop.cover.path) as cover:
-        assert cover.size == (1600, 480)
-        assert cover.format == "WEBP"
-    assert logo_response.status_code == 200
-    assert cover_response.status_code == 200
-    assert logo_response.data["data"]["logo_size"] == {"width": 512, "height": 512}
-    assert cover_response.data["data"]["cover_size"] == {"width": 1600, "height": 480}
-    assert "/media/shops/" in cover_response.data["data"]["cover_url"]
+    assert response.status_code == 200
+    assert shop.logo_url == logo_url
+    assert shop.cover_url == cover_url
+    assert response.data["data"]["logo_url"] == logo_url
+    assert response.data["data"]["cover_url"] == cover_url
     assert public_response.status_code == 200
-    assert public_response.data["data"]["shop"]["logo_url"].endswith(".webp")
-    assert public_response.data["data"]["shop"]["cover_url"].endswith(".webp")
+    assert public_response.data["data"]["shop"]["logo_url"] == logo_url
+    assert public_response.data["data"]["shop"]["cover_url"] == cover_url
 
 
 @pytest.mark.django_db
-def test_shop_image_upload_rejects_spoofed_image_and_non_seller(api_client):
+def test_shop_update_rejects_invalid_image_urls_and_non_seller(api_client):
     seller = UserFactory(role=User.Role.SELLER)
     customer = UserFactory()
     SellerProfileFactory(
@@ -324,31 +300,19 @@ def test_shop_image_upload_rejects_spoofed_image_and_non_seller(api_client):
     ShopFactory(owner=seller)
 
     api_client.force_authenticate(seller)
-    spoofed = api_client.post(
-        reverse("account:seller-shop-logo-upload"),
-        {
-            "image": SimpleUploadedFile(
-                "fake.png",
-                b"not an image",
-                content_type="image/png",
-            ),
-        },
-        format="multipart",
+    invalid_url = api_client.patch(
+        reverse("account:seller-shop"),
+        {"logo_url": "not-a-public-url"},
+        format="json",
     )
     api_client.force_authenticate(customer)
-    forbidden = api_client.post(
-        reverse("account:seller-shop-logo-upload"),
-        {
-            "image": SimpleUploadedFile(
-                "fake.png",
-                b"not an image",
-                content_type="image/png",
-            ),
-        },
-        format="multipart",
+    forbidden = api_client.patch(
+        reverse("account:seller-shop"),
+        {"logo_url": "https://cdn.example.com/shops/customer/logo.webp"},
+        format="json",
     )
 
-    assert spoofed.status_code == 400
+    assert invalid_url.status_code == 400
     assert forbidden.status_code == 403
 
 

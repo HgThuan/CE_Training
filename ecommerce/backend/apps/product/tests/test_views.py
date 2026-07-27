@@ -604,6 +604,8 @@ def test_public_product_filter_validation_uses_standard_error_response(api_clien
 @pytest.mark.django_db
 def test_public_detail_returns_nested_data_and_hides_private_variant_fields(api_client):
     product = ProductFactory(status=Product.Status.APPROVED)
+    product.shop.logo_url = "https://cdn.example.com/shops/public-logo.webp"
+    product.shop.save(update_fields=("logo_url", "updated_at"))
     variant = ProductVariantFactory(
         product=product,
         shop=product.shop,
@@ -621,6 +623,7 @@ def test_public_detail_returns_nested_data_and_hides_private_variant_fields(api_
 
     assert response.status_code == status.HTTP_200_OK
     assert response.data["data"]["shop"]["name"] == product.shop.name
+    assert response.data["data"]["shop"]["logo_url"] == product.shop.logo_url
     assert response.data["data"]["category"]["id"] == str(product.category_id)
     assert response.data["data"]["variants"][0]["id"] == str(variant.pk)
     assert "cost_price" not in response.data["data"]["variants"][0]

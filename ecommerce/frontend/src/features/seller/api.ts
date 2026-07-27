@@ -22,9 +22,4 @@ export const sellerApi = {
   getShop: () => http.get<ApiResponse<Shop>>('/seller/shop/'),
   updateShop: (payload: ShopUpdatePayload) =>
     http.patch<ApiResponse<Shop>>('/seller/shop/', payload),
-  uploadShopImage: (imageType: 'logo' | 'cover', image: File) => {
-    const formData = new FormData()
-    formData.append('image', image)
-    return http.post<ApiResponse<Shop>>(`/seller/shop/${imageType}/`, formData)
-  },
 }

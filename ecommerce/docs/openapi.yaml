@@ -1737,52 +1737,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ShopResponse'
           description: ''
-  /api/v1/seller/shop/cover/:
-    post:
-      operationId: v1_seller_shop_cover_create
-      tags:
-      - v1
-      requestBody:
-        content:
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/ShopImageUpload'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ShopImageUpload'
-        required: true
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ShopResponse'
-          description: ''
-  /api/v1/seller/shop/logo/:
-    post:
-      operationId: v1_seller_shop_logo_create
-      tags:
-      - v1
-      requestBody:
-        content:
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/ShopImageUpload'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ShopImageUpload'
-        required: true
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ShopResponse'
-          description: ''
   /api/v1/seller/shops/{shop_id}/:
     get:
       operationId: v1_seller_shops_retrieve
@@ -3364,6 +3318,20 @@ components:
           maxLength: 255
         description:
           type: string
+        logo_url:
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 500
+          - type: string
+            maxLength: 0
+        cover_url:
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 500
+          - type: string
+            maxLength: 0
     PatchedUser:
       type: object
       properties:
@@ -3790,6 +3758,7 @@ components:
           pattern: ^[-a-zA-Z0-9_]+$
         logo_url:
           type: string
+          format: uri
           readOnly: true
         average_rating:
           type: string
@@ -4383,19 +4352,11 @@ components:
           type: string
         logo_url:
           type: string
+          format: uri
           readOnly: true
         cover_url:
           type: string
-          readOnly: true
-        logo_size:
-          type: object
-          additionalProperties:
-            type: integer
-          readOnly: true
-        cover_size:
-          type: object
-          additionalProperties:
-            type: integer
+          format: uri
           readOnly: true
         status:
           allOf:
@@ -4427,13 +4388,11 @@ components:
           readOnly: true
       required:
       - average_rating
-      - cover_size
       - cover_url
       - created_at
       - id
       - lock_reason
       - locked_at
-      - logo_size
       - logo_url
       - name
       - owner_email
@@ -4442,15 +4401,6 @@ components:
       - status
       - total_products
       - updated_at
-    ShopImageUpload:
-      type: object
-      properties:
-        image:
-          type: string
-          format: uri
-          writeOnly: true
-      required:
-      - image
     ShopResponse:
       type: object
       properties:

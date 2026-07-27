@@ -62,7 +62,6 @@ from .serializers import (
     SellerDocumentUploadSerializer,
     SellerProfileSerializer,
     SessionResponseSerializer,
-    ShopImageUploadSerializer,
     ShopResponseSerializer,
     ShopSerializer,
     ShopUpdateSerializer,
@@ -879,30 +878,6 @@ class SellerShopView(APIView):
         )
         return success_response(
             message="Cập nhật gian hàng thành công",
-            data=ShopSerializer(shop, context={"request": request}).data,
-        )
-
-
-class SellerShopImageUploadView(APIView):
-    permission_classes = [IsShopOwner]
-    parser_classes = [MultiPartParser, FormParser]
-    image_type = ""
-
-    @extend_schema(request=ShopImageUploadSerializer, responses={200: ShopResponseSerializer})
-    def post(self, request):
-        shop = get_shop_for_owner(request.user)
-        if shop is None:
-            raise BusinessError("Không tìm thấy gian hàng", http_status=404)
-        self.check_object_permissions(request, shop)
-        serializer = ShopImageUploadSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        shop = ShopService.update_shop_image(
-            user=request.user,
-            image_type=self.image_type,
-            uploaded_file=serializer.validated_data["image"],
-        )
-        return success_response(
-            message="Cập nhật ảnh gian hàng thành công",
             data=ShopSerializer(shop, context={"request": request}).data,
         )
 

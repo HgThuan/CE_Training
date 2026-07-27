@@ -334,7 +334,7 @@ Lệnh xác minh: `TEST_USE_SQLITE=true pytest`, `ruff check .`, `python manage.
 | ADM-09                   | Done                        | List/detail pending, duyệt/từ chối kèm lý do, tạo Shop, notification/email                                                                     |
 | ADM-10                   | Done                        | Review từng SellerDocument: verified hoặc yêu cầu bổ sung kèm lý do                                                                            |
 | ADM-11                   | Done trong phạm vi Sprint 2 | Lock/unlock Shop, ẩn shop public và `ShopBusinessPolicy` chặn tạo resource mới; Product/Order sẽ gọi policy này khi được triển khai ở Sprint 3 |
-| SEL-17                   | Done                        | Public `/shop/:slug`, Seller cập nhật shop theo owner từ JWT, upload logo 512×512 và cover 1600×480                                            |
+| SEL-17                   | Done                        | Public `/shop/:slug`, Seller cập nhật shop theo owner từ JWT và lưu URL công khai cho logo/cover                                               |
 | SEL-18                   | Done                        | Customer nộp/theo dõi hồ sơ hai bước và upload giấy tờ private                                                                                 |
 | NFR-02                   | Done                        | Permission khai báo rõ; test Seller A không GET/PATCH Shop Seller B và non-Admin nhận 403                                                      |
 | Phần NFR-15 của Sprint 2 | Done một phần theo kế hoạch | AuditLog lưu reason/request_id và structured log cho hành động nhạy cảm; NFR-15 tổng thể vẫn `[ ]` vì chưa triển khai monitoring production    |
@@ -354,7 +354,7 @@ Kết quả xác minh ngày 24/07/2026:
 | `npm run test`                                                 | Pass — 10 test files, 17 tests                              |
 | `npm run build`                                                | Pass — TypeScript check và Vite production build            |
 | Docker Compose runtime                                         | Pass — Backend, Frontend, Nginx, Redis và Celery healthy    |
-| Runtime migrations                                             | Pass — `account.0001..0004` và `common.0001..0002` đã apply |
+| Runtime migrations                                             | Pass — `account.0001..0005` và `common.0001..0002` đã apply |
 | `GET /api/health/` qua Nginx                                   | Pass — database/cache đều `ok`                              |
 
 ## Xác minh Sprint 3 — Catalog & Product Backend/API
@@ -382,7 +382,7 @@ Kết quả verification ngày 27/07/2026:
 | Coverage production code `apps.catalog` + `apps.product`         | Pass — 91% (đã loại tests và migrations)                             |
 | Full Backend pytest                                              | Pass — 151 tests                                                     |
 | `ruff check apps/catalog/ apps/product/`                         | Pass                                                                 |
-| Ruff toàn Backend + format check                                 | Pass — 81 files                                                      |
+| Ruff toàn Backend + format check                                 | Pass — 83 files                                                      |
 | Django system check                                              | Pass — 0 issues                                                      |
 | Migration drift                                                  | Pass — No changes detected                                           |
 | Runtime migrations                                               | Pass — `catalog.0001`, `product.0001`, `common.0003` đã apply       |

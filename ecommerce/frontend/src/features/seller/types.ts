@@ -2,8 +2,6 @@ export type SellerApplicationStatus = 'pending' | 'approved' | 'rejected'
 export type VerificationStatus = 'unverified' | 'pending' | 'verified'
 export type DocumentReviewStatus = 'pending' | 'verified' | 'additional_required'
 export type ShopStatus = 'pending' | 'approved' | 'rejected' | 'locked'
-export const SHOP_LOGO_SIZE = { width: 512, height: 512 } as const
-export const SHOP_COVER_SIZE = { width: 1600, height: 480 } as const
 
 export interface SellerDocument {
   id: number
@@ -49,8 +47,6 @@ export interface Shop {
   description: string
   logo_url: string
   cover_url: string
-  logo_size: { width: number; height: number }
-  cover_size: { width: number; height: number }
   status: ShopStatus
   lock_reason: string
   locked_at: string | null
@@ -60,4 +56,6 @@ export interface Shop {
   updated_at: string
 }
 
-export type ShopUpdatePayload = Partial<Pick<Shop, 'name' | 'description'>>
+export type ShopUpdatePayload = Partial<
+  Pick<Shop, 'name' | 'description' | 'logo_url' | 'cover_url'>
+>

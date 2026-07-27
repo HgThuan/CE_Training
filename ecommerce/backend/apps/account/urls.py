@@ -30,7 +30,6 @@ from .views import (
     ResetPasswordView,
     SellerApplicationView,
     SellerDocumentUploadView,
-    SellerShopImageUploadView,
     SellerShopView,
     SessionView,
     SetDefaultAddressView,
@@ -158,16 +157,6 @@ urlpatterns = [
         name="admin-shop-unlock",
     ),
     path("seller/shop/", SellerShopView.as_view(), name="seller-shop"),
-    path(
-        "seller/shop/logo/",
-        SellerShopImageUploadView.as_view(image_type="logo"),
-        name="seller-shop-logo-upload",
-    ),
-    path(
-        "seller/shop/cover/",
-        SellerShopImageUploadView.as_view(image_type="cover"),
-        name="seller-shop-cover-upload",
-    ),
     path(
         "seller/shops/<int:shop_id>/",
         SellerShopView.as_view(),
