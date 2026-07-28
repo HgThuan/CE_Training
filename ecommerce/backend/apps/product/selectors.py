@@ -42,7 +42,7 @@ class ProductSelector:
         if public_only:
             variant_queryset = variant_queryset.filter(is_active=True)
         variants = (
-            variant_queryset.select_related("shop")
+            variant_queryset.select_related("shop", "inventory_balance")
             .prefetch_related(
                 Prefetch(
                     "variant_attribute_links",
@@ -209,7 +209,11 @@ class ProductSelector:
         variant_id,
     ) -> ProductVariant | None:
         return (
-            ProductVariant.objects.select_related("product__shop", "shop")
+            ProductVariant.objects.select_related(
+                "product__shop",
+                "shop",
+                "inventory_balance",
+            )
             .prefetch_related(
                 "variant_attribute_links__attribute",
                 "variant_attribute_links__attribute_value",
@@ -230,7 +234,11 @@ class ProductSelector:
         variant_ids=None,
     ) -> QuerySet[ProductVariant]:
         queryset = (
-            ProductVariant.objects.select_related("product__shop", "shop")
+            ProductVariant.objects.select_related(
+                "product__shop",
+                "shop",
+                "inventory_balance",
+            )
             .prefetch_related(
                 "variant_attribute_links__attribute",
                 "variant_attribute_links__attribute_value",
@@ -255,7 +263,12 @@ class ProductSelector:
         ):
             return None
         return (
-            ProductVariant.objects.select_related("product", "product__shop", "shop")
+            ProductVariant.objects.select_related(
+                "product",
+                "product__shop",
+                "shop",
+                "inventory_balance",
+            )
             .prefetch_related(
                 "variant_attribute_links__attribute",
                 "variant_attribute_links__attribute_value",

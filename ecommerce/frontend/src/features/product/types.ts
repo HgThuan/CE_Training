@@ -105,7 +105,9 @@ export interface ProductVariant {
   name: string | null
   original_price: string
   sale_price: string
+  /** @deprecated Use available_stock. */
   stock_quantity: number
+  available_stock: number
   weight_grams: number | null
   attributes: VariantAttribute[]
 }
@@ -244,7 +246,6 @@ export interface VariantUpdatePayload {
   original_price?: string
   sale_price?: string
   cost_price?: string | null
-  stock_quantity?: number
   weight_grams?: number
   is_active?: boolean
 }

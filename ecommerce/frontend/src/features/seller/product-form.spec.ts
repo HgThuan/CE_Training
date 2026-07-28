@@ -66,7 +66,7 @@ describe('seller product variant matrix', () => {
     drafts[0]!.salePrice = '90000'
     expect(validateVariantDrafts(drafts)).toBeNull()
 
-    drafts[0]!.stockQuantity = '-1'
-    expect(validateVariantDrafts(drafts)).toContain('Tồn kho')
+    drafts[0]!.salePrice = '100001'
+    expect(validateVariantDrafts(drafts)).toContain('Giá bán')
   })
 })

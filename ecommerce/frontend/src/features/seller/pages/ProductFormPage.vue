@@ -316,7 +316,6 @@ function variantPayload(draft: VariantDraft): VariantUpdatePayload {
     original_price: draft.originalPrice,
     sale_price: draft.salePrice,
     cost_price: draft.costPrice || null,
-    stock_quantity: Number(draft.stockQuantity),
     weight_grams: draft.weightGrams ? Number(draft.weightGrams) : undefined,
     is_active: draft.isActive,
   }
@@ -920,14 +919,9 @@ onBeforeUnmount(() => {
                     />
                   </td>
                   <td class="p-2">
-                    <input
-                      v-model="draft.stockQuantity"
-                      class="w-24 rounded-lg border border-slate-300 px-2.5 py-2"
-                      :disabled="!editable"
-                      type="number"
-                      min="0"
-                      step="1"
-                    />
+                    <RouterLink class="text-sm font-bold text-indigo-700" to="/seller/inventory">
+                      Quản lý tại Kho
+                    </RouterLink>
                   </td>
                   <td class="p-2">
                     <input

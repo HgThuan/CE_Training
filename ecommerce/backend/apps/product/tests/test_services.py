@@ -533,6 +533,13 @@ def test_update_variant_validates_prices_uniqueness_and_refreshes_cache():
             seller_user=variant.shop.owner,
             data={"sku": "TAKEN-SKU"},
         )
+    with pytest.raises(BusinessError, match="module Kho"):
+        VariantService.update_variant(
+            variant=variant,
+            seller_user=variant.shop.owner,
+            data={"stock_quantity": 12},
+        )
+
     updated = VariantService.update_variant(
         variant=variant,
         seller_user=variant.shop.owner,
@@ -541,14 +548,13 @@ def test_update_variant_validates_prices_uniqueness_and_refreshes_cache():
             "barcode": None,
             "original_price": 500,
             "sale_price": 400,
-            "stock_quantity": 12,
         },
     )
     updated.product.refresh_from_db()
     assert updated.sku
     assert updated.barcode is None
     assert updated.sale_price == 400
-    assert updated.stock_quantity == 12
+    assert updated.available_stock == 0
     assert updated.product.min_price == 400
 
 

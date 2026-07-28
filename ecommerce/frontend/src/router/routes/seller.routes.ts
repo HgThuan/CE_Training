@@ -32,6 +32,26 @@ export const sellerRoutes: RouteRecordRaw[] = [
         component: () => import('@/features/seller/pages/ProductFormPage.vue'),
       },
       {
+        path: 'inventory',
+        name: 'seller-inventory',
+        component: () => import('@/features/inventory/views/InventoryList.vue'),
+      },
+      {
+        path: 'inventory/entries',
+        name: 'seller-stock-entries',
+        component: () => import('@/features/inventory/views/StockEntryList.vue'),
+      },
+      {
+        path: 'inventory/out',
+        name: 'seller-stock-out-entries',
+        component: () => import('@/features/inventory/views/StockOutEntryList.vue'),
+      },
+      {
+        path: 'inventory/movements',
+        name: 'seller-stock-movements',
+        component: () => import('@/features/inventory/views/StockMovementHistory.vue'),
+      },
+      {
         path: 'application',
         name: 'seller-application-status',
         component: () => import('@/features/seller/pages/SellerApplicationPage.vue'),

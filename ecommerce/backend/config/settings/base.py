@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "apps.account.apps.AccountConfig",
     "apps.catalog.apps.CatalogConfig",
     "apps.product.apps.ProductConfig",
+    "apps.inventory.apps.InventoryConfig",
 ]
 
 MIDDLEWARE = [
@@ -183,6 +184,7 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "ENUM_NAME_OVERRIDES": {
         "ProductStatusEnum": "apps.product.models.Product.Status",
+        "StockDocumentStatusEnum": "apps.inventory.models.StockEntry.Status",
     },
 }
 

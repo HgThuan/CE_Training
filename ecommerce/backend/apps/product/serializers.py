@@ -224,6 +224,9 @@ class VariantAttributeValueSerializer(serializers.Serializer):
 
 
 class SellerProductVariantSerializer(serializers.ModelSerializer):
+    # stock_quantity remains a read-only compatibility alias during the Sprint 4 migration.
+    stock_quantity = serializers.IntegerField(source="available_stock", read_only=True)
+    available_stock = serializers.IntegerField(read_only=True)
     attributes = VariantAttributeValueSerializer(
         source="variant_attribute_links",
         many=True,
@@ -241,6 +244,7 @@ class SellerProductVariantSerializer(serializers.ModelSerializer):
             "sale_price",
             "cost_price",
             "stock_quantity",
+            "available_stock",
             "weight_grams",
             "is_active",
             "attributes",
@@ -251,6 +255,8 @@ class SellerProductVariantSerializer(serializers.ModelSerializer):
 
 
 class PublicProductVariantSerializer(serializers.ModelSerializer):
+    stock_quantity = serializers.IntegerField(source="available_stock", read_only=True)
+    available_stock = serializers.IntegerField(read_only=True)
     attributes = VariantAttributeValueSerializer(
         source="variant_attribute_links",
         many=True,
@@ -266,6 +272,7 @@ class PublicProductVariantSerializer(serializers.ModelSerializer):
             "original_price",
             "sale_price",
             "stock_quantity",
+            "available_stock",
             "weight_grams",
             "attributes",
         )
@@ -554,7 +561,8 @@ class VariantUpdateSerializer(serializers.ModelSerializer):
         allow_null=True,
         required=False,
     )
-    stock_quantity = serializers.IntegerField(min_value=0, required=False)
+    stock_quantity = serializers.IntegerField(source="available_stock", read_only=True)
+    available_stock = serializers.IntegerField(read_only=True)
     weight_grams = serializers.IntegerField(min_value=1, required=False)
 
     class Meta:
@@ -566,6 +574,7 @@ class VariantUpdateSerializer(serializers.ModelSerializer):
             "sale_price",
             "cost_price",
             "stock_quantity",
+            "available_stock",
             "weight_grams",
             "is_active",
         )
@@ -574,6 +583,17 @@ class VariantUpdateSerializer(serializers.ModelSerializer):
             "barcode": {"required": False, "allow_blank": True, "allow_null": True},
             "is_active": {"required": False},
         }
+
+    def to_internal_value(self, data):
+        if "stock_quantity" in data or "available_stock" in data:
+            raise serializers.ValidationError(
+                {
+                    "stock_quantity": [
+                        "Tồn kho chỉ được thay đổi qua phiếu nhập/xuất trong module Kho"
+                    ]
+                }
+            )
+        return super().to_internal_value(data)
 
     def validate(self, attrs):
         if not attrs:

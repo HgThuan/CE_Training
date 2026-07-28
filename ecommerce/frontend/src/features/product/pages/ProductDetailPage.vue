@@ -15,6 +15,7 @@ import { useRoute } from 'vue-router'
 
 import FormMessage from '@/features/auth/components/FormMessage.vue'
 import { getErrorMessage } from '@/features/auth/errors'
+import WaitlistButton from '@/features/inventory/components/WaitlistButton.vue'
 import { formatVnd } from '@/shared/lib/formatters'
 
 import ProductGallery from '../components/ProductGallery.vue'
@@ -48,11 +49,11 @@ const displayPrice = computed(() => {
 const canAdd = computed(
   () =>
     Boolean(product.value && selectedVariant.value) &&
-    quantity.value <= (selectedVariant.value?.stock_quantity ?? 0),
+    quantity.value <= (selectedVariant.value?.available_stock ?? 0),
 )
 
 function updateQuantity(amount: number): void {
-  const maximum = Math.min(99, selectedVariant.value?.stock_quantity ?? 99)
+  const maximum = Math.min(99, selectedVariant.value?.available_stock ?? 99)
   quantity.value = Math.min(maximum, Math.max(1, quantity.value + amount))
 }
 
@@ -186,7 +187,7 @@ onMounted(async () => {
                   class="grid h-10 w-10 place-items-center rounded-lg hover:bg-slate-100"
                   type="button"
                   aria-label="Tăng số lượng"
-                  :disabled="quantity >= (selectedVariant?.stock_quantity ?? 0)"
+                  :disabled="quantity >= (selectedVariant?.available_stock ?? 0)"
                   @click="updateQuantity(1)"
                 >
                   <PlusIcon class="h-4 w-4" />
@@ -213,11 +214,15 @@ onMounted(async () => {
 
             <p v-if="selectedVariant" class="mt-3 text-sm font-semibold text-slate-600">
               {{
-                selectedVariant.stock_quantity > 0
-                  ? `Còn ${selectedVariant.stock_quantity} sản phẩm`
+                selectedVariant.available_stock > 0
+                  ? `Còn ${selectedVariant.available_stock} sản phẩm`
                   : 'Biến thể này đã hết hàng'
               }}
             </p>
+            <WaitlistButton
+              v-if="selectedVariant && selectedVariant.available_stock === 0"
+              :variant-id="selectedVariant.id"
+            />
 
             <p
               v-if="cartNotice"

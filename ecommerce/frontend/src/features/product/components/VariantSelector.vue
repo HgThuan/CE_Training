@@ -78,8 +78,8 @@ function choose(attributeId: string, valueId: string): void {
       Giá: <strong class="text-indigo-700">{{ priceLabel }}</strong>
       <span class="mx-2 text-slate-300">•</span>
       Tồn:
-      <strong :class="selectedVariant.stock_quantity ? 'text-emerald-700' : 'text-rose-700'">
-        {{ selectedVariant.stock_quantity }}
+      <strong :class="selectedVariant.available_stock ? 'text-emerald-700' : 'text-rose-700'">
+        {{ selectedVariant.available_stock }}
       </strong>
     </p>
   </div>

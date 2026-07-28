@@ -996,6 +996,12 @@ class VariantService:
             )
         try:
             ProductVariant.objects.bulk_create(variants)
+            from apps.inventory.models import InventoryBalance
+
+            InventoryBalance.objects.bulk_create(
+                [InventoryBalance(variant=variant) for variant in variants],
+                ignore_conflicts=True,
+            )
             VariantAttributeValue.objects.bulk_create(
                 [
                     VariantAttributeValue(
@@ -1075,6 +1081,16 @@ class VariantService:
                 "Không thể sửa biến thể ở trạng thái hiện tại",
                 errors={"status": ["Sản phẩm phải ở trạng thái nháp hoặc bị từ chối"]},
             )
+        if "stock_quantity" in data or "available_stock" in data:
+            raise BusinessError(
+                "Tồn kho chỉ được thay đổi qua module Kho",
+                errors={
+                    "stock_quantity": [
+                        "Hãy tạo phiếu nhập, xuất hoặc kiểm kê để giữ đầy đủ lịch sử"
+                    ]
+                },
+            )
+
         allowed_fields = {
             "sku",
             "barcode",
@@ -1082,7 +1098,6 @@ class VariantService:
             "original_price",
             "sale_price",
             "cost_price",
-            "stock_quantity",
             "weight_grams",
             "is_active",
         }
@@ -1113,20 +1128,6 @@ class VariantService:
                 field="cost_price",
                 nullable=True,
             )
-        if "stock_quantity" in updates:
-            try:
-                stock_quantity = int(updates["stock_quantity"])
-            except (TypeError, ValueError) as exc:
-                raise BusinessError(
-                    "Tồn kho không hợp lệ",
-                    errors={"stock_quantity": ["Tồn kho phải là số nguyên không âm"]},
-                ) from exc
-            if stock_quantity < 0:
-                raise BusinessError(
-                    "Tồn kho không hợp lệ",
-                    errors={"stock_quantity": ["Tồn kho không được âm"]},
-                )
-            updates["stock_quantity"] = stock_quantity
         original_price = updates.get("original_price", locked_variant.original_price)
         sale_price = updates.get("sale_price", locked_variant.sale_price)
         if original_price != 0 and sale_price > original_price:

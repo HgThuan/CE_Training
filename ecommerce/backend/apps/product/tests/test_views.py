@@ -408,8 +408,8 @@ def test_variant_stock_image_and_barcode_lookup_are_scoped(
         {"barcode": foreign_variant.barcode},
     )
 
-    assert updated.status_code == status.HTTP_200_OK
-    assert updated.data["data"]["stock_quantity"] == 25
+    assert updated.status_code == status.HTTP_400_BAD_REQUEST
+    assert "module Kho" in str(updated.data["errors"])
     assert uploaded.status_code == status.HTTP_201_CREATED
     assert uploaded.data["data"]["variant_id"] == str(variant.pk)
     assert found.status_code == status.HTTP_200_OK

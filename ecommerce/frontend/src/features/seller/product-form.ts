@@ -14,7 +14,6 @@ export interface VariantDraft {
   originalPrice: string
   salePrice: string
   costPrice: string
-  stockQuantity: string
   weightGrams: string
   isActive: boolean
 }
@@ -67,7 +66,6 @@ export function generateVariantDrafts(
       originalPrice: previous?.originalPrice ?? '',
       salePrice: previous?.salePrice ?? '',
       costPrice: previous?.costPrice ?? '',
-      stockQuantity: previous?.stockQuantity ?? '0',
       weightGrams: previous?.weightGrams ?? '',
       isActive: previous?.isActive ?? true,
     }
@@ -88,7 +86,6 @@ export function variantToDraft(variant: SellerProductVariant): VariantDraft {
     originalPrice: variant.original_price,
     salePrice: variant.sale_price,
     costPrice: variant.cost_price ?? '',
-    stockQuantity: variant.stock_quantity.toString(),
     weightGrams: variant.weight_grams?.toString() ?? '',
     isActive: variant.is_active,
   }
@@ -127,10 +124,6 @@ export function validateVariantDrafts(drafts: VariantDraft[]): string | null {
     }
     if (originalPrice !== 0 && salePrice > originalPrice) {
       return `Giá bán của biến thể “${draft.label}” không được cao hơn giá gốc.`
-    }
-    const stockQuantity = Number(draft.stockQuantity)
-    if (!Number.isInteger(stockQuantity) || stockQuantity < 0) {
-      return `Tồn kho của biến thể “${draft.label}” phải là số nguyên không âm.`
     }
   }
   return null

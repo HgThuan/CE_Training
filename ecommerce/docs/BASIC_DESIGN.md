@@ -611,7 +611,10 @@ Các tính năng AI lớn phải bật/tắt được qua `SiteSetting` có cach
 - `Warehouse` hoặc `ShopInventoryLocation` nếu cần nhiều địa điểm;
 - `InventoryBalance`;
 - `StockMovement` — append-only;
-- `StockReservation` — PROPOSED cho giữ hàng lúc checkout/thanh toán.
+- `StockEntry`, `StockEntryItem`;
+- `StockOutEntry`, `StockOutEntryItem`;
+- `StockReservation` — chốt triển khai cùng counter tổng để giữ hàng lúc checkout/thanh toán;
+- `StockAlert` — waitlist theo từng user/variant.
 
 #### Commerce
 
@@ -662,6 +665,15 @@ erDiagram
     PRODUCT ||--o{ PRODUCT_IMAGE : has
     PRODUCT_VARIANT ||--|| INVENTORY_BALANCE : stocked_as
     PRODUCT_VARIANT ||--o{ STOCK_MOVEMENT : changes
+    PRODUCT_VARIANT ||--o{ STOCK_RESERVATION : reserved_as
+    PRODUCT_VARIANT ||--o{ STOCK_ALERT : watched_by
+    SHOP ||--o{ STOCK_ENTRY : receives
+    STOCK_ENTRY ||--|{ STOCK_ENTRY_ITEM : contains
+    PRODUCT_VARIANT ||--o{ STOCK_ENTRY_ITEM : received_as
+    SHOP ||--o{ STOCK_OUT_ENTRY : issues
+    STOCK_OUT_ENTRY ||--|{ STOCK_OUT_ENTRY_ITEM : contains
+    PRODUCT_VARIANT ||--o{ STOCK_OUT_ENTRY_ITEM : issued_as
+    USER ||--o{ STOCK_ALERT : subscribes
 
     CUSTOMER_PROFILE ||--|| CART : owns
     CART ||--o{ CART_ITEM : contains

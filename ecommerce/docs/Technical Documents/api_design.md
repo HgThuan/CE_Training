@@ -157,14 +157,18 @@ Toàn bộ endpoint dưới đây tự động scope theo `shop_id` của Seller
 | GET | `/seller/attributes` | Seller | Danh sách thuộc tính khả dụng | SEL-04 |
 | POST | `/seller/attributes` | Seller | Tạo thuộc tính cùng các giá trị cho shop | SEL-04 |
 | POST | `/seller/products/{id}/variants/generate` | Seller | Sinh tổ hợp biến thể từ thuộc tính | SEL-04 |
-| PATCH | `/seller/products/{id}/variants/{variant_id}` | Seller | Sửa 1 biến thể (giá, SKU, tồn kho ban đầu) | SEL-04..05 |
+| PATCH | `/seller/products/{id}/variants/{variant_id}` | Seller | Sửa 1 biến thể (giá, SKU; tồn kho quản lý ở module Kho) | SEL-04..05 |
 | GET | `/seller/variants/lookup?barcode=...` | Seller | Tra biến thể theo barcode, sẵn sàng cho máy quét kho | SEL-05 |
-| GET | `/seller/inventory/stock-entries` | Seller | Danh sách phiếu nhập/xuất | SEL-06..07 |
-| POST | `/seller/inventory/stock-entries` | Seller | Tạo phiếu nhập/xuất/điều chỉnh | SEL-06..07 |
-| POST | `/seller/inventory/stock-entries/{id}/confirm` | Seller | Xác nhận phiếu (cộng/trừ tồn kho) | SEL-06..07 |
+| GET | `/seller/inventory` | Seller | Danh sách balance; `low_stock=true` lọc SKU chạm ngưỡng | SEL-09 |
 | GET | `/seller/inventory/movements` | Seller | Lịch sử biến động tồn kho (theo variant) | SEL-08 |
-| GET | `/seller/inventory/low-stock` | Seller | Danh sách sản phẩm sắp hết hàng | SEL-09 |
-| PATCH | `/seller/products/{id}/variants/{variant_id}/threshold` | Seller | Đặt ngưỡng cảnh báo tồn kho | SEL-09 |
+| GET/POST | `/seller/inventory/stock-entries` | Seller | Danh sách/tạo phiếu nhập draft | SEL-06 |
+| PATCH | `/seller/inventory/stock-entries/{id}` | Seller | Sửa phiếu nhập khi còn draft | SEL-06 |
+| POST | `/seller/inventory/stock-entries/{id}/confirm` | Seller | Xác nhận phiếu nhập và cộng tồn | SEL-06 |
+| GET/POST | `/seller/inventory/stock-out-entries` | Seller | Danh sách/tạo phiếu xuất hoặc kiểm kê draft | SEL-07 |
+| PATCH | `/seller/inventory/stock-out-entries/{id}` | Seller | Sửa phiếu xuất/kiểm kê khi còn draft | SEL-07 |
+| POST | `/seller/inventory/stock-out-entries/{id}/confirm` | Seller | Xác nhận phiếu và trừ/điều chỉnh tồn | SEL-07 |
+| POST | `/seller/inventory/{variant_id}/threshold` | Seller | Đặt ngưỡng cảnh báo tồn kho | SEL-09 |
+| POST | `/customer/products/{variant_id}/waitlist` | Customer | Đăng ký báo khi SKU hết hàng có lại | BON-09 |
 
 ## 6. Seller — Đơn hàng, Voucher, Khách hàng, Đánh giá, Chat, Shop
 
