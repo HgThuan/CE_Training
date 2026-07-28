@@ -13,7 +13,7 @@ from apps.account.models import Shop, User
 from apps.account.tests.factories import ShopFactory, UserFactory
 from apps.catalog.tests.factories import BrandFactory, CategoryFactory
 from apps.common.models import AuditLog
-from apps.product.models import Product, ProductMedia
+from apps.product.models import Attribute, Product, ProductMedia
 from apps.product.tests.factories import (
     AttributeFactory,
     AttributeValueFactory,
@@ -306,6 +306,7 @@ def test_seller_attribute_list_generate_and_update_variants(
             kwargs={"product_id": product.pk, "variant_id": variant_id},
         ),
         {
+            "barcode": None,
             "original_price": "200000",
             "sale_price": "150000",
             "cost_price": "100000",
@@ -315,9 +316,105 @@ def test_seller_attribute_list_generate_and_update_variants(
     )
     assert updated.status_code == status.HTTP_200_OK
     assert updated.data["data"]["sale_price"] == "150000"
+    second_variant_id = generated.data["data"][1]["id"]
+    second_updated = api_client.patch(
+        reverse(
+            "product:seller-product-variant-update",
+            kwargs={"product_id": product.pk, "variant_id": second_variant_id},
+        ),
+        {
+            "barcode": None,
+            "original_price": "200000",
+            "sale_price": "150000",
+        },
+        format="json",
+    )
+    assert second_updated.status_code == status.HTTP_200_OK
+    assert second_updated.data["data"]["barcode"] is None
     product.refresh_from_db()
-    assert product.min_price == 0
+    assert product.min_price == 150000
     assert product.max_price == 150000
+
+
+@pytest.mark.django_db
+def test_seller_can_define_shop_attribute_with_values(api_client, seller_shop):
+    api_client.force_authenticate(seller_shop.owner)
+
+    response = api_client.post(
+        reverse("product:seller-attribute-list"),
+        {
+            "name": "Màu sắc",
+            "display_type": "color",
+            "values": [
+                {"value": "Đỏ", "color_code": "#ef4444"},
+                {"value": "Xanh", "color_code": "#3b82f6"},
+            ],
+        },
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_201_CREATED
+    assert response.data["data"]["scope"] == "shop"
+    assert [item["value"] for item in response.data["data"]["values"]] == ["Đỏ", "Xanh"]
+    attribute = Attribute.objects.get(pk=response.data["data"]["id"])
+    assert attribute.shop_id == seller_shop.pk
+    assert attribute.code == "mau-sac"
+
+
+@pytest.mark.django_db
+@override_settings(MAX_IMAGE_UPLOAD_MB=1, MEDIA_URL="/media/")
+def test_variant_stock_image_and_barcode_lookup_are_scoped(
+    api_client,
+    seller_shop,
+    tmp_path,
+    settings,
+):
+    settings.MEDIA_ROOT = tmp_path
+    product = ProductFactory(shop=seller_shop)
+    variant = ProductVariantFactory(
+        product=product,
+        shop=seller_shop,
+        barcode="8938500001234",
+    )
+    foreign_variant = ProductVariantFactory(barcode="8938500009999")
+    api_client.force_authenticate(seller_shop.owner)
+
+    updated = api_client.patch(
+        reverse(
+            "product:seller-product-variant-update",
+            kwargs={"product_id": product.pk, "variant_id": variant.pk},
+        ),
+        {"stock_quantity": 25},
+        format="json",
+    )
+    uploaded = api_client.post(
+        reverse(
+            "product:seller-product-media-upload",
+            kwargs={"product_id": product.pk},
+        ),
+        {
+            "file": image_upload("variant.jpg"),
+            "media_type": ProductMedia.MediaType.IMAGE,
+            "variant_id": str(variant.pk),
+        },
+        format="multipart",
+    )
+    found = api_client.get(
+        reverse("product:seller-variant-lookup"),
+        {"barcode": variant.barcode},
+    )
+    foreign = api_client.get(
+        reverse("product:seller-variant-lookup"),
+        {"barcode": foreign_variant.barcode},
+    )
+
+    assert updated.status_code == status.HTTP_400_BAD_REQUEST
+    assert "module Kho" in str(updated.data["errors"])
+    assert uploaded.status_code == status.HTTP_201_CREATED
+    assert uploaded.data["data"]["variant_id"] == str(variant.pk)
+    assert found.status_code == status.HTTP_200_OK
+    assert found.data["data"]["id"] == str(variant.pk)
+    assert foreign.status_code == status.HTTP_404_NOT_FOUND
 
 
 @pytest.mark.django_db

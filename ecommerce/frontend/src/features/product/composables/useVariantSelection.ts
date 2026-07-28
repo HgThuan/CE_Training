@@ -41,10 +41,12 @@ export function isVariantValueAvailable(
 ): boolean {
   return variants.some(
     (variant) =>
+      variant.available_stock > 0 &&
       variant.attributes.some(
         (attribute) =>
           attribute.attribute_id === attributeId && attribute.attribute_value_id === valueId,
-      ) && variantMatchesSelection(variant, selection, attributeId),
+      ) &&
+      variantMatchesSelection(variant, selection, attributeId),
   )
 }
 

@@ -12,7 +12,7 @@ const activeMedia = computed(() => props.media[activeIndex.value] ?? null)
 watch(
   () => props.media,
   () => {
-    activeIndex.value = Math.min(activeIndex.value, Math.max(props.media.length - 1, 0))
+    activeIndex.value = 0
   },
 )
 

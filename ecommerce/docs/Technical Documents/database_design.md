@@ -849,13 +849,15 @@ Seller chỉ được trả lời câu hỏi của product thuộc shop mình.
 
 ### 9.1. Quyết định mô hình chứng từ kho
 
-Yêu cầu có nhập kho, xuất kho và điều chỉnh tồn. Tài liệu này **PROPOSED** dùng một bảng chứng từ chung:
+Sprint 4 đã chốt dùng hai loại chứng từ riêng:
 
-- `stock_documents.document_type = RECEIPT | ISSUE | ADJUSTMENT`;
-- chi tiết nằm trong `stock_document_items`;
-- khi xác nhận, `StockService` khóa `inventory_balances`, cập nhật số dư và ghi `stock_movements` append-only.
+- `stock_entries`/`stock_entry_items` cho nhập hàng có nhà cung cấp và giá nhập;
+- `stock_out_entries`/`stock_out_entry_items` cho xuất kho hoặc kiểm kê;
+- cả hai đi qua `DRAFT → CONFIRMED`; phiếu confirmed không sửa;
+- chỉ `StockService` được khóa `inventory_balances`, đổi counter và ghi `stock_movements`.
 
-Thiết kế này tránh lặp ba cặp bảng có cấu trúc gần giống nhau. Nếu nhóm chọn bảng riêng `stock_entries`, `stock_issues`, `stock_adjustments`, các nguyên tắc transaction và ledger vẫn giữ nguyên.
+Một shop hiện có một balance trên mỗi variant. `Warehouse`/`Supplier` chuẩn hóa thành bảng riêng
+được deferred; Sprint 4 lưu `supplier_name` snapshot trên phiếu nhập.
 
 ### 9.2. `suppliers`
 
@@ -886,71 +888,65 @@ Thiết kế này tránh lặp ba cặp bảng có cấu trúc gần giống nha
 | `created_at` | `timestamptz` | Không |  |  |
 | `updated_at` | `timestamptz` | Không |  |  |
 
-**PROPOSED:** tạo một kho mặc định khi shop được duyệt. Nếu scope chỉ cần một kho/shop, vẫn giữ bảng này để không gắn tồn trực tiếp lên variant.
+**Deferred:** Sprint 4 chưa triển khai nhiều kho. Khi bổ sung `Warehouse`, cần migration từ
+OneToOne `(variant)` sang unique `(warehouse, variant)` mà không thay đổi ledger hiện hữu.
 
 ### 9.4. `inventory_balances`
 
 | Cột | Kiểu | Null | Ràng buộc / index | Mô tả |
 |---|---|---:|---|---|
-| `id` | `uuid` | Không | PK |  |
-| `warehouse_id` | `uuid` | Không | FK, index | Kho. |
-| `variant_id` | `uuid` | Không | FK, index | SKU. |
-| `on_hand` | `integer` | Không | Default 0, check >= 0 | Tồn thực tế. |
-| `reserved` | `integer` | Không | Default 0, check >= 0 | Đã giữ cho checkout/order. |
-| `low_stock_threshold` | `integer` | Không | Default theo setting, check >= 0 | Ngưỡng cảnh báo. |
-| `version` | `integer` | Không | Default 0 | Optimistic version — PROPOSED. |
+| `id` | `bigserial` | Không | PK |  |
+| `variant_id` | `uuid` | Không | One-to-one FK | SKU. |
+| `available_stock` | `integer` | Không | Default 0, check >= 0 | Có thể bán/giữ. |
+| `reserved_stock` | `integer` | Không | Default 0, check >= 0 | Tổng đang giữ. |
+| `low_stock_threshold` | `integer` | Không | Default 5, check >= 0 | Ngưỡng cảnh báo. |
 | `created_at` | `timestamptz` | Không |  |  |
 | `updated_at` | `timestamptz` | Không | Index |  |
-
-Unique `(warehouse_id, variant_id)`.
 
 Check:
 
 ```sql
-CHECK (on_hand >= 0),
-CHECK (reserved >= 0),
-CHECK (reserved <= on_hand)
+CHECK (available_stock >= 0),
+CHECK (reserved_stock >= 0),
+CHECK (low_stock_threshold >= 0)
 ```
 
-Tồn khả dụng được tính `on_hand - reserved`, không nhận từ client.
+Hai counter không nhận từ client và luôn thay đổi đồng thời với ledger qua `StockService`.
 
-### 9.5. `stock_documents`
+### 9.5. `stock_entries`
 
 | Cột | Kiểu | Null | Ràng buộc / index | Mô tả |
 |---|---|---:|---|---|
-| `id` | `uuid` | Không | PK |  |
+| `id` | `bigserial` | Không | PK |  |
 | `shop_id` | `uuid` | Không | FK, index | Tenant. |
-| `warehouse_id` | `uuid` | Không | FK, index | Kho. |
-| `supplier_id` | `uuid` | Có | FK, `SET NULL` | Dùng cho nhập/trả NCC. |
-| `document_code` | `varchar(50)` | Không | Unique `(shop_id, document_code)` | Mã phiếu. |
-| `document_type` | `varchar(20)` | Không | Index, check | `RECEIPT`, `ISSUE`, `ADJUSTMENT`. |
-| `status` | `varchar(20)` | Không | Index | `DRAFT`, `CONFIRMED`, `CANCELLED`. |
-| `reason` | `varchar(255)` | Có |  | Bắt buộc với xuất/điều chỉnh. |
+| `supplier_name` | `varchar(255)` | Không |  | Snapshot nhà cung cấp. |
+| `status` | `varchar(20)` | Không | Index | `DRAFT`, `CONFIRMED`. |
 | `note` | `text` | Có |  |  |
-| `confirmed_by_id` | `uuid` | Có | FK `users`, `SET NULL` | Người xác nhận. |
+| `confirmed_by_id` | `uuid` | Có | FK `users`, `PROTECT` | Người xác nhận. |
 | `confirmed_at` | `timestamptz` | Có |  |  |
-| `created_by_id` | `uuid` | Không | FK `users` | Người tạo. |
+| `created_by_id` | `uuid` | Không | FK `users`, `PROTECT` | Người tạo. |
 | `created_at` | `timestamptz` | Không | Index |  |
 | `updated_at` | `timestamptz` | Không |  |  |
 
 Phiếu đã `CONFIRMED` không được sửa/xóa; muốn đảo phải tạo chứng từ bù.
 
-### 9.6. `stock_document_items`
+### 9.6. `stock_entry_items`
 
 | Cột | Kiểu | Null | Ràng buộc |
 |---|---|---:|---|
-| `id` | `uuid` | Không | PK |
-| `document_id` | `uuid` | Không | FK `stock_documents`, index |
+| `id` | `bigserial` | Không | PK |
+| `stock_entry_id` | `bigint` | Không | FK `stock_entries` |
 | `variant_id` | `uuid` | Không | FK `product_variants`, index |
 | `quantity` | `integer` | Không | Check > 0 |
-| `unit_cost` | `numeric(18,0)` | Có | Check >= 0 |
-| `system_quantity` | `integer` | Có | Dùng cho kiểm kê |
-| `actual_quantity` | `integer` | Có | Dùng cho kiểm kê |
-| `note` | `varchar(255)` | Có |  |
+| `unit_cost` | `numeric(18,0)` | Không | Check >= 0 |
 | `created_at` | `timestamptz` | Không |  |
 | `updated_at` | `timestamptz` | Không |  |
 
-Unique `(document_id, variant_id)` trừ khi cho phép nhiều dòng cùng SKU.
+Unique `(stock_entry_id, variant_id)`.
+
+`stock_out_entries` có `entry_type = OUT | ADJUSTMENT`, `reason` bắt buộc và cùng các cột
+status/audit như `stock_entries`. `stock_out_entry_items.quantity` là lượng xuất khi `OUT`, hoặc
+số tồn thực tế mới khi `ADJUSTMENT`; unique `(stock_out_entry_id, variant_id)`.
 
 ### 9.7. `stock_movements`
 
@@ -958,42 +954,51 @@ Ledger append-only; không update, không delete.
 
 | Cột | Kiểu | Null | Ràng buộc / index | Mô tả |
 |---|---|---:|---|---|
-| `id` | `bigserial` hoặc `uuid` | Không | PK |  |
-| `inventory_balance_id` | `uuid` | Không | FK, index | Số dư bị thay đổi. |
+| `id` | `bigserial` | Không | PK |  |
 | `variant_id` | `uuid` | Không | FK, index | Dùng truy vấn sổ kho. |
-| `shop_id` | `uuid` | Không | FK, index | Tenant. |
-| `movement_type` | `varchar(30)` | Không | Index | `RECEIPT`, `ISSUE`, `SALE`, `RETURN`, `CANCEL_RESTORE`, `ADJUSTMENT`, `RESERVE`, `RELEASE`. |
-| `quantity_delta` | `integer` | Không | Check != 0 | Thay đổi on-hand; signed. |
-| `reserved_delta` | `integer` | Không | Default 0 | Thay đổi reserved; signed. |
-| `on_hand_after` | `integer` | Không | Check >= 0 | Số dư sau. |
-| `reserved_after` | `integer` | Không | Check >= 0 | Số giữ sau. |
-| `source_type` | `varchar(40)` | Không | Index | Loại nguồn: stock document, order item... |
-| `source_id` | `uuid` | Có | Index | ID nguồn. |
-| `idempotency_key` | `varchar(120)` | Không | Unique | Chống ghi trùng. |
+| `movement_type` | `varchar(20)` | Không | Index | `IN`, `OUT`, `ADJUSTMENT`, `RESERVE`, `RELEASE`, `COMMIT`. |
+| `bucket` | `varchar(20)` | Không | Check choices | `AVAILABLE` hoặc `RESERVED`. |
+| `quantity` | `integer` | Không | Check != 0 | Delta signed của bucket. |
+| `balance_after` | `integer` | Không | Check >= 0 | Số dư bucket sau giao dịch. |
+| `reference_type` | `varchar(20)` | Không |  | `STOCK_ENTRY`, `STOCK_OUT`, `ADJUSTMENT`, `ORDER`. |
+| `reference_id` | `varchar(64)` | Không | Composite index | ID/mã nguồn. |
 | `note` | `text` | Có |  |  |
-| `performed_by_id` | `uuid` | Có | FK `users`, `SET NULL` | Người/hệ thống thực hiện. |
+| `created_by_id` | `uuid` | Không | FK `users`, `PROTECT` | Người/hệ thống thực hiện. |
 | `created_at` | `timestamptz` | Không | Index | Thời điểm. |
+| `updated_at` | `timestamptz` | Không |  | Bắt buộc theo quy ước bảng. |
 
 Mọi thay đổi tồn phải đi qua `StockService` trong `transaction.atomic()` với `select_for_update()` hoặc `F()` expression.
 
-### 9.8. `stock_reservations` — PROPOSED/TBD
+### 9.8. `stock_reservations`
 
-Bảng này phụ thuộc quyết định trừ kho ngay hay giữ kho đến khi thanh toán.
+Sprint 4 chốt triển khai cả counter tổng và reservation chi tiết.
 
 | Cột | Kiểu | Null | Ràng buộc |
 |---|---|---:|---|
-| `id` | `uuid` | Không | PK |
+| `id` | `bigserial` | Không | PK |
 | `variant_id` | `uuid` | Không | FK, index |
-| `inventory_balance_id` | `uuid` | Không | FK |
-| `order_item_id` | `uuid` | Có | FK, unique khi gắn order item |
-| `reservation_key` | `varchar(120)` | Không | Unique |
+| `order_reference` | `varchar(64)` | Không | Unique cùng variant |
 | `quantity` | `integer` | Không | Check > 0 |
-| `status` | `varchar(20)` | Không | `ACTIVE`, `CONSUMED`, `RELEASED`, `EXPIRED` |
+| `status` | `varchar(20)` | Không | `ACTIVE`, `RELEASED`, `COMMITTED`, `EXPIRED` |
 | `expires_at` | `timestamptz` | Có | Index |
 | `created_at` | `timestamptz` | Không |  |
 | `updated_at` | `timestamptz` | Không |  |
 
 Celery Beat có thể giải phóng reservation hết hạn theo idempotent service.
+
+### 9.9. `stock_alerts`
+
+| Cột | Kiểu | Null | Ràng buộc |
+|---|---|---:|---|
+| `id` | `bigserial` | Không | PK |
+| `variant_id` | `uuid` | Không | FK |
+| `user_id` | `uuid` | Không | FK |
+| `is_notified` | `boolean` | Không | Default false, index |
+| `created_at` | `timestamptz` | Không | Index |
+| `updated_at` | `timestamptz` | Không |  |
+
+Unique `(variant_id, user_id)`. Khi available chuyển `0 → >0`, notification được tạo và flag
+được cập nhật trong cùng transaction; email chỉ được enqueue sau commit.
 
 ---
 
@@ -2212,8 +2217,8 @@ Kiểm tra N+1 bằng query count và dùng `EXPLAIN ANALYZE` cho query chính.
 |---|---|---|---|
 | DB-01 | Dùng UUID hay bigint cho PK nghiệp vụ | Tất cả bảng/FK | PROPOSED UUID |
 | DB-02 | Một seller chỉ có một shop hay hỗ trợ nhiều shop/staff | `seller_profiles`, `shops`, có thể thêm `shop_members` | TBD |
-| DB-03 | Một kho/shop hay nhiều kho | `warehouses`, `inventory_balances` | PROPOSED nhiều kho, seed một kho mặc định |
-| DB-04 | Trừ tồn ngay hay reservation đến khi thanh toán | `inventory_balances`, `stock_reservations`, order expiry | TBD |
+| DB-03 | Một kho/shop hay nhiều kho | `inventory_balances` | Sprint 4 chốt một balance/variant; multi-warehouse deferred |
+| DB-04 | Counter tổng hay reservation chi tiết | `inventory_balances`, `stock_reservations` | Chốt triển khai cả hai, cập nhật cùng transaction |
 | DB-05 | Thời gian hết hạn order chưa thanh toán | `orders.expires_at`, Celery job | TBD |
 | DB-06 | Voucher sàn và shop có cộng dồn không | `vouchers.stackable`, checkout allocation | TBD |
 | DB-07 | Hủy toàn order hay từng shop order | cancellation/stock/voucher/refund | TBD |

@@ -35,6 +35,8 @@ const variants: ProductVariant[] = [
     name: null,
     original_price: '100000',
     sale_price: '90000',
+    stock_quantity: 10,
+    available_stock: 10,
     weight_grams: null,
     attributes: [
       {
@@ -61,6 +63,8 @@ const variants: ProductVariant[] = [
     name: null,
     original_price: '100000',
     sale_price: '95000',
+    stock_quantity: 10,
+    available_stock: 10,
     weight_grams: null,
     attributes: [
       {
@@ -92,6 +96,13 @@ describe('variant selection', () => {
   it('disables values that cannot complete the current selection', () => {
     expect(isVariantValueAvailable(variants, { color: 'red' }, 'size', 's')).toBe(true)
     expect(isVariantValueAvailable(variants, { color: 'red' }, 'size', 'm')).toBe(false)
+  })
+
+  it('disables an out-of-stock combination', () => {
+    const outOfStock = variants.map((variant) =>
+      variant.id === 'red-s' ? { ...variant, available_stock: 0 } : variant,
+    )
+    expect(isVariantValueAvailable(outOfStock, { color: 'red' }, 'size', 's')).toBe(false)
   })
 
   it('can ignore the attribute being changed', () => {

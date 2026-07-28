@@ -59,4 +59,14 @@ describe('seller product variant matrix', () => {
     }
     expect(validateVariantDrafts(drafts)).toContain('bị trùng')
   })
+
+  it('allows backend-generated SKU and rejects negative stock', () => {
+    const drafts = generateVariantDrafts(attributes, { color: ['red'], size: ['s'] })
+    drafts[0]!.originalPrice = '100000'
+    drafts[0]!.salePrice = '90000'
+    expect(validateVariantDrafts(drafts)).toBeNull()
+
+    drafts[0]!.salePrice = '100001'
+    expect(validateVariantDrafts(drafts)).toContain('Giá bán')
+  })
 })

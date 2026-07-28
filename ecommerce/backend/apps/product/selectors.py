@@ -42,7 +42,7 @@ class ProductSelector:
         if public_only:
             variant_queryset = variant_queryset.filter(is_active=True)
         variants = (
-            variant_queryset.select_related("shop")
+            variant_queryset.select_related("shop", "inventory_balance")
             .prefetch_related(
                 Prefetch(
                     "variant_attribute_links",
@@ -209,7 +209,11 @@ class ProductSelector:
         variant_id,
     ) -> ProductVariant | None:
         return (
-            ProductVariant.objects.select_related("product__shop", "shop")
+            ProductVariant.objects.select_related(
+                "product__shop",
+                "shop",
+                "inventory_balance",
+            )
             .prefetch_related(
                 "variant_attribute_links__attribute",
                 "variant_attribute_links__attribute_value",
@@ -230,7 +234,11 @@ class ProductSelector:
         variant_ids=None,
     ) -> QuerySet[ProductVariant]:
         queryset = (
-            ProductVariant.objects.select_related("product__shop", "shop")
+            ProductVariant.objects.select_related(
+                "product__shop",
+                "shop",
+                "inventory_balance",
+            )
             .prefetch_related(
                 "variant_attribute_links__attribute",
                 "variant_attribute_links__attribute_value",
@@ -245,6 +253,34 @@ class ProductSelector:
         if variant_ids is not None:
             queryset = queryset.filter(pk__in=variant_ids)
         return queryset
+
+    @staticmethod
+    def variant_by_barcode(*, seller_user, barcode: str) -> ProductVariant | None:
+        if (
+            getattr(seller_user, "role", None) != User.Role.SELLER
+            or not getattr(seller_user, "is_active", False)
+            or getattr(seller_user, "is_deleted", True)
+        ):
+            return None
+        return (
+            ProductVariant.objects.select_related(
+                "product",
+                "product__shop",
+                "shop",
+                "inventory_balance",
+            )
+            .prefetch_related(
+                "variant_attribute_links__attribute",
+                "variant_attribute_links__attribute_value",
+            )
+            .filter(
+                shop__owner=seller_user,
+                product__is_deleted=False,
+                is_deleted=False,
+                barcode=barcode,
+            )
+            .first()
+        )
 
     @staticmethod
     def attributes_for_seller(seller_user) -> QuerySet[Attribute]:

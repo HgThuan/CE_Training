@@ -2,6 +2,7 @@ import uuid
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models import F, Q
 
@@ -254,6 +255,8 @@ class ProductVariant(TimeStampedModel):
         null=True,
         blank=True,
     )
+    # DEPRECATED — remove after every consumer has migrated to InventoryBalance.
+    stock_quantity = models.PositiveIntegerField(default=0)
     weight_grams = models.IntegerField(null=True, blank=True)
     is_active = models.BooleanField(default=True, db_index=True)
     is_deleted = models.BooleanField(default=False, db_index=True)
@@ -300,6 +303,14 @@ class ProductVariant(TimeStampedModel):
 
     def __str__(self) -> str:
         return self.sku
+
+    @property
+    def available_stock(self) -> int:
+        """Compatibility accessor backed by InventoryBalance after the Sprint 4 backfill."""
+        try:
+            return self.inventory_balance.available_stock
+        except ObjectDoesNotExist:
+            return self.stock_quantity
 
 
 class VariantAttributeValue(TimeStampedModel):

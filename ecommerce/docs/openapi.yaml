@@ -1142,6 +1142,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/CategoryTreeResponse'
           description: ''
+  /api/v1/customer/products/{variant_id}/waitlist/:
+    post:
+      operationId: customer_stock_waitlist_create
+      parameters:
+      - in: path
+        name: variant_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockAlertResponse'
+          description: ''
   /api/v1/products/:
     get:
       operationId: public_products_list
@@ -1329,6 +1350,288 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AttributeListResponse'
+          description: ''
+    post:
+      operationId: seller_attributes_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttributeCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AttributeCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AttributeCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttributeResponse'
+          description: ''
+  /api/v1/seller/inventory/:
+    get:
+      operationId: seller_inventory_list
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryListResponse'
+          description: ''
+  /api/v1/seller/inventory/{variant_id}/threshold/:
+    post:
+      operationId: seller_inventory_threshold_update
+      parameters:
+      - in: path
+        name: variant_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Threshold'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Threshold'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Threshold'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryBalanceResponse'
+          description: ''
+  /api/v1/seller/inventory/movements/:
+    get:
+      operationId: seller_inventory_movements
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: variant_id
+        schema:
+          type: string
+          format: uuid
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockMovementListResponse'
+          description: ''
+  /api/v1/seller/inventory/stock-entries/:
+    get:
+      operationId: seller_stock_entries_list
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockEntryListResponse'
+          description: ''
+    post:
+      operationId: seller_stock_entries_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockEntryWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StockEntryWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StockEntryWrite'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockEntryResponse'
+          description: ''
+  /api/v1/seller/inventory/stock-entries/{entry_id}/:
+    patch:
+      operationId: seller_stock_entries_update
+      parameters:
+      - in: path
+        name: entry_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStockEntryUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedStockEntryUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStockEntryUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockEntryResponse'
+          description: ''
+  /api/v1/seller/inventory/stock-entries/{entry_id}/confirm/:
+    post:
+      operationId: seller_stock_entries_confirm
+      parameters:
+      - in: path
+        name: entry_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockEntryResponse'
+          description: ''
+  /api/v1/seller/inventory/stock-out-entries/:
+    get:
+      operationId: seller_stock_out_entries_list
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockOutEntryListResponse'
+          description: ''
+    post:
+      operationId: seller_stock_out_entries_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockOutEntryWrite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StockOutEntryWrite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StockOutEntryWrite'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockOutEntryResponse'
+          description: ''
+  /api/v1/seller/inventory/stock-out-entries/{entry_id}/:
+    patch:
+      operationId: seller_stock_out_entries_update
+      parameters:
+      - in: path
+        name: entry_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStockOutEntryUpdate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedStockOutEntryUpdate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStockOutEntryUpdate'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockOutEntryResponse'
+          description: ''
+  /api/v1/seller/inventory/stock-out-entries/{entry_id}/confirm/:
+    post:
+      operationId: seller_stock_out_entries_confirm
+      parameters:
+      - in: path
+        name: entry_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockOutEntryResponse'
           description: ''
   /api/v1/seller/products/:
     get:
@@ -1786,6 +2089,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ShopResponse'
+          description: ''
+  /api/v1/seller/variants/lookup/:
+    get:
+      operationId: seller_variants_lookup_by_barcode
+      parameters:
+      - in: query
+        name: barcode
+        schema:
+          type: string
+          maxLength: 100
+          minLength: 1
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VariantResponse'
           description: ''
   /api/v1/shops/{slug}/:
     get:
@@ -2496,6 +2821,30 @@ components:
           $ref: '#/components/schemas/RoleEnum'
       required:
       - role
+    AttributeCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        code:
+          oneOf:
+          - type: string
+            maxLength: 100
+            pattern: ^[-a-zA-Z0-9_]+$
+          - type: string
+            maxLength: 0
+        display_type:
+          allOf:
+          - $ref: '#/components/schemas/DisplayTypeEnum'
+          default: text
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttributeValueCreate'
+      required:
+      - name
+      - values
     AttributeList:
       type: object
       properties:
@@ -2550,6 +2899,19 @@ components:
       - message
       - meta
       - success
+    AttributeResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/AttributeList'
+      required:
+      - data
+      - message
+      - success
     AttributeValue:
       type: object
       properties:
@@ -2576,6 +2938,24 @@ components:
       - display_value
       - id
       - sort_order
+      - value
+    AttributeValueCreate:
+      type: object
+      properties:
+        value:
+          type: string
+          maxLength: 120
+        display_value:
+          type: string
+          maxLength: 120
+        color_code:
+          oneOf:
+          - type: string
+            maxLength: 9
+            pattern: ^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$
+          - type: string
+            maxLength: 0
+      required:
       - value
     AvatarUpload:
       type: object
@@ -2709,6 +3089,14 @@ components:
       - logo_url
       - name
       - slug
+    BucketEnum:
+      enum:
+      - available
+      - reserved
+      type: string
+      description: |-
+        * `available` - Khả dụng
+        * `reserved` - Đã giữ
     CatalogPaginationMeta:
       type: object
       properties:
@@ -3000,6 +3388,14 @@ components:
       - data
       - message
       - success
+    EntryTypeEnum:
+      enum:
+      - out
+      - adjustment
+      type: string
+      description: |-
+        * `out` - Xuất kho
+        * `adjustment` - Kiểm kê
     GenderEnum:
       enum:
       - male
@@ -3048,6 +3444,100 @@ components:
       - data
       - message
       - success
+    InventoryBalance:
+      type: object
+      properties:
+        variant_id:
+          type: string
+          format: uuid
+          readOnly: true
+        product_id:
+          type: string
+          format: uuid
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        sku:
+          type: string
+          readOnly: true
+        variant_name:
+          type: string
+          readOnly: true
+        available_stock:
+          type: integer
+          readOnly: true
+        reserved_stock:
+          type: integer
+          readOnly: true
+        low_stock_threshold:
+          type: integer
+          readOnly: true
+        is_low_stock:
+          type: boolean
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - available_stock
+      - is_low_stock
+      - low_stock_threshold
+      - product_id
+      - product_name
+      - reserved_stock
+      - sku
+      - updated_at
+      - variant_id
+      - variant_name
+    InventoryBalanceResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/InventoryBalance'
+      required:
+      - data
+      - message
+      - success
+    InventoryListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/InventoryBalance'
+        meta:
+          $ref: '#/components/schemas/InventoryPaginationMeta'
+      required:
+      - data
+      - message
+      - meta
+      - success
+    InventoryPaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+        page_size:
+          type: integer
+        total_items:
+          type: integer
+        total_pages:
+          type: integer
+      required:
+      - page
+      - page_size
+      - total_items
+      - total_pages
     Login:
       type: object
       properties:
@@ -3100,9 +3590,29 @@ components:
           format: uri
         media_type:
           $ref: '#/components/schemas/MediaTypeEnum'
+        variant_id:
+          type: string
+          format: uuid
+          nullable: true
       required:
       - file
       - media_type
+    MovementTypeEnum:
+      enum:
+      - in
+      - out
+      - adjustment
+      - reserve
+      - release
+      - commit
+      type: string
+      description: |-
+        * `in` - Nhập kho
+        * `out` - Xuất kho
+        * `adjustment` - Điều chỉnh
+        * `reserve` - Giữ kho
+        * `release` - Hoàn giữ kho
+        * `commit` - Chốt bán
     OnboardingStatusEnum:
       enum:
       - pending
@@ -3332,6 +3842,29 @@ components:
             maxLength: 500
           - type: string
             maxLength: 0
+    PatchedStockEntryUpdate:
+      type: object
+      properties:
+        supplier_name:
+          type: string
+          maxLength: 255
+        note:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockEntryItemWrite'
+    PatchedStockOutEntryUpdate:
+      type: object
+      properties:
+        entry_type:
+          $ref: '#/components/schemas/EntryTypeEnum'
+        reason:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockOutEntryItemWrite'
     PatchedUser:
       type: object
       properties:
@@ -3413,6 +3946,12 @@ components:
           format: decimal
           pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
           nullable: true
+        stock_quantity:
+          type: integer
+          readOnly: true
+        available_stock:
+          type: integer
+          readOnly: true
         weight_grams:
           type: integer
           minimum: 1
@@ -3726,6 +4265,12 @@ components:
           format: decimal
           pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
           readOnly: true
+        stock_quantity:
+          type: integer
+          readOnly: true
+        available_stock:
+          type: integer
+          readOnly: true
         weight_grams:
           type: integer
           readOnly: true
@@ -3737,11 +4282,13 @@ components:
           readOnly: true
       required:
       - attributes
+      - available_stock
       - id
       - name
       - original_price
       - sale_price
       - sku
+      - stock_quantity
       - weight_grams
     PublicShopSummary:
       type: object
@@ -3771,6 +4318,18 @@ components:
       - logo_url
       - name
       - slug
+    ReferenceTypeEnum:
+      enum:
+      - stock_entry
+      - stock_out
+      - adjustment
+      - order
+      type: string
+      description: |-
+        * `stock_entry` - Phiếu nhập
+        * `stock_out` - Phiếu xuất
+        * `adjustment` - Kiểm kê
+        * `order` - Đơn hàng
     Refresh:
       type: object
       properties:
@@ -4213,6 +4772,12 @@ components:
           pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
           readOnly: true
           nullable: true
+        stock_quantity:
+          type: integer
+          readOnly: true
+        available_stock:
+          type: integer
+          readOnly: true
         weight_grams:
           type: integer
           readOnly: true
@@ -4235,6 +4800,7 @@ components:
           readOnly: true
       required:
       - attributes
+      - available_stock
       - barcode
       - cost_price
       - created_at
@@ -4244,6 +4810,7 @@ components:
       - original_price
       - sale_price
       - sku
+      - stock_quantity
       - updated_at
       - weight_grams
     SellerProfile:
@@ -4426,6 +4993,423 @@ components:
         * `approved` - Đã duyệt
         * `rejected` - Từ chối
         * `locked` - Bị khóa
+    StockAlert:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        variant_id:
+          type: string
+          format: uuid
+          readOnly: true
+        is_notified:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - is_notified
+      - updated_at
+      - variant_id
+    StockAlertResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/StockAlert'
+      required:
+      - data
+      - message
+      - success
+    StockDocumentStatusEnum:
+      enum:
+      - draft
+      - confirmed
+      type: string
+      description: |-
+        * `draft` - Bản nháp
+        * `confirmed` - Đã xác nhận
+    StockEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        supplier_name:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StockDocumentStatusEnum'
+          readOnly: true
+        note:
+          type: string
+          readOnly: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockEntryItem'
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        confirmed_by:
+          type: string
+          readOnly: true
+          nullable: true
+        confirmed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - confirmed_at
+      - confirmed_by
+      - created_at
+      - created_by
+      - id
+      - items
+      - note
+      - status
+      - supplier_name
+      - updated_at
+    StockEntryItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        variant_id:
+          type: string
+          format: uuid
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        sku:
+          type: string
+          readOnly: true
+        quantity:
+          type: integer
+          readOnly: true
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
+          readOnly: true
+      required:
+      - id
+      - product_name
+      - quantity
+      - sku
+      - unit_cost
+      - variant_id
+    StockEntryItemWrite:
+      type: object
+      properties:
+        variant_id:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          minimum: 1
+        unit_cost:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
+      required:
+      - quantity
+      - unit_cost
+      - variant_id
+    StockEntryListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockEntry'
+        meta:
+          $ref: '#/components/schemas/InventoryPaginationMeta'
+      required:
+      - data
+      - message
+      - meta
+      - success
+    StockEntryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/StockEntry'
+      required:
+      - data
+      - message
+      - success
+    StockEntryWrite:
+      type: object
+      properties:
+        supplier_name:
+          type: string
+          maxLength: 255
+        note:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockEntryItemWrite'
+      required:
+      - items
+      - supplier_name
+    StockMovement:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        variant_id:
+          type: string
+          format: uuid
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        sku:
+          type: string
+          readOnly: true
+        movement_type:
+          allOf:
+          - $ref: '#/components/schemas/MovementTypeEnum'
+          readOnly: true
+        bucket:
+          allOf:
+          - $ref: '#/components/schemas/BucketEnum'
+          readOnly: true
+        quantity:
+          type: integer
+          readOnly: true
+        balance_after:
+          type: integer
+          readOnly: true
+        reference_type:
+          allOf:
+          - $ref: '#/components/schemas/ReferenceTypeEnum'
+          readOnly: true
+        reference_id:
+          type: string
+          readOnly: true
+        note:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - balance_after
+      - bucket
+      - created_at
+      - created_by
+      - id
+      - movement_type
+      - note
+      - product_name
+      - quantity
+      - reference_id
+      - reference_type
+      - sku
+      - variant_id
+    StockMovementListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockMovement'
+        meta:
+          $ref: '#/components/schemas/InventoryPaginationMeta'
+      required:
+      - data
+      - message
+      - meta
+      - success
+    StockOutEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        entry_type:
+          allOf:
+          - $ref: '#/components/schemas/EntryTypeEnum'
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StockDocumentStatusEnum'
+          readOnly: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockOutEntryItem'
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        confirmed_by:
+          type: string
+          readOnly: true
+          nullable: true
+        confirmed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - confirmed_at
+      - confirmed_by
+      - created_at
+      - created_by
+      - entry_type
+      - id
+      - items
+      - reason
+      - status
+      - updated_at
+    StockOutEntryItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        variant_id:
+          type: string
+          format: uuid
+          readOnly: true
+        product_name:
+          type: string
+          readOnly: true
+        sku:
+          type: string
+          readOnly: true
+        quantity:
+          type: integer
+          readOnly: true
+      required:
+      - id
+      - product_name
+      - quantity
+      - sku
+      - variant_id
+    StockOutEntryItemWrite:
+      type: object
+      properties:
+        variant_id:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          minimum: 0
+      required:
+      - quantity
+      - variant_id
+    StockOutEntryListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockOutEntry'
+        meta:
+          $ref: '#/components/schemas/InventoryPaginationMeta'
+      required:
+      - data
+      - message
+      - meta
+      - success
+    StockOutEntryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/StockOutEntry'
+      required:
+      - data
+      - message
+      - success
+    StockOutEntryWrite:
+      type: object
+      properties:
+        entry_type:
+          $ref: '#/components/schemas/EntryTypeEnum'
+        reason:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StockOutEntryItemWrite'
+      required:
+      - entry_type
+      - items
+      - reason
+    Threshold:
+      type: object
+      properties:
+        low_stock_threshold:
+          type: integer
+          minimum: 0
+      required:
+      - low_stock_threshold
     TokenData:
       type: object
       properties:

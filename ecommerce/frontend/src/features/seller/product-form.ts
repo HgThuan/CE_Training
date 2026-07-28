@@ -98,10 +98,19 @@ export function validateVariantDrafts(drafts: VariantDraft[]): string | null {
   for (const draft of drafts) {
     const originalPrice = Number(draft.originalPrice)
     const salePrice = Number(draft.salePrice)
-    if (!draft.sku.trim()) return `SKU của biến thể “${draft.label}” không được để trống.`
-    if (skus.has(draft.sku.trim())) return `SKU “${draft.sku.trim()}” đang bị trùng.`
-    skus.add(draft.sku.trim())
+    if (draft.sku.trim()) {
+      if (skus.has(draft.sku.trim())) return `SKU “${draft.sku.trim()}” đang bị trùng.`
+      skus.add(draft.sku.trim())
+    }
     if (draft.barcode.trim()) {
+      if (
+        [...draft.barcode.trim()].some((character) => {
+          const code = character.charCodeAt(0)
+          return code < 32 || code > 126
+        })
+      ) {
+        return `Barcode “${draft.barcode.trim()}” chỉ được chứa ký tự ASCII in được.`
+      }
       if (barcodes.has(draft.barcode.trim())) {
         return `Barcode “${draft.barcode.trim()}” đang bị trùng.`
       }

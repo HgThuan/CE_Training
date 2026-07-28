@@ -166,6 +166,43 @@ class AttributeListSerializer(serializers.ModelSerializer):
         return "global" if attribute.shop_id is None else "shop"
 
 
+class AttributeValueCreateSerializer(serializers.Serializer):
+    value = serializers.CharField(max_length=120, trim_whitespace=True)
+    display_value = serializers.CharField(
+        max_length=120,
+        trim_whitespace=True,
+        allow_blank=True,
+        required=False,
+    )
+    color_code = serializers.RegexField(
+        regex=r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+        max_length=9,
+        allow_blank=True,
+        required=False,
+        error_messages={"invalid": "Mã màu phải có dạng #RGB, #RRGGBB hoặc #RRGGBBAA"},
+    )
+
+
+class AttributeCreateSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100, trim_whitespace=True)
+    code = serializers.SlugField(
+        max_length=100,
+        allow_blank=True,
+        required=False,
+    )
+    display_type = serializers.ChoiceField(
+        choices=Attribute.DisplayType.choices,
+        default=Attribute.DisplayType.TEXT,
+    )
+    values = AttributeValueCreateSerializer(many=True, allow_empty=False)
+
+    def validate_values(self, values):
+        normalized_values = [item["value"].casefold() for item in values]
+        if len(normalized_values) != len(set(normalized_values)):
+            raise serializers.ValidationError("Mỗi giá trị chỉ được xuất hiện một lần")
+        return values
+
+
 class VariantAttributeValueSerializer(serializers.Serializer):
     attribute_id = serializers.UUIDField(source="attribute.id", read_only=True)
     attribute_name = serializers.CharField(source="attribute.name", read_only=True)
@@ -187,6 +224,9 @@ class VariantAttributeValueSerializer(serializers.Serializer):
 
 
 class SellerProductVariantSerializer(serializers.ModelSerializer):
+    # stock_quantity remains a read-only compatibility alias during the Sprint 4 migration.
+    stock_quantity = serializers.IntegerField(source="available_stock", read_only=True)
+    available_stock = serializers.IntegerField(read_only=True)
     attributes = VariantAttributeValueSerializer(
         source="variant_attribute_links",
         many=True,
@@ -203,6 +243,8 @@ class SellerProductVariantSerializer(serializers.ModelSerializer):
             "original_price",
             "sale_price",
             "cost_price",
+            "stock_quantity",
+            "available_stock",
             "weight_grams",
             "is_active",
             "attributes",
@@ -213,6 +255,8 @@ class SellerProductVariantSerializer(serializers.ModelSerializer):
 
 
 class PublicProductVariantSerializer(serializers.ModelSerializer):
+    stock_quantity = serializers.IntegerField(source="available_stock", read_only=True)
+    available_stock = serializers.IntegerField(read_only=True)
     attributes = VariantAttributeValueSerializer(
         source="variant_attribute_links",
         many=True,
@@ -227,6 +271,8 @@ class PublicProductVariantSerializer(serializers.ModelSerializer):
             "name",
             "original_price",
             "sale_price",
+            "stock_quantity",
+            "available_stock",
             "weight_grams",
             "attributes",
         )
@@ -440,6 +486,7 @@ class PublicProductDetailSerializer(
 class MediaUploadSerializer(serializers.Serializer):
     file = serializers.FileField()
     media_type = serializers.ChoiceField(choices=ProductMedia.MediaType.choices)
+    variant_id = serializers.UUIDField(allow_null=True, required=False)
 
     def validate(self, attrs):
         uploaded_file = attrs["file"]
@@ -458,6 +505,10 @@ class MediaUploadSerializer(serializers.Serializer):
         if uploaded_file.content_type not in allowed_content_types:
             raise serializers.ValidationError(
                 {"file": ["Content-Type của media không được hỗ trợ"]}
+            )
+        if attrs.get("variant_id") is not None and not is_image:
+            raise serializers.ValidationError(
+                {"variant_id": ["Media riêng của biến thể phải là ảnh"]}
             )
         return attrs
 
@@ -486,6 +537,10 @@ class VariantGenerateSerializer(serializers.Serializer):
         return value_ids
 
 
+class VariantLookupSerializer(serializers.Serializer):
+    barcode = serializers.CharField(max_length=100, trim_whitespace=True)
+
+
 class VariantUpdateSerializer(serializers.ModelSerializer):
     original_price = serializers.DecimalField(
         max_digits=18,
@@ -506,6 +561,8 @@ class VariantUpdateSerializer(serializers.ModelSerializer):
         allow_null=True,
         required=False,
     )
+    stock_quantity = serializers.IntegerField(source="available_stock", read_only=True)
+    available_stock = serializers.IntegerField(read_only=True)
     weight_grams = serializers.IntegerField(min_value=1, required=False)
 
     class Meta:
@@ -516,6 +573,8 @@ class VariantUpdateSerializer(serializers.ModelSerializer):
             "original_price",
             "sale_price",
             "cost_price",
+            "stock_quantity",
+            "available_stock",
             "weight_grams",
             "is_active",
         )
@@ -524,6 +583,17 @@ class VariantUpdateSerializer(serializers.ModelSerializer):
             "barcode": {"required": False, "allow_blank": True, "allow_null": True},
             "is_active": {"required": False},
         }
+
+    def to_internal_value(self, data):
+        if "stock_quantity" in data or "available_stock" in data:
+            raise serializers.ValidationError(
+                {
+                    "stock_quantity": [
+                        "Tồn kho chỉ được thay đổi qua phiếu nhập/xuất trong module Kho"
+                    ]
+                }
+            )
+        return super().to_internal_value(data)
 
     def validate(self, attrs):
         if not attrs:
@@ -679,6 +749,12 @@ class AttributeListResponseSerializer(serializers.Serializer):
     message = serializers.CharField()
     data = AttributeListSerializer(many=True)
     meta = ProductPaginationMetaSerializer()
+
+
+class AttributeResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    message = serializers.CharField()
+    data = AttributeListSerializer()
 
 
 class ProductDeleteResponseSerializer(serializers.Serializer):

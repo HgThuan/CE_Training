@@ -1,6 +1,7 @@
 import type {
   ProductMedia,
   SellerAttribute,
+  SellerAttributePayload,
   SellerProductDetail,
   SellerProductFilters,
   SellerProductListItem,
@@ -28,10 +29,18 @@ export const sellerProductApi = {
     http.get<ApiResponse<SellerAttribute[]>>('/seller/attributes/', {
       params: { page_size: 100 },
     }),
-  uploadMedia: (productId: string, file: File, mediaType: 'image' | 'video') => {
+  createAttribute: (payload: SellerAttributePayload) =>
+    http.post<ApiResponse<SellerAttribute>>('/seller/attributes/', payload),
+  uploadMedia: (
+    productId: string,
+    file: File,
+    mediaType: 'image' | 'video',
+    variantId?: string,
+  ) => {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('media_type', mediaType)
+    if (variantId) formData.append('variant_id', variantId)
     return http.post<ApiResponse<ProductMedia>>(`/seller/products/${productId}/media/`, formData)
   },
   deleteMedia: (productId: string, mediaId: string) =>
@@ -52,4 +61,8 @@ export const sellerProductApi = {
       `/seller/products/${productId}/variants/${variantId}/`,
       payload,
     ),
+  lookupVariantByBarcode: (barcode: string) =>
+    http.get<ApiResponse<SellerProductVariant>>('/seller/variants/lookup/', {
+      params: { barcode },
+    }),
 }

@@ -20,9 +20,12 @@ seller_product_submit = SellerProductViewSet.as_view({"post": "submit"})
 seller_product_media_upload = SellerProductViewSet.as_view({"post": "upload_media"})
 seller_product_media_delete = SellerProductViewSet.as_view({"delete": "delete_media"})
 seller_product_media_reorder = SellerProductViewSet.as_view({"post": "reorder_media"})
-seller_attribute_list = SellerProductViewSet.as_view({"get": "list_attributes"})
+seller_attribute_list = SellerProductViewSet.as_view(
+    {"get": "list_attributes", "post": "create_attribute"}
+)
 seller_variant_generate = SellerProductViewSet.as_view({"post": "generate_variants"})
 seller_variant_update = SellerProductViewSet.as_view({"patch": "update_variant"})
+seller_variant_lookup = SellerProductViewSet.as_view({"get": "lookup_variant"})
 
 admin_product_pending = AdminProductViewSet.as_view({"get": "list_pending"})
 admin_product_approve = AdminProductViewSet.as_view({"post": "approve"})
@@ -73,6 +76,11 @@ urlpatterns = [
         "seller/products/<uuid:product_id>/variants/generate/",
         seller_variant_generate,
         name="seller-product-variant-generate",
+    ),
+    path(
+        "seller/variants/lookup/",
+        seller_variant_lookup,
+        name="seller-variant-lookup",
     ),
     path(
         "seller/products/<uuid:product_id>/variants/<uuid:variant_id>/",
