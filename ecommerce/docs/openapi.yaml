@@ -1330,6 +1330,31 @@ paths:
               schema:
                 $ref: '#/components/schemas/AttributeListResponse'
           description: ''
+    post:
+      operationId: seller_attributes_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AttributeCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AttributeCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AttributeCreate'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttributeResponse'
+          description: ''
   /api/v1/seller/products/:
     get:
       operationId: seller_products_list
@@ -1786,6 +1811,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ShopResponse'
+          description: ''
+  /api/v1/seller/variants/lookup/:
+    get:
+      operationId: seller_variants_lookup_by_barcode
+      parameters:
+      - in: query
+        name: barcode
+        schema:
+          type: string
+          maxLength: 100
+          minLength: 1
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VariantResponse'
           description: ''
   /api/v1/shops/{slug}/:
     get:
@@ -2496,6 +2543,30 @@ components:
           $ref: '#/components/schemas/RoleEnum'
       required:
       - role
+    AttributeCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        code:
+          oneOf:
+          - type: string
+            maxLength: 100
+            pattern: ^[-a-zA-Z0-9_]+$
+          - type: string
+            maxLength: 0
+        display_type:
+          allOf:
+          - $ref: '#/components/schemas/DisplayTypeEnum'
+          default: text
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/AttributeValueCreate'
+      required:
+      - name
+      - values
     AttributeList:
       type: object
       properties:
@@ -2550,6 +2621,19 @@ components:
       - message
       - meta
       - success
+    AttributeResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/AttributeList'
+      required:
+      - data
+      - message
+      - success
     AttributeValue:
       type: object
       properties:
@@ -2576,6 +2660,24 @@ components:
       - display_value
       - id
       - sort_order
+      - value
+    AttributeValueCreate:
+      type: object
+      properties:
+        value:
+          type: string
+          maxLength: 120
+        display_value:
+          type: string
+          maxLength: 120
+        color_code:
+          oneOf:
+          - type: string
+            maxLength: 9
+            pattern: ^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$
+          - type: string
+            maxLength: 0
+      required:
       - value
     AvatarUpload:
       type: object
@@ -3100,6 +3202,10 @@ components:
           format: uri
         media_type:
           $ref: '#/components/schemas/MediaTypeEnum'
+        variant_id:
+          type: string
+          format: uuid
+          nullable: true
       required:
       - file
       - media_type
@@ -3413,6 +3519,9 @@ components:
           format: decimal
           pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
           nullable: true
+        stock_quantity:
+          type: integer
+          minimum: 0
         weight_grams:
           type: integer
           minimum: 1
@@ -3726,6 +3835,9 @@ components:
           format: decimal
           pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
           readOnly: true
+        stock_quantity:
+          type: integer
+          readOnly: true
         weight_grams:
           type: integer
           readOnly: true
@@ -3742,6 +3854,7 @@ components:
       - original_price
       - sale_price
       - sku
+      - stock_quantity
       - weight_grams
     PublicShopSummary:
       type: object
@@ -4213,6 +4326,9 @@ components:
           pattern: ^-?\d{0,18}(?:\.\d{0,0})?$
           readOnly: true
           nullable: true
+        stock_quantity:
+          type: integer
+          readOnly: true
         weight_grams:
           type: integer
           readOnly: true
@@ -4244,6 +4360,7 @@ components:
       - original_price
       - sale_price
       - sku
+      - stock_quantity
       - updated_at
       - weight_grams
     SellerProfile:

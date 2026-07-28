@@ -30,16 +30,35 @@ const quantity = ref(1)
 const cartNotice = ref('')
 
 const product = computed(() => productStore.detail)
+const galleryMedia = computed(() => {
+  if (!product.value) return []
+  const baseMedia = product.value.media.filter((media) => !media.variant_id)
+  if (!selectedVariant.value) return baseMedia
+  return [
+    ...product.value.media.filter((media) => media.variant_id === selectedVariant.value?.id),
+    ...baseMedia,
+  ]
+})
 const displayPrice = computed(() => {
   if (selectedVariant.value) return formatVnd(selectedVariant.value.sale_price)
   if (!product.value) return ''
   if (product.value.min_price === product.value.max_price) return formatVnd(product.value.min_price)
   return `${formatVnd(product.value.min_price)} – ${formatVnd(product.value.max_price)}`
 })
-const canAdd = computed(() => Boolean(product.value && selectedVariant.value))
+const canAdd = computed(
+  () =>
+    Boolean(product.value && selectedVariant.value) &&
+    quantity.value <= (selectedVariant.value?.stock_quantity ?? 0),
+)
 
 function updateQuantity(amount: number): void {
-  quantity.value = Math.min(99, Math.max(1, quantity.value + amount))
+  const maximum = Math.min(99, selectedVariant.value?.stock_quantity ?? 99)
+  quantity.value = Math.min(maximum, Math.max(1, quantity.value + amount))
+}
+
+function handleVariantChange(variant: ProductVariant | null): void {
+  selectedVariant.value = variant
+  quantity.value = 1
 }
 
 function prepareCart(action: 'cart' | 'buy'): void {
@@ -104,7 +123,7 @@ onMounted(async () => {
 
       <template v-else-if="product">
         <div class="mt-8 grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
-          <ProductGallery :media="product.media" :product-name="product.name" />
+          <ProductGallery :media="galleryMedia" :product-name="product.name" />
 
           <section class="lg:pt-2">
             <div class="flex flex-wrap items-center gap-2 text-sm font-semibold">
@@ -145,7 +164,7 @@ onMounted(async () => {
               v-if="product.attributes.length"
               :attributes="product.attributes"
               :variants="product.variants"
-              @change="selectedVariant = $event"
+              @change="handleVariantChange"
             />
 
             <div class="mt-8 flex flex-wrap items-center gap-4">
@@ -167,6 +186,7 @@ onMounted(async () => {
                   class="grid h-10 w-10 place-items-center rounded-lg hover:bg-slate-100"
                   type="button"
                   aria-label="Tăng số lượng"
+                  :disabled="quantity >= (selectedVariant?.stock_quantity ?? 0)"
                   @click="updateQuantity(1)"
                 >
                   <PlusIcon class="h-4 w-4" />
@@ -190,6 +210,14 @@ onMounted(async () => {
                 Mua ngay
               </button>
             </div>
+
+            <p v-if="selectedVariant" class="mt-3 text-sm font-semibold text-slate-600">
+              {{
+                selectedVariant.stock_quantity > 0
+                  ? `Còn ${selectedVariant.stock_quantity} sản phẩm`
+                  : 'Biến thể này đã hết hàng'
+              }}
+            </p>
 
             <p
               v-if="cartNotice"

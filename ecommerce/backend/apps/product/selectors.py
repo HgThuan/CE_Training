@@ -247,6 +247,29 @@ class ProductSelector:
         return queryset
 
     @staticmethod
+    def variant_by_barcode(*, seller_user, barcode: str) -> ProductVariant | None:
+        if (
+            getattr(seller_user, "role", None) != User.Role.SELLER
+            or not getattr(seller_user, "is_active", False)
+            or getattr(seller_user, "is_deleted", True)
+        ):
+            return None
+        return (
+            ProductVariant.objects.select_related("product", "product__shop", "shop")
+            .prefetch_related(
+                "variant_attribute_links__attribute",
+                "variant_attribute_links__attribute_value",
+            )
+            .filter(
+                shop__owner=seller_user,
+                product__is_deleted=False,
+                is_deleted=False,
+                barcode=barcode,
+            )
+            .first()
+        )
+
+    @staticmethod
     def attributes_for_seller(seller_user) -> QuerySet[Attribute]:
         if (
             getattr(seller_user, "role", None) != User.Role.SELLER

@@ -15,8 +15,10 @@ from .serializers import (
     AdminProductListSerializer,
     AdminProductRejectSerializer,
     AdminProductResponseSerializer,
+    AttributeCreateSerializer,
     AttributeListResponseSerializer,
     AttributeListSerializer,
+    AttributeResponseSerializer,
     MediaReorderSerializer,
     MediaResponseSerializer,
     MediaUploadSerializer,
@@ -37,10 +39,11 @@ from .serializers import (
     SellerProductVariantSerializer,
     VariantGenerateSerializer,
     VariantListResponseSerializer,
+    VariantLookupSerializer,
     VariantResponseSerializer,
     VariantUpdateSerializer,
 )
-from .services import MediaService, ProductService, VariantService
+from .services import AttributeService, MediaService, ProductService, VariantService
 
 
 def _request_id(request) -> str:
@@ -63,7 +66,9 @@ class SellerProductViewSet(viewsets.GenericViewSet):
             "list": SellerProductListSerializer,
             "upload_media": MediaUploadSerializer,
             "reorder_media": MediaReorderSerializer,
+            "create_attribute": AttributeCreateSerializer,
             "generate_variants": VariantGenerateSerializer,
+            "lookup_variant": VariantLookupSerializer,
             "update_variant": VariantUpdateSerializer,
         }
         return serializer_by_action.get(
@@ -203,6 +208,7 @@ class SellerProductViewSet(viewsets.GenericViewSet):
             uploaded_file=serializer.validated_data["file"],
             media_type=serializer.validated_data["media_type"],
             seller_user=request.user,
+            variant_id=serializer.validated_data.get("variant_id"),
         )
         return success_response(
             message="Tải media sản phẩm thành công",
@@ -265,6 +271,25 @@ class SellerProductViewSet(viewsets.GenericViewSet):
         return self.get_paginated_response(AttributeListSerializer(page, many=True).data)
 
     @extend_schema(
+        operation_id="seller_attributes_create",
+        request=AttributeCreateSerializer,
+        responses={201: AttributeResponseSerializer},
+    )
+    @action(detail=False, methods=["post"])
+    def create_attribute(self, request):
+        serializer = AttributeCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        attribute = AttributeService.create_attribute(
+            seller_user=request.user,
+            data=dict(serializer.validated_data),
+        )
+        return success_response(
+            message="Tạo thuộc tính và giá trị thành công",
+            data=AttributeListSerializer(attribute).data,
+            status_code=status.HTTP_201_CREATED,
+        )
+
+    @extend_schema(
         operation_id="seller_products_variants_generate",
         request=VariantGenerateSerializer,
         responses={201: VariantListResponseSerializer},
@@ -287,6 +312,26 @@ class SellerProductViewSet(viewsets.GenericViewSet):
             message="Tạo tổ hợp biến thể thành công",
             data=SellerProductVariantSerializer(variants, many=True).data,
             status_code=status.HTTP_201_CREATED,
+        )
+
+    @extend_schema(
+        operation_id="seller_variants_lookup_by_barcode",
+        parameters=[VariantLookupSerializer],
+        responses={200: VariantResponseSerializer},
+    )
+    @action(detail=False, methods=["get"])
+    def lookup_variant(self, request):
+        serializer = VariantLookupSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        variant = ProductSelector.variant_by_barcode(
+            seller_user=request.user,
+            barcode=serializer.validated_data["barcode"],
+        )
+        if variant is None:
+            raise BusinessError("Không tìm thấy biến thể theo barcode", http_status=404)
+        return success_response(
+            message="Tìm thấy biến thể",
+            data=SellerProductVariantSerializer(variant).data,
         )
 
     @extend_schema(

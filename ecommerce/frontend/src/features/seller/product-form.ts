@@ -14,6 +14,7 @@ export interface VariantDraft {
   originalPrice: string
   salePrice: string
   costPrice: string
+  stockQuantity: string
   weightGrams: string
   isActive: boolean
 }
@@ -66,6 +67,7 @@ export function generateVariantDrafts(
       originalPrice: previous?.originalPrice ?? '',
       salePrice: previous?.salePrice ?? '',
       costPrice: previous?.costPrice ?? '',
+      stockQuantity: previous?.stockQuantity ?? '0',
       weightGrams: previous?.weightGrams ?? '',
       isActive: previous?.isActive ?? true,
     }
@@ -86,6 +88,7 @@ export function variantToDraft(variant: SellerProductVariant): VariantDraft {
     originalPrice: variant.original_price,
     salePrice: variant.sale_price,
     costPrice: variant.cost_price ?? '',
+    stockQuantity: variant.stock_quantity.toString(),
     weightGrams: variant.weight_grams?.toString() ?? '',
     isActive: variant.is_active,
   }
@@ -98,10 +101,19 @@ export function validateVariantDrafts(drafts: VariantDraft[]): string | null {
   for (const draft of drafts) {
     const originalPrice = Number(draft.originalPrice)
     const salePrice = Number(draft.salePrice)
-    if (!draft.sku.trim()) return `SKU của biến thể “${draft.label}” không được để trống.`
-    if (skus.has(draft.sku.trim())) return `SKU “${draft.sku.trim()}” đang bị trùng.`
-    skus.add(draft.sku.trim())
+    if (draft.sku.trim()) {
+      if (skus.has(draft.sku.trim())) return `SKU “${draft.sku.trim()}” đang bị trùng.`
+      skus.add(draft.sku.trim())
+    }
     if (draft.barcode.trim()) {
+      if (
+        [...draft.barcode.trim()].some((character) => {
+          const code = character.charCodeAt(0)
+          return code < 32 || code > 126
+        })
+      ) {
+        return `Barcode “${draft.barcode.trim()}” chỉ được chứa ký tự ASCII in được.`
+      }
       if (barcodes.has(draft.barcode.trim())) {
         return `Barcode “${draft.barcode.trim()}” đang bị trùng.`
       }
@@ -115,6 +127,10 @@ export function validateVariantDrafts(drafts: VariantDraft[]): string | null {
     }
     if (originalPrice !== 0 && salePrice > originalPrice) {
       return `Giá bán của biến thể “${draft.label}” không được cao hơn giá gốc.`
+    }
+    const stockQuantity = Number(draft.stockQuantity)
+    if (!Number.isInteger(stockQuantity) || stockQuantity < 0) {
+      return `Tồn kho của biến thể “${draft.label}” phải là số nguyên không âm.`
     }
   }
   return null

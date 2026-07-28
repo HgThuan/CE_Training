@@ -88,8 +88,8 @@ Sau mỗi Sprint, trước khi báo hoàn thành hoặc tạo Release, phải th
 
 - [ ] 🔴 **SEL-02** — CRUD sản phẩm
 - [ ] 🔴 **SEL-03** — Upload nhiều ảnh & video
-- [ ] 🔴 **SEL-04** — Biến thể sản phẩm (size, màu...)
-- [ ] 🟡 **SEL-05** — SKU & Barcode
+- [x] 🔴 **SEL-04** — Biến thể sản phẩm (size, màu...)
+- [x] 🟡 **SEL-05** — SKU & Barcode
 
 ### Quản lý kho
 
@@ -370,7 +370,8 @@ Model → Service/Selector/State Machine → API → Permission:
 | Product schema                 | Done phần Models/Migration | 7 model Product/Media/Attribute/Variant, UUID, money Decimal, partial indexes/unique, DB checks và invariant validator                                               |
 | Product business               | Done phần Backend          | Tenant-scoped services, state transitions + UUID audit, magic-byte upload, variant combinations, price cache và optimized selectors                                |
 | ADM-13, ADM-14                 | Backend/API verified       | Pending list, approve/reject/hide/soft-delete, reason validation, AuditLog, RBAC và API tests; chưa có UI Admin Product                                             |
-| SEL-02, SEL-03, SEL-04, SEL-05 | Backend/API verified       | Seller CRUD, upload/reorder media, variant/SKU/barcode, service ownership validation và test đổi ID qua URL; chưa có UI Seller Product                              |
+| SEL-02, SEL-03                 | Backend/API verified       | Seller CRUD, upload/reorder media và service ownership validation; UI Seller Product đã có nhưng hai mục vẫn cần được nghiệm thu riêng                              |
+| SEL-04, SEL-05                 | Done end-to-end            | Seller tự tạo thuộc tính/giá trị, sinh ma trận, lưu giá/tồn/ảnh riêng, SKU tự sinh hoặc nhập tay, barcode unique, in tem Code 128 và API tra cứu barcode              |
 | CUS-10                         | Backend/API verified       | Public list/detail theo slug, nested media/variant, filter/search/sort/pagination và query-count test; chưa có trang Product Detail ở Frontend                      |
 
 Kết quả verification ngày 27/07/2026:
@@ -393,11 +394,10 @@ Kết quả verification ngày 27/07/2026:
 | Frontend Vitest                                                  | Pass — 10 test files, 17 tests                                       |
 | Frontend production build                                        | Pass                                                                 |
 
-Theo quy trình đóng Sprint ở đầu tài liệu, `ADM-13`, `ADM-14`, `SEL-02` đến `SEL-05` và
-`CUS-10` vẫn giữ `[ ]`: phần Backend/API đã hoàn thành và có test, nhưng chưa có UI tương ứng nên
-chưa đạt Definition of Done end-to-end. `ADM-15` và `ADM-16` đã `[x]`. NFR-05 hoàn thành phần
-Product backend bằng pagination, eager loading và query-count test nhưng chưa tick cho toàn hệ
-thống.
+Theo quy trình đóng Sprint ở đầu tài liệu, `SEL-04` và `SEL-05` đã đạt luồng end-to-end và được
+đánh dấu `[x]`. `ADM-13`, `ADM-14`, `SEL-02`, `SEL-03` và `CUS-10` vẫn cần nghiệm thu riêng trước
+khi đổi trạng thái. `ADM-15` và `ADM-16` đã `[x]`. NFR-05 hoàn thành phần Product backend bằng
+pagination, eager loading và query-count test nhưng chưa tick cho toàn hệ thống.
 
 ## Tài liệu liên quan
 

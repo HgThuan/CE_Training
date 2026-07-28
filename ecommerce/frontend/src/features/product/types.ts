@@ -79,6 +79,17 @@ export interface SellerAttribute extends ProductAttribute {
   scope: 'global' | 'shop'
 }
 
+export interface SellerAttributePayload {
+  name: string
+  code?: string
+  display_type: 'text' | 'color' | 'image'
+  values: Array<{
+    value: string
+    display_value?: string
+    color_code?: string
+  }>
+}
+
 export interface VariantAttribute {
   attribute_id: string
   attribute_name: string
@@ -94,6 +105,7 @@ export interface ProductVariant {
   name: string | null
   original_price: string
   sale_price: string
+  stock_quantity: number
   weight_grams: number | null
   attributes: VariantAttribute[]
 }
@@ -232,6 +244,7 @@ export interface VariantUpdatePayload {
   original_price?: string
   sale_price?: string
   cost_price?: string | null
+  stock_quantity?: number
   weight_grams?: number
   is_active?: boolean
 }

@@ -24,6 +24,7 @@ from apps.common.exceptions import BusinessError
 from apps.common.models import AuditLog
 
 from .models import (
+    Attribute,
     AttributeValue,
     Product,
     ProductAttributeValue,
@@ -191,7 +192,7 @@ def _get_seller_shop(seller_user) -> Shop:
 def _lock_owned_product(*, seller_user, product_id) -> tuple[Product, Shop]:
     shop = _get_seller_shop(seller_user)
     product = (
-        Product.objects.select_for_update()
+        Product.objects.select_for_update(of=("self",))
         .select_related("shop", "category", "brand")
         .filter(
             pk=product_id,
@@ -534,6 +535,79 @@ class ProductService:
         return locked_product
 
 
+class AttributeService:
+    @staticmethod
+    @transaction.atomic
+    def create_attribute(*, seller_user, data: dict) -> Attribute:
+        shop = _get_seller_shop(seller_user)
+        ShopBusinessPolicy.ensure_can_create_new_resource(shop=shop)
+
+        name = str(data.get("name", "")).strip()
+        if not name:
+            raise BusinessError(
+                "Tên thuộc tính không được để trống",
+                errors={"name": ["Trường này là bắt buộc"]},
+            )
+        code = str(data.get("code") or slugify(name)).strip().lower()[:100]
+        if not code:
+            raise BusinessError(
+                "Mã thuộc tính không hợp lệ",
+                errors={"code": ["Hãy nhập mã gồm chữ hoặc số"]},
+            )
+
+        raw_values = data.get("values") or []
+        normalized_values: list[dict] = []
+        seen_values: set[str] = set()
+        for index, raw_value in enumerate(raw_values):
+            value = str(raw_value.get("value", "")).strip()
+            if not value:
+                raise BusinessError(
+                    "Giá trị thuộc tính không được để trống",
+                    errors={"values": [f"Giá trị ở vị trí {index + 1} không hợp lệ"]},
+                )
+            normalized = value.casefold()
+            if normalized in seen_values:
+                raise BusinessError(
+                    "Giá trị thuộc tính bị trùng",
+                    errors={"values": [f"Giá trị “{value}” xuất hiện nhiều lần"]},
+                )
+            seen_values.add(normalized)
+            normalized_values.append(
+                {
+                    "value": value,
+                    "display_value": str(raw_value.get("display_value") or "").strip() or None,
+                    "color_code": str(raw_value.get("color_code") or "").strip() or None,
+                    "sort_order": index,
+                }
+            )
+        if not normalized_values:
+            raise BusinessError(
+                "Thuộc tính cần ít nhất một giá trị",
+                errors={"values": ["Hãy nhập ít nhất một giá trị, ví dụ Đỏ hoặc XL"]},
+            )
+
+        try:
+            attribute = Attribute.objects.create(
+                shop=shop,
+                name=name,
+                code=code,
+                display_type=data.get("display_type", Attribute.DisplayType.TEXT),
+                sort_order=data.get("sort_order", 0),
+            )
+            AttributeValue.objects.bulk_create(
+                [
+                    AttributeValue(attribute=attribute, **value_data)
+                    for value_data in normalized_values
+                ]
+            )
+        except IntegrityError as exc:
+            raise BusinessError(
+                "Thuộc tính đã tồn tại trong gian hàng",
+                errors={"name": ["Tên hoặc mã thuộc tính đã được sử dụng"]},
+            ) from exc
+        return attribute
+
+
 class MediaService:
     @staticmethod
     def _validate_upload(*, uploaded_file, media_type: str) -> tuple[str, str]:
@@ -612,21 +686,51 @@ class MediaService:
         uploaded_file,
         media_type: str,
         seller_user,
+        variant_id=None,
     ) -> ProductMedia:
         locked_product, _shop = _lock_owned_product(
             seller_user=seller_user,
             product_id=product.pk,
         )
+        variant = None
+        if variant_id is not None:
+            if media_type != ProductMedia.MediaType.IMAGE:
+                raise BusinessError(
+                    "Media riêng của biến thể phải là ảnh",
+                    errors={"variant_id": ["Không thể gán video cho một biến thể"]},
+                )
+            variant = (
+                ProductVariant.objects.select_for_update()
+                .filter(
+                    pk=variant_id,
+                    product=locked_product,
+                    shop_id=locked_product.shop_id,
+                    is_deleted=False,
+                )
+                .first()
+            )
+            if variant is None:
+                raise BusinessError(
+                    "Không tìm thấy biến thể thuộc sản phẩm",
+                    errors={"variant_id": ["Biến thể không hợp lệ"]},
+                    http_status=404,
+                )
         max_items = (
             MAX_PRODUCT_IMAGES if media_type == ProductMedia.MediaType.IMAGE else MAX_PRODUCT_VIDEOS
         )
-        if (
-            ProductMedia.objects.filter(
+        current_count = ProductMedia.objects.filter(
+            product=locked_product,
+            media_type=media_type,
+        ).count()
+        is_variant_image_replacement = bool(
+            variant
+            and ProductMedia.objects.filter(
                 product=locked_product,
-                media_type=media_type,
-            ).count()
-            >= max_items
-        ):
+                variant=variant,
+                media_type=ProductMedia.MediaType.IMAGE,
+            ).exists()
+        )
+        if current_count >= max_items and not is_variant_image_replacement:
             raise BusinessError(
                 "Đã vượt giới hạn media của sản phẩm",
                 errors={"file": ["Mỗi sản phẩm chỉ được tối đa 9 ảnh và 1 video"]},
@@ -652,6 +756,7 @@ class MediaService:
             )
             return ProductMedia.objects.create(
                 product=locked_product,
+                variant=variant,
                 media_type=media_type,
                 file_url=default_storage.url(saved_name),
                 sort_order=sort_order + 1,
@@ -970,7 +1075,6 @@ class VariantService:
                 "Không thể sửa biến thể ở trạng thái hiện tại",
                 errors={"status": ["Sản phẩm phải ở trạng thái nháp hoặc bị từ chối"]},
             )
-
         allowed_fields = {
             "sku",
             "barcode",
@@ -978,6 +1082,7 @@ class VariantService:
             "original_price",
             "sale_price",
             "cost_price",
+            "stock_quantity",
             "weight_grams",
             "is_active",
         }
@@ -987,7 +1092,15 @@ class VariantService:
             if not updates["sku"]:
                 updates["sku"] = VariantService._generate_sku(product=locked_variant.product)
         if "barcode" in updates:
-            updates["barcode"] = str(updates["barcode"]).strip() or None
+            raw_barcode = updates["barcode"]
+            updates["barcode"] = str(raw_barcode).strip() if raw_barcode not in (None, "") else None
+            if updates["barcode"] and any(
+                ord(character) < 32 or ord(character) > 126 for character in updates["barcode"]
+            ):
+                raise BusinessError(
+                    "Barcode không hợp lệ",
+                    errors={"barcode": ["Barcode chỉ được chứa ký tự ASCII in được"]},
+                )
         for field in ("original_price", "sale_price"):
             if field in updates:
                 updates[field] = VariantService._decimal_value(
@@ -1000,7 +1113,20 @@ class VariantService:
                 field="cost_price",
                 nullable=True,
             )
-
+        if "stock_quantity" in updates:
+            try:
+                stock_quantity = int(updates["stock_quantity"])
+            except (TypeError, ValueError) as exc:
+                raise BusinessError(
+                    "Tồn kho không hợp lệ",
+                    errors={"stock_quantity": ["Tồn kho phải là số nguyên không âm"]},
+                ) from exc
+            if stock_quantity < 0:
+                raise BusinessError(
+                    "Tồn kho không hợp lệ",
+                    errors={"stock_quantity": ["Tồn kho không được âm"]},
+                )
+            updates["stock_quantity"] = stock_quantity
         original_price = updates.get("original_price", locked_variant.original_price)
         sale_price = updates.get("sale_price", locked_variant.sale_price)
         if original_price != 0 and sale_price > original_price:

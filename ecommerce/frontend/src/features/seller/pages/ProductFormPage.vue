@@ -7,6 +7,7 @@ import {
   FilmIcon,
   PhotoIcon,
   PlusIcon,
+  PrinterIcon,
   TrashIcon,
 } from '@heroicons/vue/24/outline'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
@@ -19,6 +20,7 @@ import type {
   CategoryOption,
   ProductMedia,
   SellerAttribute,
+  SellerAttributePayload,
   SellerProductDetail,
   SellerProductPayload,
   VariantUpdatePayload,
@@ -34,6 +36,7 @@ import {
   variantKey,
   variantToDraft,
 } from '../product-form'
+import { printBarcodeLabel } from '../barcode'
 import { sellerProductApi } from '../product-api'
 
 const route = useRoute()
@@ -48,6 +51,7 @@ const product = ref<SellerProductDetail | null>(null)
 const attributes = ref<SellerAttribute[]>([])
 const existingMedia = ref<ProductMedia[]>([])
 const pendingMedia = ref<PendingMedia[]>([])
+const pendingVariantImages = reactive<Record<string, PendingMedia>>({})
 const variantDrafts = ref<VariantDraft[]>([])
 const serverVariantsExist = ref(false)
 const selectedValueIds = reactive<Record<string, string[]>>({})
@@ -64,7 +68,12 @@ const dragging = ref(false)
 const message = ref('')
 const errorMessage = ref('')
 const mediaInput = ref<HTMLInputElement | null>(null)
-const skuPrefix = `SKU${Date.now().toString().slice(-6)}`
+const newAttribute = reactive({
+  name: '',
+  displayType: 'text' as SellerAttributePayload['display_type'],
+  valuesText: '',
+})
+const creatingAttribute = ref(false)
 
 const editable = computed(
   () => !product.value || ['draft', 'rejected'].includes(product.value.status),
@@ -108,9 +117,6 @@ function rebuildVariantMatrix(): void {
     selectedValueIds,
     variantDrafts.value,
   )
-  variantDrafts.value.forEach((draft, index) => {
-    if (!draft.sku) draft.sku = `${skuPrefix}-${String(index + 1).padStart(3, '0')}`
-  })
 }
 
 function isSelected(attributeId: string, valueId: string): boolean {
@@ -123,6 +129,50 @@ function toggleAttributeValue(attributeId: string, valueId: string): void {
     ? values.filter((id) => id !== valueId)
     : [...values, valueId]
   rebuildVariantMatrix()
+}
+
+function parseAttributeValues(): SellerAttributePayload['values'] {
+  return newAttribute.valuesText
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      if (newAttribute.displayType !== 'color') return { value: item }
+      const separator = item.lastIndexOf(':')
+      if (separator < 0) return { value: item }
+      return {
+        value: item.slice(0, separator).trim(),
+        color_code: item.slice(separator + 1).trim(),
+      }
+    })
+}
+
+async function createAttribute(): Promise<void> {
+  const values = parseAttributeValues()
+  if (!newAttribute.name.trim() || !values.length) {
+    errorMessage.value = 'Hãy nhập tên thuộc tính và ít nhất một giá trị.'
+    return
+  }
+  creatingAttribute.value = true
+  errorMessage.value = ''
+  try {
+    const created = (
+      await sellerProductApi.createAttribute({
+        name: newAttribute.name.trim(),
+        display_type: newAttribute.displayType,
+        values,
+      })
+    ).data.data
+    attributes.value.push(created)
+    selectedValueIds[created.id] = created.values.map((value) => value.id)
+    rebuildVariantMatrix()
+    Object.assign(newAttribute, { name: '', displayType: 'text', valuesText: '' })
+    message.value = `Đã tạo thuộc tính “${created.name}” và chọn toàn bộ giá trị.`
+  } catch (error) {
+    errorMessage.value = getErrorMessage(error)
+  } finally {
+    creatingAttribute.value = false
+  }
 }
 
 async function addFiles(files: FileList | File[]): Promise<void> {
@@ -157,6 +207,58 @@ function removePendingMedia(index: number): void {
   const item = pendingMedia.value[index]
   if (item) URL.revokeObjectURL(item.previewUrl)
   pendingMedia.value.splice(index, 1)
+}
+
+function existingVariantImage(draft: VariantDraft): ProductMedia | undefined {
+  if (!draft.variantId) return undefined
+  return existingMedia.value.find(
+    (media) => media.variant_id === draft.variantId && media.media_type === 'image',
+  )
+}
+
+function variantImageUrl(draft: VariantDraft): string | undefined {
+  return pendingVariantImages[draft.key]?.previewUrl || existingVariantImage(draft)?.file_url
+}
+
+async function handleVariantImage(event: Event, draft: VariantDraft): Promise<void> {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  const validation = await validateMediaFile(file)
+  if ('error' in validation) {
+    errorMessage.value = validation.error
+    return
+  }
+  if (validation.mediaType !== 'image') {
+    errorMessage.value = 'Ảnh riêng biến thể chỉ hỗ trợ JPEG, PNG hoặc WebP.'
+    return
+  }
+  const previous = pendingVariantImages[draft.key]
+  if (previous) URL.revokeObjectURL(previous.previewUrl)
+  pendingVariantImages[draft.key] = {
+    id: crypto.randomUUID(),
+    file,
+    mediaType: 'image',
+    previewUrl: URL.createObjectURL(file),
+  }
+}
+
+function printVariantBarcode(draft: VariantDraft): void {
+  if (!draft.barcode.trim()) {
+    errorMessage.value = `Hãy nhập barcode cho biến thể “${draft.label}” trước khi in.`
+    return
+  }
+  try {
+    printBarcodeLabel({
+      barcode: draft.barcode.trim(),
+      sku: draft.sku.trim(),
+      productName: form.name.trim(),
+      variantName: draft.label,
+    })
+  } catch (error) {
+    errorMessage.value = getErrorMessage(error)
+  }
 }
 
 async function removeExistingMedia(item: ProductMedia): Promise<void> {
@@ -209,11 +311,12 @@ function validateForm(): string | null {
 
 function variantPayload(draft: VariantDraft): VariantUpdatePayload {
   return {
-    sku: draft.sku.trim(),
+    ...(draft.sku.trim() ? { sku: draft.sku.trim() } : {}),
     barcode: draft.barcode.trim() || null,
     original_price: draft.originalPrice,
     sale_price: draft.salePrice,
     cost_price: draft.costPrice || null,
+    stock_quantity: Number(draft.stockQuantity),
     weight_grams: draft.weightGrams ? Number(draft.weightGrams) : undefined,
     is_active: draft.isActive,
   }
@@ -255,6 +358,23 @@ async function persistVariants(productId: string): Promise<void> {
   }
 }
 
+async function persistVariantImages(productId: string): Promise<void> {
+  for (const draft of variantDrafts.value) {
+    const pending = pendingVariantImages[draft.key]
+    if (!pending) continue
+    if (!draft.variantId) throw new Error(`Không tìm thấy biến thể ${draft.label} để gán ảnh.`)
+    const oldImages = existingMedia.value.filter(
+      (media) => media.variant_id === draft.variantId && media.media_type === 'image',
+    )
+    await sellerProductApi.uploadMedia(productId, pending.file, 'image', draft.variantId)
+    for (const oldImage of oldImages) {
+      await sellerProductApi.deleteMedia(productId, oldImage.id)
+    }
+    URL.revokeObjectURL(pending.previewUrl)
+    delete pendingVariantImages[draft.key]
+  }
+}
+
 async function saveProduct(submitAfterSave = false): Promise<void> {
   const validationError = validateForm()
   if (validationError) {
@@ -274,8 +394,9 @@ async function saveProduct(submitAfterSave = false): Promise<void> {
       await router.replace(`/seller/products/${productId}/edit`)
     }
 
-    await persistMedia(productId)
     await persistVariants(productId)
+    await persistMedia(productId)
+    await persistVariantImages(productId)
 
     if (submitAfterSave) {
       message.value = (await sellerProductApi.submit(productId)).data.message
@@ -314,6 +435,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   pendingMedia.value.forEach((item) => URL.revokeObjectURL(item.previewUrl))
+  Object.values(pendingVariantImages).forEach((item) => URL.revokeObjectURL(item.previewUrl))
 })
 </script>
 
@@ -618,7 +740,44 @@ onBeforeUnmount(() => {
           >
             Ma trận thuộc tính đã được tạo. Bạn vẫn có thể cập nhật SKU, barcode và giá từng dòng.
           </div>
-          <div v-else class="mt-6 grid gap-5 md:grid-cols-2">
+          <div v-else class="mt-6 rounded-2xl border border-indigo-200 bg-indigo-50/40 p-4">
+            <h3 class="font-black text-indigo-950">Tạo thuộc tính riêng</h3>
+            <p class="mt-1 text-sm text-indigo-800">
+              Ví dụ: Màu với “Đỏ, Xanh”; Size với “S, M, L”. Với màu, có thể nhập “Đỏ:#ef4444,
+              Xanh:#3b82f6”.
+            </p>
+            <div class="mt-4 grid gap-3 md:grid-cols-[1fr_150px_2fr_auto]">
+              <input
+                v-model.trim="newAttribute.name"
+                class="rounded-xl border border-slate-300 bg-white px-3 py-2.5"
+                maxlength="100"
+                placeholder="Tên thuộc tính"
+              />
+              <select
+                v-model="newAttribute.displayType"
+                class="rounded-xl border border-slate-300 bg-white px-3 py-2.5"
+              >
+                <option value="text">Văn bản</option>
+                <option value="color">Màu sắc</option>
+                <option value="image">Hình ảnh</option>
+              </select>
+              <input
+                v-model.trim="newAttribute.valuesText"
+                class="rounded-xl border border-slate-300 bg-white px-3 py-2.5"
+                placeholder="Các giá trị, phân cách bằng dấu phẩy"
+                @keydown.enter.prevent="createAttribute"
+              />
+              <button
+                class="rounded-xl bg-indigo-600 px-4 py-2.5 font-bold text-white disabled:opacity-50"
+                type="button"
+                :disabled="creatingAttribute || !editable"
+                @click="createAttribute"
+              >
+                {{ creatingAttribute ? 'Đang tạo…' : 'Thêm thuộc tính' }}
+              </button>
+            </div>
+          </div>
+          <div v-if="!hasServerVariants" class="mt-6 grid gap-5 md:grid-cols-2">
             <fieldset
               v-for="attribute in attributes"
               :key="attribute.id"
@@ -658,15 +817,17 @@ onBeforeUnmount(() => {
             v-if="variantDrafts.length"
             class="mt-7 overflow-x-auto rounded-2xl border border-slate-200"
           >
-            <table class="w-full min-w-[1100px] text-left text-sm">
+            <table class="w-full min-w-[1420px] text-left text-sm">
               <thead class="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
                 <tr>
                   <th class="px-4 py-3">Biến thể</th>
-                  <th class="px-3 py-3">SKU *</th>
+                  <th class="px-3 py-3">Ảnh riêng</th>
+                  <th class="px-3 py-3">SKU (trống = tự sinh)</th>
                   <th class="px-3 py-3">Barcode</th>
                   <th class="px-3 py-3">Giá gốc *</th>
                   <th class="px-3 py-3">Giá bán *</th>
                   <th class="px-3 py-3">Giá vốn</th>
+                  <th class="px-3 py-3">Tồn ban đầu</th>
                   <th class="px-3 py-3">Gram</th>
                   <th class="px-3 py-3">Bán</th>
                 </tr>
@@ -675,20 +836,58 @@ onBeforeUnmount(() => {
                 <tr v-for="draft in variantDrafts" :key="draft.key">
                   <td class="px-4 py-3 font-bold">{{ draft.label }}</td>
                   <td class="p-2">
+                    <label
+                      class="group relative grid h-16 w-16 cursor-pointer place-items-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-slate-50"
+                      :class="{ 'cursor-not-allowed opacity-60': !editable }"
+                    >
+                      <img
+                        v-if="variantImageUrl(draft)"
+                        :src="variantImageUrl(draft)"
+                        :alt="`Ảnh ${draft.label}`"
+                        class="h-full w-full object-cover"
+                      />
+                      <PhotoIcon v-else class="h-6 w-6 text-slate-400" />
+                      <span
+                        class="absolute inset-x-0 bottom-0 bg-slate-950/70 py-0.5 text-center text-[9px] font-bold text-white opacity-0 group-hover:opacity-100"
+                      >
+                        Chọn ảnh
+                      </span>
+                      <input
+                        class="sr-only"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        :disabled="!editable"
+                        @change="handleVariantImage($event, draft)"
+                      />
+                    </label>
+                  </td>
+                  <td class="p-2">
                     <input
                       v-model.trim="draft.sku"
                       class="w-36 rounded-lg border border-slate-300 px-2.5 py-2"
                       :disabled="!editable"
                       maxlength="100"
+                      placeholder="Tự sinh"
                     />
                   </td>
                   <td class="p-2">
-                    <input
-                      v-model.trim="draft.barcode"
-                      class="w-36 rounded-lg border border-slate-300 px-2.5 py-2"
-                      :disabled="!editable"
-                      maxlength="100"
-                    />
+                    <div class="flex items-center gap-1">
+                      <input
+                        v-model.trim="draft.barcode"
+                        class="w-36 rounded-lg border border-slate-300 px-2.5 py-2"
+                        :disabled="!editable"
+                        maxlength="100"
+                      />
+                      <button
+                        class="grid h-9 w-9 place-items-center rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-30"
+                        type="button"
+                        :disabled="!draft.barcode.trim()"
+                        :aria-label="`In barcode ${draft.label}`"
+                        @click="printVariantBarcode(draft)"
+                      >
+                        <PrinterIcon class="h-4 w-4" />
+                      </button>
+                    </div>
                   </td>
                   <td class="p-2">
                     <input
@@ -718,6 +917,16 @@ onBeforeUnmount(() => {
                       type="number"
                       min="0"
                       step="1000"
+                    />
+                  </td>
+                  <td class="p-2">
+                    <input
+                      v-model="draft.stockQuantity"
+                      class="w-24 rounded-lg border border-slate-300 px-2.5 py-2"
+                      :disabled="!editable"
+                      type="number"
+                      min="0"
+                      step="1"
                     />
                   </td>
                   <td class="p-2">

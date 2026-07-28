@@ -10,7 +10,8 @@ Management của Sprint 3. Frontend quản trị sản phẩm sẽ được nố
 - `ProductMedia`: ảnh/video theo Product hoặc Variant, partial unique cho media primary.
 - `Attribute`, `AttributeValue`: thuộc tính toàn sàn hoặc theo Shop.
 - `ProductAttributeValue`: tập giá trị thuộc tính được phép dùng cho Product.
-- `ProductVariant`: SKU/barcode theo Shop, giá VNĐ, trạng thái và soft delete.
+- `ProductVariant`: SKU/barcode theo Shop, giá VNĐ, tồn kho ban đầu theo biến thể, trạng thái và
+  soft delete.
 - `VariantAttributeValue`: mỗi Variant chỉ có một giá trị cho mỗi Attribute.
 
 Tất cả primary key dùng UUID. Các bảng mutable dùng `TimeStampedModel`. Tiền dùng
@@ -30,6 +31,8 @@ Tất cả primary key dùng UUID. Các bảng mutable dùng `TimeStampedModel`.
   `MAX_VIDEO_UPLOAD_MB`.
 - `VariantService` tạo tích Descartes từ AttributeValue, tự sinh SKU, kiểm tra SKU/barcode theo
   Shop và đảm bảo `product.shop_id == variant.shop_id`.
+- `AttributeService` cho Seller tự định nghĩa thuộc tính và danh sách giá trị riêng của Shop.
+- `MediaService` xác minh ownership khi gán ảnh riêng cho một Variant.
 - `ProductSelector` cung cấp query public, Seller, pending Admin, toàn bộ Admin và detail đã
   eager-load relations.
 
@@ -39,8 +42,9 @@ Không dùng `shop_id` trong request body hoặc object truyền vào làm căn 
 ## API
 
 - Seller CRUD: `/api/v1/seller/products/`, detail theo UUID và action submit.
-- Seller media/variant: nested dưới `/api/v1/seller/products/{id}/`; thuộc tính khả dụng tại
-  `/api/v1/seller/attributes/`.
+- Seller media/variant: nested dưới `/api/v1/seller/products/{id}/`; thuộc tính khả dụng và tạo
+  mới tại `/api/v1/seller/attributes/`; máy quét có thể tra SKU bằng
+  `/api/v1/seller/variants/lookup/?barcode=...`.
 - Admin moderation: pending/approve/reject/hide/soft-delete dưới `/api/v1/admin/products/`.
 - Public: `/api/v1/products/` và `/api/v1/products/{slug}/`.
 

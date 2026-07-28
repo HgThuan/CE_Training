@@ -254,6 +254,7 @@ class ProductVariant(TimeStampedModel):
         null=True,
         blank=True,
     )
+    stock_quantity = models.PositiveIntegerField(default=0)
     weight_grams = models.IntegerField(null=True, blank=True)
     is_active = models.BooleanField(default=True, db_index=True)
     is_deleted = models.BooleanField(default=False, db_index=True)

@@ -155,8 +155,10 @@ Toàn bộ endpoint dưới đây tự động scope theo `shop_id` của Seller
 | DELETE | `/seller/products/{id}/media/{media_id}` | Seller | Xóa 1 media | SEL-03 |
 | POST | `/seller/products/{id}/media/reorder` | Seller | Sắp xếp lại thứ tự ảnh | SEL-03 |
 | GET | `/seller/attributes` | Seller | Danh sách thuộc tính khả dụng | SEL-04 |
+| POST | `/seller/attributes` | Seller | Tạo thuộc tính cùng các giá trị cho shop | SEL-04 |
 | POST | `/seller/products/{id}/variants/generate` | Seller | Sinh tổ hợp biến thể từ thuộc tính | SEL-04 |
 | PATCH | `/seller/products/{id}/variants/{variant_id}` | Seller | Sửa 1 biến thể (giá, SKU, tồn kho ban đầu) | SEL-04..05 |
+| GET | `/seller/variants/lookup?barcode=...` | Seller | Tra biến thể theo barcode, sẵn sàng cho máy quét kho | SEL-05 |
 | GET | `/seller/inventory/stock-entries` | Seller | Danh sách phiếu nhập/xuất | SEL-06..07 |
 | POST | `/seller/inventory/stock-entries` | Seller | Tạo phiếu nhập/xuất/điều chỉnh | SEL-06..07 |
 | POST | `/seller/inventory/stock-entries/{id}/confirm` | Seller | Xác nhận phiếu (cộng/trừ tồn kho) | SEL-06..07 |

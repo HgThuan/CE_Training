@@ -14,7 +14,12 @@ from apps.common.exceptions import BusinessError
 from apps.common.models import AuditLog
 from apps.product.models import Product, ProductMedia
 from apps.product.selectors import ProductSelector
-from apps.product.services import MediaService, ProductService, VariantService
+from apps.product.services import (
+    MediaService,
+    ProductService,
+    VariantService,
+    _lock_owned_product,
+)
 from apps.product.state_machine import ProductStateMachine
 from apps.product.tests.factories import (
     AttributeFactory,
@@ -55,6 +60,28 @@ def test_state_machine_defines_only_documented_transitions():
         Product.Status.DRAFT,
         Product.Status.HIDDEN,
     }
+
+
+@pytest.mark.django_db
+def test_owned_product_lock_targets_only_product_table(monkeypatch):
+    product = ProductFactory()
+    manager = Product.objects
+    original_select_for_update = manager.select_for_update
+    captured_options = {}
+
+    def capture_select_for_update(*args, **kwargs):
+        captured_options.update(kwargs)
+        return original_select_for_update(*args, **kwargs)
+
+    monkeypatch.setattr(manager, "select_for_update", capture_select_for_update)
+
+    locked_product, _shop = _lock_owned_product(
+        seller_user=product.shop.owner,
+        product_id=product.pk,
+    )
+
+    assert locked_product.pk == product.pk
+    assert captured_options["of"] == ("self",)
 
 
 @pytest.mark.django_db
@@ -506,15 +533,22 @@ def test_update_variant_validates_prices_uniqueness_and_refreshes_cache():
             seller_user=variant.shop.owner,
             data={"sku": "TAKEN-SKU"},
         )
-
     updated = VariantService.update_variant(
         variant=variant,
         seller_user=variant.shop.owner,
-        data={"sku": "", "original_price": 500, "sale_price": 400},
+        data={
+            "sku": "",
+            "barcode": None,
+            "original_price": 500,
+            "sale_price": 400,
+            "stock_quantity": 12,
+        },
     )
     updated.product.refresh_from_db()
     assert updated.sku
+    assert updated.barcode is None
     assert updated.sale_price == 400
+    assert updated.stock_quantity == 12
     assert updated.product.min_price == 400
 
 
