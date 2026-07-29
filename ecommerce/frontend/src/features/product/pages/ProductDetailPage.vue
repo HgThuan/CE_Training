@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import {
-  ArrowLeftIcon,
   BuildingStorefrontIcon,
   CheckBadgeIcon,
   MinusIcon,
@@ -10,7 +9,7 @@ import {
   StarIcon,
   TruckIcon,
 } from '@heroicons/vue/24/outline'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import FormMessage from '@/features/auth/components/FormMessage.vue'
@@ -18,6 +17,7 @@ import { getErrorMessage } from '@/features/auth/errors'
 import WaitlistButton from '@/features/inventory/components/WaitlistButton.vue'
 import { formatVnd } from '@/shared/lib/formatters'
 
+import ProductDetailTabs from '../components/ProductDetailTabs.vue'
 import ProductGallery from '../components/ProductGallery.vue'
 import VariantSelector from '../components/VariantSelector.vue'
 import { useProductStore } from '../store'
@@ -29,6 +29,7 @@ const errorMessage = ref('')
 const selectedVariant = ref<ProductVariant | null>(null)
 const quantity = ref(1)
 const cartNotice = ref('')
+let pageRequestSequence = 0
 
 const product = computed(() => productStore.detail)
 const galleryMedia = computed(() => {
@@ -69,33 +70,77 @@ function prepareCart(action: 'cart' | 'buy'): void {
       : 'Luồng mua ngay đã sẵn sàng và sẽ được nối với Checkout ở Sprint tiếp theo.'
 }
 
-onMounted(async () => {
+async function loadProduct(): Promise<void> {
+  const sequence = ++pageRequestSequence
+  errorMessage.value = ''
+  selectedVariant.value = null
+  quantity.value = 1
+  cartNotice.value = ''
   try {
     await productStore.loadDetail(
       String(route.params.slug),
       typeof route.query.shop === 'string' ? route.query.shop : undefined,
     )
+    if (sequence !== pageRequestSequence) return
     if (!product.value?.attributes.length && product.value?.variants.length === 1) {
       selectedVariant.value = product.value.variants[0] ?? null
     }
   } catch (error) {
-    errorMessage.value = getErrorMessage(error)
+    if (sequence === pageRequestSequence) errorMessage.value = getErrorMessage(error)
   }
+}
+
+watch(
+  () =>
+    [
+      String(route.params.slug),
+      typeof route.query.shop === 'string' ? route.query.shop : '',
+    ] as const,
+  () => void loadProduct(),
+  { immediate: true },
+)
+
+onBeforeUnmount(() => {
+  pageRequestSequence += 1
 })
 </script>
 
 <template>
   <div class="min-h-screen bg-[#f8fafc]">
     <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-12">
-      <RouterLink
-        class="inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-indigo-700"
-        to="/products"
-      >
-        <ArrowLeftIcon class="h-4 w-4" />
-        Quay lại catalog
-      </RouterLink>
+      <nav aria-label="Đường dẫn điều hướng" class="text-sm font-semibold text-slate-500">
+        <ol class="flex min-w-0 flex-wrap items-center gap-2">
+          <li><RouterLink class="hover:text-indigo-700" to="/">Trang chủ</RouterLink></li>
+          <li aria-hidden="true">/</li>
+          <li><RouterLink class="hover:text-indigo-700" to="/products">Sản phẩm</RouterLink></li>
+          <template v-if="product">
+            <li aria-hidden="true">/</li>
+            <li>
+              <RouterLink
+                class="hover:text-indigo-700"
+                :to="{ name: 'product-list', query: { category: product.category.id } }"
+              >
+                {{ product.category.name }}
+              </RouterLink>
+            </li>
+            <li aria-hidden="true">/</li>
+            <li class="max-w-full truncate text-slate-800" aria-current="page">
+              {{ product.name }}
+            </li>
+          </template>
+        </ol>
+      </nav>
 
-      <FormMessage v-if="errorMessage" class="mt-6" :message="errorMessage" />
+      <div v-if="errorMessage" class="mt-6">
+        <FormMessage :message="errorMessage" />
+        <button
+          class="mt-3 text-sm font-bold text-indigo-700 hover:text-indigo-900"
+          type="button"
+          @click="loadProduct"
+        >
+          Thử tải lại
+        </button>
+      </div>
 
       <div v-if="productStore.loading" class="mt-8 grid animate-pulse gap-10 lg:grid-cols-2">
         <div class="aspect-square rounded-[2rem] bg-slate-200" />
@@ -235,12 +280,7 @@ onMounted(async () => {
         </div>
 
         <section class="mt-12 grid gap-6 lg:grid-cols-[1fr_340px]">
-          <article class="rounded-3xl bg-white p-6 ring-1 ring-slate-200 sm:p-8">
-            <h2 class="text-2xl font-black">Mô tả sản phẩm</h2>
-            <p class="mt-5 whitespace-pre-line leading-8 text-slate-700">
-              {{ product.description || product.short_description || 'Sản phẩm chưa có mô tả.' }}
-            </p>
-          </article>
+          <ProductDetailTabs :product="product" />
           <RouterLink
             :to="`/shop/${product.shop.slug}`"
             class="group rounded-3xl bg-slate-950 p-6 text-white transition hover:bg-indigo-700"

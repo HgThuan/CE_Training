@@ -1,4 +1,4 @@
-import { computed, reactive } from 'vue'
+import { computed, reactive, watch } from 'vue'
 
 import type { ProductAttribute, ProductVariant } from '../types'
 
@@ -41,12 +41,10 @@ export function isVariantValueAvailable(
 ): boolean {
   return variants.some(
     (variant) =>
-      variant.available_stock > 0 &&
       variant.attributes.some(
         (attribute) =>
           attribute.attribute_id === attributeId && attribute.attribute_value_id === valueId,
-      ) &&
-      variantMatchesSelection(variant, selection, attributeId),
+      ) && variantMatchesSelection(variant, selection, attributeId),
   )
 }
 
@@ -82,6 +80,10 @@ export function useVariantSelection(
   function isAvailable(attributeId: string, valueId: string): boolean {
     return isVariantValueAvailable(variants(), selection, attributeId, valueId)
   }
+
+  watch([attributes, variants], () => {
+    for (const attributeId of Object.keys(selection)) delete selection[attributeId]
+  })
 
   return { selection, selectedVariant, isComplete, select, isAvailable }
 }

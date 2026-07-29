@@ -163,6 +163,40 @@ export interface PublicProductDetail {
   updated_at: string
 }
 
+export interface QuestionAuthor {
+  id: number
+  full_name: string
+  avatar_url: string
+}
+
+export interface ProductAnswer {
+  id: string
+  seller: QuestionAuthor
+  content: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ProductQuestion {
+  id: string
+  product_id: string
+  customer: QuestionAuthor
+  content: string
+  status: 'visible' | 'hidden'
+  answer: ProductAnswer | null
+  created_at: string
+  updated_at: string
+}
+
+export interface QuestionListParams {
+  page?: number
+  page_size?: number
+}
+
+export interface CreateQuestionPayload {
+  content: string
+}
+
 export interface ProductListFilters {
   category_id?: string
   brand_id?: string

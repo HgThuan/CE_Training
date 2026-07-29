@@ -98,11 +98,11 @@ describe('variant selection', () => {
     expect(isVariantValueAvailable(variants, { color: 'red' }, 'size', 'm')).toBe(false)
   })
 
-  it('disables an out-of-stock combination', () => {
+  it('keeps an out-of-stock combination selectable for waitlist registration', () => {
     const outOfStock = variants.map((variant) =>
       variant.id === 'red-s' ? { ...variant, available_stock: 0 } : variant,
     )
-    expect(isVariantValueAvailable(outOfStock, { color: 'red' }, 'size', 's')).toBe(false)
+    expect(isVariantValueAvailable(outOfStock, { color: 'red' }, 'size', 's')).toBe(true)
   })
 
   it('can ignore the attribute being changed', () => {

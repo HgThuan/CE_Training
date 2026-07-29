@@ -27,6 +27,7 @@ export const useProductStore = defineStore('products', () => {
   const meta = ref<PaginationMeta>({ ...EMPTY_META })
   const loading = ref(false)
   const catalogLoading = ref(false)
+  let detailRequestSequence = 0
 
   async function loadCatalog(): Promise<void> {
     if (categories.value.length && brands.value.length) return
@@ -55,12 +56,14 @@ export const useProductStore = defineStore('products', () => {
   }
 
   async function loadDetail(slug: string, shopSlug?: string): Promise<void> {
+    const sequence = ++detailRequestSequence
     loading.value = true
     detail.value = null
     try {
-      detail.value = (await productApi.detail(slug, shopSlug)).data.data
+      const nextDetail = (await productApi.detail(slug, shopSlug)).data.data
+      if (sequence === detailRequestSequence) detail.value = nextDetail
     } finally {
-      loading.value = false
+      if (sequence === detailRequestSequence) loading.value = false
     }
   }
 

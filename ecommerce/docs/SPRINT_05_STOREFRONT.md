@@ -18,6 +18,20 @@ trong `plansprint05.md`; các nguyên tắc của `PROJECT_CONSTITUTION.md` vẫ
   lập bằng dữ liệu base64.
 - Các nhánh Sprint được xếp chồng A → F. Nhánh review tổng hợp trỏ tới kết quả sau Part F.
 
+## Part C — Product detail và Q&A
+
+- Q&A được đặt trong `apps.engagement`; product catalog chỉ cung cấp selector xác định sản phẩm
+  public hợp lệ.
+- Customer đang hoạt động được đặt câu hỏi. Chỉ Seller đang hoạt động sở hữu shop của sản phẩm
+  được trả lời; public API chỉ trả câu hỏi `visible`.
+- Quan hệ one-to-one và `select_for_update()` bảo vệ thao tác trả lời đồng thời. Payload tác giả
+  không lộ email, số điện thoại hoặc dữ liệu profile riêng.
+- Frontend mở rộng `features/product`: breadcrumb, gallery có thumbnail/video/lightbox, lựa chọn
+  biến thể (kể cả biến thể hết hàng để đăng ký waitlist), tab Description/Q&A/Reviews, skeleton,
+  retry và chống response cũ ghi đè khi đổi route.
+- Hash `#description`, `#qa`, `#reviews` là deep link ổn định; khách chưa đăng nhập quay lại đúng
+  tab Q&A sau luồng login.
+
 ## Nguyên tắc tương thích và fallback
 
 - PostgreSQL + `pg_trgm`/`pgvector` là runtime mục tiêu. Test SQLite dùng keyword fallback và
