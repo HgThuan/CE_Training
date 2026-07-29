@@ -20,13 +20,13 @@ const router = useRouter()
 const productStore = useProductStore()
 
 const filters = reactive({
-  search: typeof route.query.q === 'string' ? route.query.q : '',
-  categoryId: typeof route.query.category === 'string' ? route.query.category : '',
-  brandId: typeof route.query.brand === 'string' ? route.query.brand : '',
-  minPrice: typeof route.query.min_price === 'string' ? route.query.min_price : '',
-  maxPrice: typeof route.query.max_price === 'string' ? route.query.max_price : '',
-  sort: (typeof route.query.sort === 'string' ? route.query.sort : '-created_at') as ProductSort,
-  page: Math.max(Number(route.query.page) || 1, 1),
+  search: '',
+  categoryId: '',
+  brandId: '',
+  minPrice: '',
+  maxPrice: '',
+  sort: '-created_at' as ProductSort,
+  page: 1,
 })
 const mobileFiltersOpen = ref(false)
 const errorMessage = ref('')
@@ -54,6 +54,16 @@ const activeFilterCount = computed(
     ].filter(Boolean).length,
 )
 
+function hydrateFilters() {
+  filters.search = typeof route.query.q === 'string' ? route.query.q : ''
+  filters.categoryId = typeof route.query.category === 'string' ? route.query.category : ''
+  filters.brandId = typeof route.query.brand === 'string' ? route.query.brand : ''
+  filters.minPrice = typeof route.query.min_price === 'string' ? route.query.min_price : ''
+  filters.maxPrice = typeof route.query.max_price === 'string' ? route.query.max_price : ''
+  filters.sort = (typeof route.query.sort === 'string' ? route.query.sort : '-created_at') as ProductSort
+  filters.page = Math.max(Number(route.query.page) || 1, 1)
+}
+
 async function loadProducts(): Promise<void> {
   errorMessage.value = ''
   const requestFilters: ProductListFilters = {
@@ -75,7 +85,7 @@ async function loadProducts(): Promise<void> {
 
 async function syncAndLoad(resetPage = false): Promise<void> {
   if (resetPage) filters.page = 1
-  await router.replace({
+  await router.push({
     query: {
       q: filters.search || undefined,
       category: filters.categoryId || undefined,
@@ -86,7 +96,6 @@ async function syncAndLoad(resetPage = false): Promise<void> {
       page: filters.page > 1 ? String(filters.page) : undefined,
     },
   })
-  await loadProducts()
   mobileFiltersOpen.value = false
 }
 
@@ -111,13 +120,17 @@ async function resetFilters(): Promise<void> {
 }
 
 watch(
-  () => filters.sort,
-  () => syncAndLoad(true),
+  () => route.query,
+  () => {
+    hydrateFilters()
+    void loadProducts()
+  },
+  { immediate: true },
 )
 
 onMounted(async () => {
   try {
-    await Promise.all([productStore.loadCatalog(), loadProducts()])
+    await productStore.loadCatalog()
   } catch (error) {
     errorMessage.value = getErrorMessage(error)
   }
@@ -271,6 +284,7 @@ onMounted(async () => {
               <select
                 v-model="filters.sort"
                 class="rounded-xl border border-slate-300 bg-white px-3 py-2.5"
+                @change="syncAndLoad(true)"
               >
                 <option value="-created_at">Mới nhất</option>
                 <option value="price">Giá thấp đến cao</option>
