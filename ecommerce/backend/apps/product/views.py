@@ -1,15 +1,26 @@
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework import status, viewsets
+from rest_framework import generics, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
 
 from apps.account.permissions import IsAdmin, IsSeller
+from apps.common.cache_utils import (
+    PRODUCT_DETAIL_CACHE_TTL,
+    SEARCH_RESULTS_CACHE_TTL,
+    SEARCH_SUGGESTIONS_CACHE_TTL,
+    product_detail_cache_key,
+    safe_cache_get,
+    safe_cache_set,
+    search_results_cache_key,
+    search_suggestions_cache_key,
+)
 from apps.common.exceptions import BusinessError
 from apps.common.responses import success_response
 
 from .permissions import IsShopOwner
-from .selectors import ProductSelector
+from .selectors import ProductSelector, SearchSelector
 from .serializers import (
     AdminProductListResponseSerializer,
     AdminProductListSerializer,
@@ -29,6 +40,10 @@ from .serializers import (
     PublicProductListResponseSerializer,
     PublicProductListSerializer,
     PublicProductResponseSerializer,
+    SearchFilterSerializer,
+    SearchSuggestionListResponseSerializer,
+    SearchSuggestionQuerySerializer,
+    SearchSuggestionSerializer,
     SellerProductCreateSerializer,
     SellerProductDetailSerializer,
     SellerProductFilterSerializer,
@@ -464,6 +479,70 @@ class AdminProductViewSet(viewsets.GenericViewSet):
         )
 
 
+class SearchView(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = PublicProductListSerializer
+
+    @extend_schema(
+        operation_id="public_product_search",
+        parameters=[SearchFilterSerializer],
+        responses={200: PublicProductListResponseSerializer},
+    )
+    def get(self, request):
+        filters = SearchFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        cache_key = search_results_cache_key(filters.validated_data)
+        cached_payload = safe_cache_get(cache_key)
+        if cached_payload is not None:
+            return Response(cached_payload)
+
+        page = self.paginate_queryset(SearchSelector.search(filters.validated_data))
+        data = PublicProductListSerializer(
+            page,
+            many=True,
+            context=self.get_serializer_context(),
+        ).data
+        response = self.get_paginated_response(data)
+        safe_cache_set(
+            cache_key,
+            response.data,
+            timeout=SEARCH_RESULTS_CACHE_TTL,
+        )
+        return response
+
+
+class SearchSuggestionView(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = SearchSuggestionQuerySerializer
+
+    @extend_schema(
+        operation_id="public_product_search_suggestions",
+        parameters=[SearchSuggestionQuerySerializer],
+        responses={200: SearchSuggestionListResponseSerializer},
+    )
+    def get(self, request):
+        query = self.get_serializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        query_text = query.validated_data["q"]
+        limit = query.validated_data["limit"]
+        cache_key = search_suggestions_cache_key(query_text)
+        cached_suggestions = safe_cache_get(cache_key)
+        if cached_suggestions is None:
+            cached_suggestions = SearchSuggestionSerializer(
+                SearchSelector.suggestions(query=query_text, limit=10),
+                many=True,
+            ).data
+            safe_cache_set(
+                cache_key,
+                cached_suggestions,
+                timeout=SEARCH_SUGGESTIONS_CACHE_TTL,
+            )
+        return success_response(
+            message="Lấy gợi ý tìm kiếm thành công",
+            data=list(cached_suggestions[:limit]),
+        )
+
+
 class PublicProductViewSet(viewsets.GenericViewSet):
     permission_classes = [AllowAny]
     serializer_class = PublicProductDetailSerializer
@@ -506,16 +585,34 @@ class PublicProductViewSet(viewsets.GenericViewSet):
         responses={200: PublicProductResponseSerializer},
     )
     def retrieve(self, request, slug=None):
+        shop_slug = request.query_params.get("shop_slug")
+        cache_key = product_detail_cache_key(
+            slug=slug,
+            shop_slug=shop_slug,
+        )
+        cached_data = safe_cache_get(cache_key)
+        if cached_data is not None:
+            return success_response(
+                message="Lấy chi tiết sản phẩm thành công",
+                data=cached_data,
+            )
+
         product = ProductSelector.public_detail(
             slug=slug,
-            shop_slug=request.query_params.get("shop_slug"),
+            shop_slug=shop_slug,
         )
         if product is None:
             raise BusinessError("Không tìm thấy sản phẩm", http_status=404)
+        data = PublicProductDetailSerializer(
+            product,
+            context=self.get_serializer_context(),
+        ).data
+        safe_cache_set(
+            cache_key,
+            data,
+            timeout=PRODUCT_DETAIL_CACHE_TTL,
+        )
         return success_response(
             message="Lấy chi tiết sản phẩm thành công",
-            data=PublicProductDetailSerializer(
-                product,
-                context=self.get_serializer_context(),
-            ).data,
+            data=data,
         )

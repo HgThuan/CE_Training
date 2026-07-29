@@ -1,4 +1,33 @@
+from django.db.models.signals import post_delete, post_save
+from django.dispatch import receiver
+
+from apps.common.cache_utils import invalidate_product_cache_on_commit
+from apps.product.models import ProductVariant
+
+from .models import InventoryBalance
 from .notifications import InventoryNotificationService
+
+
+@receiver(
+    (post_save, post_delete),
+    sender=InventoryBalance,
+    dispatch_uid="inventory.invalidate_balance_product_caches",
+)
+def invalidate_balance_product_caches(
+    instance: InventoryBalance,
+    **kwargs,
+) -> None:
+    variant = (
+        ProductVariant.objects.select_related("product", "shop")
+        .filter(pk=instance.variant_id)
+        .only("product__slug", "shop__slug")
+        .first()
+    )
+    if variant is not None:
+        invalidate_product_cache_on_commit(
+            slug=variant.product.slug,
+            shop_slug=variant.shop.slug,
+        )
 
 
 def stock_reached_low_threshold(*, balance) -> None:

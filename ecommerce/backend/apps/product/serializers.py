@@ -15,9 +15,13 @@ from .models import (
 
 
 def _thumbnail_for_product(product: Product) -> str | None:
-    images = [
-        media for media in product.media.all() if media.media_type == ProductMedia.MediaType.IMAGE
-    ]
+    images = getattr(product, "_public_list_images", None)
+    if images is None:
+        images = [
+            media
+            for media in product.media.all()
+            if media.media_type == ProductMedia.MediaType.IMAGE
+        ]
     primary = next((media for media in images if media.is_primary), None)
     return (primary or (images[0] if images else None)).file_url if images else None
 
@@ -435,6 +439,21 @@ class PublicProductListSerializer(serializers.ModelSerializer):
         return _thumbnail_for_product(product)
 
 
+class SearchSuggestionSerializer(serializers.ModelSerializer):
+    text = serializers.CharField(source="name", read_only=True)
+    shop_slug = serializers.SlugField(source="shop.slug", read_only=True)
+
+    class Meta:
+        model = Product
+        fields = (
+            "id",
+            "text",
+            "slug",
+            "shop_slug",
+        )
+        read_only_fields = fields
+
+
 class PublicShopSummarySerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     name = serializers.CharField(read_only=True)
@@ -628,7 +647,21 @@ PRODUCT_SORT_CHOICES = (
     "-sold_count",
     "rating",
     "-rating",
+    "avg_rating",
+    "-avg_rating",
 )
+SEARCH_SORT_CHOICES = (*PRODUCT_SORT_CHOICES, "relevance")
+FILTER_ALIASES = {
+    "category_id": "category",
+    "brand_id": "brand",
+    "min_price": "price_min",
+    "max_price": "price_max",
+    "search": "q",
+}
+SORT_ALIASES = {
+    "rating": "avg_rating",
+    "-rating": "-avg_rating",
+}
 
 
 class SellerProductFilterSerializer(serializers.Serializer):
@@ -646,6 +679,38 @@ class SellerProductFilterSerializer(serializers.Serializer):
 
 
 class PublicProductFilterSerializer(serializers.Serializer):
+    category = serializers.CharField(max_length=180, required=False)
+    brand = serializers.CharField(max_length=180, required=False)
+    price_min = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=0,
+        min_value=0,
+        required=False,
+    )
+    price_max = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=0,
+        min_value=0,
+        required=False,
+    )
+    rating_min = serializers.DecimalField(
+        max_digits=3,
+        decimal_places=2,
+        min_value=0,
+        max_value=5,
+        required=False,
+    )
+    in_stock = serializers.BooleanField(required=False)
+    shop = serializers.CharField(max_length=255, required=False)
+    q = serializers.CharField(
+        max_length=255,
+        trim_whitespace=True,
+        allow_blank=True,
+        required=False,
+    )
+
+    # Sprint 3 compatibility aliases. Validation normalizes these into the
+    # canonical Sprint 5 names before selectors receive the data.
     category_id = serializers.UUIDField(required=False)
     brand_id = serializers.UUIDField(required=False)
     min_price = serializers.DecimalField(
@@ -663,21 +728,86 @@ class PublicProductFilterSerializer(serializers.Serializer):
     search = serializers.CharField(
         max_length=255,
         trim_whitespace=True,
+        allow_blank=True,
         required=False,
     )
     sort = serializers.ChoiceField(
         choices=PRODUCT_SORT_CHOICES,
-        default="-created_at",
+        required=False,
+    )
+    page = serializers.IntegerField(min_value=1, required=False)
+    page_size = serializers.IntegerField(min_value=1, max_value=100, required=False)
+
+    def to_internal_value(self, data):
+        unknown = sorted(set(data.keys()) - set(self.fields))
+        if unknown:
+            raise serializers.ValidationError(
+                {"query_params": [f"Tham số không được hỗ trợ: {', '.join(unknown)}"]}
+            )
+        return super().to_internal_value(data)
+
+    def validate(self, attrs):
+        attrs = dict(attrs)
+        legacy_price_range = "min_price" in attrs or "max_price" in attrs
+        for alias, canonical in FILTER_ALIASES.items():
+            if alias not in attrs:
+                continue
+            alias_value = attrs.pop(alias)
+            if canonical in attrs and str(attrs[canonical]) != str(alias_value):
+                raise serializers.ValidationError(
+                    {canonical: [f"Không thể dùng đồng thời {canonical} và {alias}"]}
+                )
+            if canonical not in attrs:
+                attrs[canonical] = (
+                    str(alias_value) if canonical in {"category", "brand", "q"} else alias_value
+                )
+
+        if sort := attrs.get("sort"):
+            attrs["sort"] = SORT_ALIASES.get(sort, sort)
+
+        price_min = attrs.get("price_min")
+        price_max = attrs.get("price_max")
+        if price_min is not None and price_max is not None and price_min > price_max:
+            raise serializers.ValidationError(
+                {
+                    "max_price" if legacy_price_range else "price_max": [
+                        "Giá tối đa phải lớn hơn hoặc bằng giá tối thiểu"
+                    ]
+                }
+            )
+        return attrs
+
+
+class SearchFilterSerializer(PublicProductFilterSerializer):
+    sort = serializers.ChoiceField(
+        choices=SEARCH_SORT_CHOICES,
+        required=False,
     )
 
     def validate(self, attrs):
-        min_price = attrs.get("min_price")
-        max_price = attrs.get("max_price")
-        if min_price is not None and max_price is not None and min_price > max_price:
+        attrs = super().validate(attrs)
+        if attrs.get("sort") == "relevance" and not attrs.get("q"):
             raise serializers.ValidationError(
-                {"max_price": ["Giá tối đa phải lớn hơn hoặc bằng giá tối thiểu"]}
+                {"sort": ["Sắp xếp relevance yêu cầu query q không rỗng"]}
             )
         return attrs
+
+
+class SearchSuggestionQuerySerializer(serializers.Serializer):
+    q = serializers.CharField(
+        min_length=1,
+        max_length=100,
+        trim_whitespace=True,
+    )
+    limit = serializers.IntegerField(min_value=1, max_value=10, default=10)
+
+    def to_internal_value(self, data):
+        unknown = sorted(set(data.keys()) - set(self.fields))
+        if unknown:
+            raise serializers.ValidationError(
+                {"query_params": [f"Tham số không được hỗ trợ: {', '.join(unknown)}"]}
+            )
+        return super().to_internal_value(data)
 
 
 class ProductPaginationMetaSerializer(serializers.Serializer):
@@ -718,6 +848,12 @@ class PublicProductListResponseSerializer(serializers.Serializer):
     message = serializers.CharField()
     data = PublicProductListSerializer(many=True)
     meta = ProductPaginationMetaSerializer()
+
+
+class SearchSuggestionListResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    message = serializers.CharField()
+    data = SearchSuggestionSerializer(many=True)
 
 
 class PublicProductResponseSerializer(serializers.Serializer):

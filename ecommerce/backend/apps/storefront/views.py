@@ -4,6 +4,12 @@ from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 
 from apps.catalog.serializers import CategoryTreeSerializer
+from apps.common.cache_utils import (
+    HOME_PAGE_CACHE_KEY,
+    HOME_PAGE_CACHE_TTL,
+    safe_cache_get,
+    safe_cache_set,
+)
 from apps.common.exceptions import BusinessError
 from apps.common.responses import success_response
 from apps.product.serializers import PublicProductListSerializer
@@ -130,6 +136,12 @@ class HomePageView(APIView):
         responses={200: HomeResponseSerializer},
     )
     def get(self, request):
+        cached_data = safe_cache_get(HOME_PAGE_CACHE_KEY)
+        if cached_data is not None:
+            return success_response(
+                message="Lấy nội dung trang chủ thành công",
+                data=cached_data,
+            )
         new_arrivals, best_sellers = get_home_products()
         data = {
             "banners": BannerPublicSerializer(get_active_banners(), many=True).data,
@@ -149,6 +161,11 @@ class HomePageView(APIView):
                 context={"request": request},
             ).data,
         }
+        safe_cache_set(
+            HOME_PAGE_CACHE_KEY,
+            data,
+            timeout=HOME_PAGE_CACHE_TTL,
+        )
         return success_response(
             message="Lấy nội dung trang chủ thành công",
             data=data,

@@ -1,6 +1,14 @@
 from uuid import UUID
 
-from django.db.models import F, Prefetch, Q, QuerySet
+from django.contrib.postgres.search import (
+    SearchQuery,
+    SearchRank,
+    SearchVector,
+    TrigramSimilarity,
+)
+from django.db import connections
+from django.db.models import Exists, F, FloatField, OuterRef, Prefetch, Q, QuerySet, Value
+from django.db.models.functions import Greatest
 
 from apps.account.models import Shop, User
 from apps.common.exceptions import BusinessError
@@ -15,6 +23,55 @@ from .models import (
     VariantAttributeValue,
 )
 
+SEARCH_CONFIG = "simple"
+
+
+def _filter_uuid_or_slug(queryset: QuerySet[Product], relation: str, value):
+    try:
+        object_id = UUID(str(value))
+    except (TypeError, ValueError):
+        return queryset.filter(**{f"{relation}__slug": str(value)})
+    return queryset.filter(**{f"{relation}_id": object_id})
+
+
+def _apply_public_filters(
+    queryset: QuerySet[Product],
+    params: dict,
+) -> QuerySet[Product]:
+    if category := params.get("category"):
+        queryset = _filter_uuid_or_slug(queryset, "category", category)
+    if brand := params.get("brand"):
+        queryset = _filter_uuid_or_slug(queryset, "brand", brand)
+    if shop := params.get("shop"):
+        try:
+            shop_id = int(shop)
+        except (TypeError, ValueError):
+            queryset = queryset.filter(shop__slug=str(shop))
+        else:
+            queryset = queryset.filter(shop_id=shop_id)
+
+    price_min = params.get("price_min")
+    if price_min is not None:
+        queryset = queryset.filter(max_price__gte=price_min)
+    price_max = params.get("price_max")
+    if price_max is not None:
+        queryset = queryset.filter(min_price__lte=price_max)
+    rating_min = params.get("rating_min")
+    if rating_min is not None:
+        queryset = queryset.filter(rating_average__gte=rating_min)
+
+    if params.get("in_stock") is not None:
+        stocked_variants = ProductVariant.objects.filter(
+            product_id=OuterRef("pk"),
+            is_active=True,
+            is_deleted=False,
+            inventory_balance__available_stock__gt=0,
+        )
+        queryset = queryset.annotate(has_available_stock=Exists(stocked_variants)).filter(
+            has_available_stock=params["in_stock"]
+        )
+    return queryset
+
 
 class ProductSelector:
     SORT_EXPRESSIONS = {
@@ -26,6 +83,8 @@ class ProductSelector:
         "-sold_count": (F("sold_count").desc(),),
         "rating": (F("rating_average").asc(),),
         "-rating": (F("rating_average").desc(),),
+        "avg_rating": (F("rating_average").asc(),),
+        "-avg_rating": (F("rating_average").desc(),),
     }
 
     @staticmethod
@@ -80,8 +139,22 @@ class ProductSelector:
         )
 
     @staticmethod
-    def public_queryset() -> QuerySet[Product]:
-        queryset = Product.objects.filter(
+    def _with_list_relations(queryset: QuerySet[Product]) -> QuerySet[Product]:
+        list_images = ProductMedia.objects.filter(
+            media_type=ProductMedia.MediaType.IMAGE,
+        ).order_by(
+            "-is_primary",
+            "sort_order",
+            "created_at",
+            "id",
+        )
+        return queryset.select_related("shop", "category", "brand").prefetch_related(
+            Prefetch("media", queryset=list_images, to_attr="_public_list_images")
+        )
+
+    @staticmethod
+    def public_base() -> QuerySet[Product]:
+        return Product.objects.filter(
             status=Product.Status.APPROVED,
             is_deleted=False,
             shop__status=Shop.Status.APPROVED,
@@ -91,7 +164,16 @@ class ProductSelector:
             category__is_active=True,
             category__is_deleted=False,
         )
-        return ProductSelector._with_relations(queryset, public_only=True)
+
+    @staticmethod
+    def public_list() -> QuerySet[Product]:
+        return ProductSelector._with_list_relations(ProductSelector.public_base())
+
+    @staticmethod
+    def public_queryset() -> QuerySet[Product]:
+        """Backward-compatible public list queryset."""
+
+        return ProductSelector.public_list()
 
     @staticmethod
     def for_seller(seller_user) -> QuerySet[Product]:
@@ -127,18 +209,13 @@ class ProductSelector:
         queryset: QuerySet[Product],
         params: dict,
     ) -> QuerySet[Product]:
-        if category_id := params.get("category_id"):
-            queryset = queryset.filter(category_id=category_id)
-        if brand_id := params.get("brand_id"):
-            queryset = queryset.filter(brand_id=brand_id)
-        min_price = params.get("min_price")
-        if min_price is not None:
-            queryset = queryset.filter(max_price__gte=min_price)
-        max_price = params.get("max_price")
-        if max_price is not None:
-            queryset = queryset.filter(min_price__lte=max_price)
-        if search := params.get("search"):
-            queryset = queryset.filter(name__icontains=search)
+        queryset = _apply_public_filters(queryset, params)
+        if query := params.get("q"):
+            queryset = queryset.filter(
+                Q(name__icontains=query)
+                | Q(short_description__icontains=query)
+                | Q(description__icontains=query)
+            )
         sort = params.get("sort", "-created_at")
         return queryset.order_by(*ProductSelector.SORT_EXPRESSIONS[sort], "id")
 
@@ -179,7 +256,9 @@ class ProductSelector:
 
     @staticmethod
     def public_detail(*, slug: str, shop_slug: str | None = None) -> Product | None:
-        matches = ProductSelector.public_queryset().filter(slug=slug)
+        matches = ProductSelector._with_relations(
+            ProductSelector.public_base(), public_only=True
+        ).filter(slug=slug)
         if shop_slug:
             return matches.filter(shop__slug=shop_slug).first()
         first_two = list(matches[:2])
@@ -333,3 +412,81 @@ class ProductSelector:
                 errors={"shop": ["Hãy cung cấp gian hàng khi tra cứu bằng slug"]},
             )
         return first_two[0] if first_two else None
+
+
+class SearchSelector:
+    @staticmethod
+    def _postgres_search(
+        queryset: QuerySet[Product],
+        query_text: str,
+    ) -> QuerySet[Product]:
+        search_document = (
+            SearchVector("name", weight="A", config=SEARCH_CONFIG)
+            + SearchVector("short_description", weight="B", config=SEARCH_CONFIG)
+            + SearchVector("description", weight="C", config=SEARCH_CONFIG)
+        )
+        search_query = SearchQuery(
+            query_text,
+            config=SEARCH_CONFIG,
+            search_type="websearch",
+        )
+        return (
+            queryset.annotate(
+                search_document=search_document,
+                search_rank=SearchRank(search_document, search_query),
+                trigram_similarity=TrigramSimilarity("name", query_text),
+            )
+            .filter(Q(search_document=search_query) | Q(name__trigram_similar=query_text))
+            .annotate(
+                relevance=Greatest("search_rank", "trigram_similarity"),
+            )
+        )
+
+    @staticmethod
+    def _fallback_search(
+        queryset: QuerySet[Product],
+        query_text: str,
+    ) -> QuerySet[Product]:
+        return queryset.filter(
+            Q(name__icontains=query_text)
+            | Q(short_description__icontains=query_text)
+            | Q(description__icontains=query_text)
+        ).annotate(relevance=Value(0.0, output_field=FloatField()))
+
+    @staticmethod
+    def search(params: dict) -> QuerySet[Product]:
+        queryset = _apply_public_filters(ProductSelector.public_list(), params)
+        query_text = str(params.get("q", "")).strip()
+        if query_text:
+            if connections[queryset.db].vendor == "postgresql":
+                queryset = SearchSelector._postgres_search(queryset, query_text)
+            else:
+                queryset = SearchSelector._fallback_search(queryset, query_text)
+
+        sort = params.get("sort")
+        if sort:
+            if sort == "relevance":
+                return queryset.order_by(
+                    F("relevance").desc(),
+                    F("created_at").desc(),
+                    "id",
+                )
+            return queryset.order_by(*ProductSelector.SORT_EXPRESSIONS[sort], "id")
+        if query_text:
+            return queryset.order_by(
+                F("relevance").desc(),
+                F("created_at").desc(),
+                "id",
+            )
+        return queryset.order_by(F("created_at").desc(), "id")
+
+    @staticmethod
+    def suggestions(*, query: str, limit: int = 10) -> QuerySet[Product]:
+        queryset = ProductSelector.public_base().select_related("shop")
+        if connections[queryset.db].vendor == "postgresql":
+            return (
+                queryset.annotate(similarity=TrigramSimilarity("name", query))
+                .filter(Q(name__istartswith=query) | Q(name__trigram_similar=query))
+                .order_by("-similarity", "name", "id")[:limit]
+            )
+        return queryset.filter(name__icontains=query).order_by("name", "id")[:limit]

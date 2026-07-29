@@ -120,6 +120,10 @@ class Product(TimeStampedModel):
                 condition=Q(is_deleted=False),
                 name="ix_products_public_feed",
             ),
+            models.Index(
+                fields=("status", "is_deleted", "created_at"),
+                name="product_search_feed_idx",
+            ),
             models.Index(fields=("created_at",), name="product_created_idx"),
             models.Index(fields=("updated_at",), name="product_updated_idx"),
         ]

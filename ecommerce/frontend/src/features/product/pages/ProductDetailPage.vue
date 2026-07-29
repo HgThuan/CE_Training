@@ -86,21 +86,6 @@ onMounted(async () => {
 
 <template>
   <div class="min-h-screen bg-[#f8fafc]">
-    <header class="border-b border-slate-200 bg-white">
-      <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
-        <RouterLink class="flex items-center gap-3" to="/">
-          <span
-            class="grid h-10 w-10 place-items-center rounded-2xl bg-indigo-600 font-black text-white"
-            >M</span
-          >
-          <span class="font-black tracking-tight">Mercato</span>
-        </RouterLink>
-        <RouterLink class="text-sm font-bold text-slate-600 hover:text-indigo-700" to="/products">
-          Tất cả sản phẩm
-        </RouterLink>
-      </div>
-    </header>
-
     <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-12">
       <RouterLink
         class="inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-indigo-700"

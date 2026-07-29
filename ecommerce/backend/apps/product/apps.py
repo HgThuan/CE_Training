@@ -5,3 +5,6 @@ class ProductConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "apps.product"
     verbose_name = "Product Management"
+
+    def ready(self) -> None:
+        from . import signals  # noqa: F401

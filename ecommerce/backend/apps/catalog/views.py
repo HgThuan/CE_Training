@@ -4,6 +4,12 @@ from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 
 from apps.account.permissions import IsAdmin
+from apps.common.cache_utils import (
+    CATEGORY_TREE_CACHE_KEY,
+    CATEGORY_TREE_CACHE_TTL,
+    safe_cache_get,
+    safe_cache_set,
+)
 from apps.common.exceptions import BusinessError
 from apps.common.responses import success_response
 
@@ -35,10 +41,22 @@ class PublicCategoryTreeView(APIView):
         responses={200: CategoryTreeResponseSerializer},
     )
     def get(self, request):
+        cached_data = safe_cache_get(CATEGORY_TREE_CACHE_KEY)
+        if cached_data is not None:
+            return success_response(
+                message="Lấy cây danh mục thành công",
+                data=cached_data,
+            )
         categories = CategorySelector.public_tree()
+        data = CategoryTreeSerializer(categories, many=True).data
+        safe_cache_set(
+            CATEGORY_TREE_CACHE_KEY,
+            data,
+            timeout=CATEGORY_TREE_CACHE_TTL,
+        )
         return success_response(
             message="Lấy cây danh mục thành công",
-            data=CategoryTreeSerializer(categories, many=True).data,
+            data=data,
         )
 
 

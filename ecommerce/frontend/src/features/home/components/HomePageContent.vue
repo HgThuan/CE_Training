@@ -4,8 +4,6 @@ import { computed, onMounted, ref } from 'vue'
 
 import FormMessage from '@/features/auth/components/FormMessage.vue'
 import { getErrorMessage } from '@/features/auth/errors'
-import { homePathForRole } from '@/features/auth/routes'
-import { useAuthStore } from '@/stores/auth'
 
 import { homeApi } from '../api'
 import type { HomePageData } from '../types'
@@ -13,7 +11,6 @@ import CategoryShowcase from './CategoryShowcase.vue'
 import HeroBanner from './HeroBanner.vue'
 import ProductGrid from './ProductGrid.vue'
 
-const authStore = useAuthStore()
 const data = ref<HomePageData | null>(null)
 const loading = ref(true)
 const errorMessage = ref('')
@@ -42,39 +39,6 @@ onMounted(loadHome)
 
 <template>
   <div class="min-h-screen bg-[#f8fafc] text-slate-900">
-    <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
-      <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <RouterLink class="flex items-center gap-3 font-black" to="/">
-          <span class="grid h-10 w-10 place-items-center rounded-2xl bg-indigo-600 text-white"
-            >M</span
-          >
-          <span>Mercato</span>
-        </RouterLink>
-        <nav class="flex items-center gap-2 text-sm font-bold" aria-label="Điều hướng chính">
-          <RouterLink
-            class="rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-            to="/products"
-          >
-            Sản phẩm
-          </RouterLink>
-          <RouterLink
-            v-if="authStore.user"
-            :to="homePathForRole(authStore.user.role)"
-            class="rounded-xl bg-slate-950 px-4 py-2.5 text-white hover:bg-indigo-700"
-          >
-            Tài khoản
-          </RouterLink>
-          <RouterLink
-            v-else
-            class="rounded-xl bg-slate-950 px-4 py-2.5 text-white hover:bg-indigo-700"
-            to="/auth/login"
-          >
-            Đăng nhập
-          </RouterLink>
-        </nav>
-      </div>
-    </header>
-
     <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-12">
       <FormMessage v-if="errorMessage" :message="errorMessage" />
       <div v-if="errorMessage" class="mt-4">

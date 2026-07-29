@@ -3,6 +3,8 @@ from django.urls import path
 from .views import (
     AdminProductViewSet,
     PublicProductViewSet,
+    SearchSuggestionView,
+    SearchView,
     SellerProductViewSet,
 )
 
@@ -112,6 +114,8 @@ urlpatterns = [
         admin_product_delete,
         name="admin-product-delete",
     ),
+    path("search/", SearchView.as_view(), name="search"),
+    path("search/suggestions/", SearchSuggestionView.as_view(), name="search-suggestions"),
     path("products/", public_product_list, name="public-product-list"),
     path(
         "products/<slug:slug>/",

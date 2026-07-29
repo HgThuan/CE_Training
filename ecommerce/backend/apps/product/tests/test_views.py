@@ -676,7 +676,7 @@ def test_public_product_list_query_count_does_not_scale_with_rows(
         ProductMediaFactory(product=product)
         ProductVariantFactory(product=product, shop=product.shop)
 
-    with django_assert_max_num_queries(8):
+    with django_assert_max_num_queries(4):
         response = api_client.get(
             reverse("product:public-product-list"),
             {"page_size": 10},
