@@ -1,5 +1,7 @@
 from django.urls import path
 
+from apps.engagement.public_shop import PublicShopView
+
 from .views import (
     AddressDetailView,
     AddressListCreateView,
@@ -23,7 +25,6 @@ from .views import (
     LoginView,
     LogoutView,
     MeView,
-    PublicShopView,
     RefreshView,
     RegisterView,
     ResendVerificationView,

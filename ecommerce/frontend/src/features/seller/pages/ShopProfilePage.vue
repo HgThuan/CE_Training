@@ -141,7 +141,7 @@ onMounted(loadShop)
         </button>
         <RouterLink
           class="rounded-xl border px-5 py-3 font-bold"
-          :to="`/shop/${shop.slug}`"
+          :to="{ name: 'public-shop', params: { slug: shop.slug } }"
           target="_blank"
         >
           Xem trang public

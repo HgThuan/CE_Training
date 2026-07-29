@@ -15,6 +15,7 @@ import { useRoute } from 'vue-router'
 import FormMessage from '@/features/auth/components/FormMessage.vue'
 import { getErrorMessage } from '@/features/auth/errors'
 import WaitlistButton from '@/features/inventory/components/WaitlistButton.vue'
+import WishlistToggleButton from '@/features/wishlist/components/WishlistToggleButton.vue'
 import { formatVnd } from '@/shared/lib/formatters'
 
 import ProductDetailTabs from '../components/ProductDetailTabs.vue'
@@ -165,9 +166,18 @@ onBeforeUnmount(() => {
                 {{ product.brand.name }}
               </span>
             </div>
-            <h1 class="mt-5 text-3xl font-black tracking-tight text-slate-950 sm:text-5xl">
-              {{ product.name }}
-            </h1>
+            <div class="mt-5 flex items-start gap-3">
+              <h1
+                class="min-w-0 flex-1 text-3xl font-black tracking-tight text-slate-950 sm:text-5xl"
+              >
+                {{ product.name }}
+              </h1>
+              <WishlistToggleButton
+                class="shrink-0"
+                :product-id="product.id"
+                :product-name="product.name"
+              />
+            </div>
             <div class="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-slate-600">
               <span class="inline-flex items-center gap-1.5">
                 <StarIcon class="h-5 w-5 fill-amber-400 text-amber-400" />
@@ -262,7 +272,7 @@ onBeforeUnmount(() => {
               {{ cartNotice }}
             </p>
 
-            <div class="mt-8 grid grid-cols-3 gap-3">
+            <div class="mt-8 grid gap-3 sm:grid-cols-3">
               <div class="rounded-2xl bg-white p-4 text-center ring-1 ring-slate-200">
                 <TruckIcon class="mx-auto h-6 w-6 text-indigo-600" />
                 <p class="mt-2 text-xs font-bold text-slate-700">Giao hàng toàn quốc</p>
@@ -282,7 +292,7 @@ onBeforeUnmount(() => {
         <section class="mt-12 grid gap-6 lg:grid-cols-[1fr_340px]">
           <ProductDetailTabs :product="product" />
           <RouterLink
-            :to="`/shop/${product.shop.slug}`"
+            :to="{ name: 'public-shop', params: { slug: product.shop.slug } }"
             class="group rounded-3xl bg-slate-950 p-6 text-white transition hover:bg-indigo-700"
           >
             <div class="flex items-center gap-4">
@@ -291,6 +301,8 @@ onBeforeUnmount(() => {
                 :src="product.shop.logo_url"
                 :alt="product.shop.name"
                 class="h-14 w-14 rounded-2xl bg-white object-cover"
+                loading="lazy"
+                decoding="async"
               />
               <span v-else class="grid h-14 w-14 place-items-center rounded-2xl bg-white/10">
                 <BuildingStorefrontIcon class="h-7 w-7" />
