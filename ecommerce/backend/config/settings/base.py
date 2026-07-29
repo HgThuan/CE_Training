@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "apps.inventory.apps.InventoryConfig",
     "apps.storefront.apps.StorefrontConfig",
     "apps.engagement.apps.EngagementConfig",
+    "apps.ai.apps.AIConfig",
 ]
 
 MIDDLEWARE = [
@@ -158,6 +159,10 @@ REST_FRAMEWORK = {
         "auth_refresh": env("AUTH_RATE_LIMIT", default="10/minute"),
         "auth_email": env("AUTH_RATE_LIMIT", default="5/minute"),
         "auth_password": env("AUTH_RATE_LIMIT", default="5/minute"),
+        "ai_anonymous": env("AI_ANONYMOUS_RATE_LIMIT", default="10/minute"),
+        "ai_authenticated": env("AI_AUTHENTICATED_RATE_LIMIT", default="30/minute"),
+        "ai_search_anonymous": env("AI_ANONYMOUS_RATE_LIMIT", default="10/minute"),
+        "ai_search_authenticated": env("AI_AUTHENTICATED_RATE_LIMIT", default="30/minute"),
     },
 }
 
@@ -236,3 +241,31 @@ LOGGING = {
         "level": env("LOG_LEVEL", default="INFO"),
     },
 }
+
+# AI service layer. The database vector schema is pinned to 1536 dimensions;
+# changing the runtime value requires a migration and a full re-index.
+AI_FEATURES_ENABLED = env.bool("AI_FEATURES_ENABLED", default=True)
+AI_PROVIDER = env("AI_PROVIDER", default="gemini")
+AI_MODEL = env("AI_MODEL", default="gemini-3.6-flash")
+AI_EMBEDDING_MODEL = env("AI_EMBEDDING_MODEL", default="gemini-embedding-2")
+AI_EMBEDDING_DIMENSIONS = env.int("AI_EMBEDDING_DIMENSIONS", default=1536)
+AI_REQUEST_TIMEOUT_SECONDS = env.float("AI_REQUEST_TIMEOUT_SECONDS", default=20.0)
+AI_MAX_RETRIES = env.int("AI_MAX_RETRIES", default=3)
+AI_RETRY_BACKOFF_SECONDS = env.float("AI_RETRY_BACKOFF_SECONDS", default=0.25)
+AI_CACHE_TTL_SECONDS = env.int("AI_CACHE_TTL_SECONDS", default=3600)
+AI_EMBEDDING_CACHE_TTL_SECONDS = env.int(
+    "AI_EMBEDDING_CACHE_TTL_SECONDS",
+    default=3600,
+)
+AI_MAX_OUTPUT_TOKENS = env.int("AI_MAX_OUTPUT_TOKENS", default=1024)
+AI_INPUT_COST_PER_MILLION = env("AI_INPUT_COST_PER_MILLION", default="0")
+AI_OUTPUT_COST_PER_MILLION = env("AI_OUTPUT_COST_PER_MILLION", default="0")
+GEMINI_API_KEY = env("GEMINI_API_KEY", default="")
+GEMINI_GENERATION_BASE_URL = env(
+    "GEMINI_GENERATION_BASE_URL",
+    default="https://generativelanguage.googleapis.com/v1beta",
+)
+GEMINI_EMBEDDING_BASE_URL = env(
+    "GEMINI_EMBEDDING_BASE_URL",
+    default="https://generativelanguage.googleapis.com/v1beta",
+)

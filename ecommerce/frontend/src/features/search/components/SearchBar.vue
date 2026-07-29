@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { searchApi } from '../api'
 import type { SearchSuggestion } from '../types'
+import AiSearchToggle from './AiSearchToggle.vue'
 
 withDefaults(
   defineProps<{
@@ -24,8 +25,13 @@ const loading = ref(false)
 const open = ref(false)
 const activeIndex = ref(-1)
 const suggestionError = ref('')
+const aiEnabled = ref(isAiQueryEnabled(route.query.ai))
 let debounceTimer: number | undefined
 let requestSequence = 0
+
+function isAiQueryEnabled(value: unknown): boolean {
+  return typeof value === 'string' && ['true', '1'].includes(value.toLowerCase())
+}
 
 function cancelPending(): void {
   requestSequence += 1
@@ -75,12 +81,36 @@ watch(
   },
 )
 
+watch(
+  () => route.query.ai,
+  (value) => {
+    aiEnabled.value = isAiQueryEnabled(value)
+  },
+)
+
 async function submitSearch(): Promise<void> {
   const searchTerm = query.value.trim()
   if (!searchTerm) return
   cancelPending()
   open.value = false
-  await router.push({ path: '/search', query: { q: searchTerm } })
+  await router.push({
+    path: '/search',
+    query: { q: searchTerm, ai: aiEnabled.value ? 'true' : undefined },
+  })
+}
+
+async function toggleAiSearch(enabled: boolean): Promise<void> {
+  aiEnabled.value = enabled
+  if (route.path !== '/search') return
+
+  await router.push({
+    path: '/search',
+    query: {
+      ...route.query,
+      ai: enabled ? 'true' : undefined,
+      page: undefined,
+    },
+  })
 }
 
 async function chooseSuggestion(suggestion: SearchSuggestion): Promise<void> {
@@ -140,41 +170,44 @@ onBeforeUnmount(cancelPending)
     @submit.prevent="submitSearch"
     @focusout="handleFocusOut"
   >
-    <label class="relative block">
-      <span class="sr-only">Tìm kiếm sản phẩm</span>
-      <MagnifyingGlassIcon
-        class="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
-      />
-      <input
-        v-model="query"
-        class="h-11 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-20 text-sm outline-none transition focus:border-indigo-600 focus:ring-4 focus:ring-indigo-100"
-        type="search"
-        role="combobox"
-        autocomplete="off"
-        :placeholder="placeholder"
-        :aria-expanded="open"
-        aria-controls="search-suggestions"
-        :aria-activedescendant="activeIndex >= 0 ? `search-suggestion-${activeIndex}` : undefined"
-        @focus="query.trim().length >= 2 && (open = true)"
-        @keydown="handleKeyboard"
-      />
-      <button
-        v-if="query"
-        class="absolute right-11 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-        type="button"
-        aria-label="Xóa từ khóa"
-        @click="clearSearch"
-      >
-        <XMarkIcon class="h-4 w-4" />
-      </button>
-      <button
-        class="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg bg-slate-950 text-white hover:bg-indigo-700"
-        type="submit"
-        aria-label="Tìm kiếm"
-      >
-        <MagnifyingGlassIcon class="h-4 w-4" />
-      </button>
-    </label>
+    <div class="flex items-center gap-2">
+      <label class="relative min-w-0 flex-1">
+        <span class="sr-only">Tìm kiếm sản phẩm</span>
+        <MagnifyingGlassIcon
+          class="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
+        />
+        <input
+          v-model="query"
+          class="h-11 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-20 text-sm outline-none transition focus:border-indigo-600 focus:ring-4 focus:ring-indigo-100"
+          type="search"
+          role="combobox"
+          autocomplete="off"
+          :placeholder="placeholder"
+          :aria-expanded="open"
+          aria-controls="search-suggestions"
+          :aria-activedescendant="activeIndex >= 0 ? `search-suggestion-${activeIndex}` : undefined"
+          @focus="query.trim().length >= 2 && (open = true)"
+          @keydown="handleKeyboard"
+        />
+        <button
+          v-if="query"
+          class="absolute right-11 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+          type="button"
+          aria-label="Xóa từ khóa"
+          @click="clearSearch"
+        >
+          <XMarkIcon class="h-4 w-4" />
+        </button>
+        <button
+          class="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg bg-slate-950 text-white hover:bg-indigo-700"
+          type="submit"
+          aria-label="Tìm kiếm"
+        >
+          <MagnifyingGlassIcon class="h-4 w-4" />
+        </button>
+      </label>
+      <AiSearchToggle :model-value="aiEnabled" compact @update:model-value="toggleAiSearch" />
+    </div>
 
     <div
       v-if="open"

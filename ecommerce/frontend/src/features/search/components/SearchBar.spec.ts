@@ -9,6 +9,7 @@ import SearchBar from './SearchBar.vue'
 vi.mock('../api', () => ({
   searchApi: {
     search: vi.fn(),
+    smartSearch: vi.fn(),
     suggestions: vi.fn(),
   },
 }))
@@ -31,7 +32,7 @@ function deferred<T>() {
   return { promise, resolve }
 }
 
-async function mountSearchBar() {
+async function mountSearchBar(url = '/') {
   const component = { template: '<div />' }
   const router = createRouter({
     history: createMemoryHistory(),
@@ -40,7 +41,7 @@ async function mountSearchBar() {
       { path: '/search', component },
     ],
   })
-  await router.push('/')
+  await router.push(url)
   await router.isReady()
   return {
     router,
@@ -101,6 +102,46 @@ describe('SearchBar', () => {
 
     expect(router.currentRoute.value.path).toBe('/search')
     expect(router.currentRoute.value.query.q).toBe('Điện thoại')
+    wrapper.unmount()
+  })
+
+  it('keeps filters and resets pagination when AI Search is toggled', async () => {
+    const { router, wrapper } = await mountSearchBar(
+      '/search?q=dien&category=category-1&sort=-price&page=2',
+    )
+    const aiToggle = wrapper.get('input[role="switch"][aria-label="AI Search"]')
+
+    expect((aiToggle.element as HTMLInputElement).checked).toBe(false)
+    await aiToggle.setValue(true)
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toMatchObject({
+      q: 'dien',
+      category: 'category-1',
+      sort: '-price',
+      ai: 'true',
+    })
+    expect(router.currentRoute.value.query.page).toBeUndefined()
+
+    await aiToggle.setValue(false)
+    await flushPromises()
+    expect(router.currentRoute.value.query.ai).toBeUndefined()
+    expect(router.currentRoute.value.query.category).toBe('category-1')
+    wrapper.unmount()
+  })
+
+  it('submits the selected AI mode with a new search', async () => {
+    const { router, wrapper } = await mountSearchBar()
+    await wrapper.get('input[role="switch"][aria-label="AI Search"]').setValue(true)
+    await wrapper.get('input[role="combobox"]').setValue('laptop gaming')
+    await wrapper.get('form[role="search"]').trigger('submit')
+    await flushPromises()
+
+    expect(router.currentRoute.value.path).toBe('/search')
+    expect(router.currentRoute.value.query).toEqual({
+      q: 'laptop gaming',
+      ai: 'true',
+    })
     wrapper.unmount()
   })
 })

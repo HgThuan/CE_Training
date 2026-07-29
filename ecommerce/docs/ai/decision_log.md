@@ -142,6 +142,22 @@ Dùng template dưới đây mỗi khi nhóm chốt một quyết định "chọ
 
 **Tác động:** `ProductEmbedding`, cấu hình `AI_EMBEDDING_MODEL`/`AI_EMBEDDING_DIMENSIONS`, Celery task re-index và tài liệu database/AI.
 
+### C2 Gemini generation model refresh — 2026-07-29
+
+**Bối cảnh:** kế hoạch Sprint 05 tham chiếu `gemini-2.0-flash`, trong khi model này đã ngừng hoạt
+động. Production cần model stable cụ thể, không dùng alias `latest` có thể đổi ngầm.
+
+**Phương án xem xét:**
+- Giữ `gemini-2.0-flash` — khớp bản kế hoạch cũ nhưng provider không còn phục vụ model.
+- Dùng `gemini-3.6-flash` — model stable hiện tại, phù hợp tác vụ trích xuất intent có độ trễ thấp;
+  đổi lại phải theo dõi lịch deprecation và cập nhật cấu hình khi Google công bố vòng đời mới.
+
+**Quyết định:** đặt `gemini-3.6-flash` làm giá trị mặc định của `AI_MODEL`; runtime vẫn đọc hoàn
+toàn từ biến môi trường và mọi caller chỉ đi qua `AIService`.
+
+**Tác động:** `.env.example`, Django settings, `GeminiProvider`, mock contract tests và tài liệu
+Sprint 05. Việc đổi model sau này không cần sửa caller nhưng phải chạy regression test AI.
+
 ### B6 Cổng thanh toán sandbox — 2026-07-21
 
 **Bối cảnh:** ngoài COD, đồ án cần một luồng thanh toán online có redirect, callback/IPN và kiểm thử idempotency.
