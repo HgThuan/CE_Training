@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "apps.product.apps.ProductConfig",
     "apps.inventory.apps.InventoryConfig",
     "apps.storefront.apps.StorefrontConfig",
+    "apps.engagement.apps.EngagementConfig",
 ]
 
 MIDDLEWARE = [
