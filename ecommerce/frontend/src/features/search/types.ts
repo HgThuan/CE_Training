@@ -24,6 +24,28 @@ export interface SearchSuggestion {
   shop_slug?: string
 }
 
+export interface AiSearchIntent {
+  keywords: string[]
+  filters: Record<string, unknown>
+}
+
+export interface SmartSearchApiData {
+  results?: PublicProductListItem[]
+  products?: PublicProductListItem[]
+  explanation?: string
+  intent?: Partial<AiSearchIntent>
+  ai_used?: boolean
+  fallback_used?: boolean
+}
+
+export interface SmartSearchResult {
+  results: PublicProductListItem[]
+  explanation: string
+  intent: AiSearchIntent
+  ai_used: boolean
+  fallback_used: boolean
+}
+
 export interface SearchFilterModel {
   category: string
   brand: string

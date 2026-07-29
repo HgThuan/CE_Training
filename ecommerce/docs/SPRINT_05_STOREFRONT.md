@@ -51,6 +51,24 @@ trong `plansprint05.md`; các nguyên tắc của `PROJECT_CONSTITUTION.md` vẫ
   grid classes). Chrome headless đã xác minh manual visual matrix ở 375/768/1024 với dữ liệu
   storefront thật; jsdom vẫn chỉ dùng cho hành vi component vì không thực thi media query Tailwind.
 
+## Part E — AI service layer và semantic search
+
+- Mọi lời gọi Gemini đi qua `AIService`; view, Celery task và search service không import provider
+  trực tiếp. Provider dùng REST với API key trong header, timeout hữu hạn và response có kiểu rõ.
+- Model generation mặc định là stable `gemini-3.6-flash`. Kế hoạch ban đầu ghi
+  `gemini-2.0-flash`, nhưng model này đã ngừng hoạt động theo tài liệu Gemini hiện tại. Embedding
+  giữ quyết định `gemini-embedding-2`, 1536 chiều; thay model/dimension bắt buộc re-index toàn bộ.
+- `SiteSetting` cung cấp feature flag `feature.ai_search.enabled` có cache/invalidation. Global flag,
+  feature flag, provider chưa cấu hình, timeout, response sai schema hoặc vector chưa sẵn sàng đều
+  phải trả keyword fallback thay vì làm hỏng search.
+- `ProductEmbedding` dùng `VectorField(1536)`. Migration chỉ tạo extension `vector` và HNSW cosine
+  index trên PostgreSQL; SQLite dùng để kiểm thử fallback, không dùng để xác nhận vector ranking.
+- Prompt/response/error trong `AIRequestLog` được giới hạn và mask; cache key/content hash dùng
+  SHA-256 deterministic. AI endpoint giới hạn riêng 10 request/phút cho anonymous và 30 request/phút
+  cho authenticated user.
+- Frontend giữ `ai=true` trong URL, gắn badge/giải thích AI và tự gọi lại keyword endpoint nếu AI
+  endpoint lỗi. Trạng thái fallback được hiển thị rõ, không giả rằng kết quả keyword là do AI tạo.
+
 ## Nguyên tắc tương thích và fallback
 
 - PostgreSQL + `pg_trgm`/`pgvector` là runtime mục tiêu. Test SQLite dùng keyword fallback và

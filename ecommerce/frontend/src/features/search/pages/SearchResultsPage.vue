@@ -2,6 +2,7 @@
 import {
   AdjustmentsHorizontalIcon,
   MagnifyingGlassIcon,
+  SparklesIcon,
   Squares2X2Icon,
   XMarkIcon,
 } from '@heroicons/vue/24/outline'
@@ -15,7 +16,8 @@ import { useProductStore } from '@/features/product/store'
 import type { PublicProductListItem } from '@/features/product/types'
 import type { PaginationMeta } from '@/shared/types/api'
 
-import { searchApi } from '../api'
+import { normalizeSmartSearchData, searchApi } from '../api'
+import AiSearchToggle from '../components/AiSearchToggle.vue'
 import FilterSidebar from '../components/FilterSidebar.vue'
 import SortDropdown from '../components/SortDropdown.vue'
 import type { SearchFilterModel, SearchParams, SearchSort } from '../types'
@@ -32,6 +34,9 @@ const meta = ref<PaginationMeta>({
 })
 const loading = ref(true)
 const errorMessage = ref('')
+const aiExplanation = ref('')
+const aiResultUsed = ref(false)
+const fallbackNotice = ref('')
 const mobileFiltersOpen = ref(false)
 const sort = ref<SearchSort | ''>('')
 const filters = reactive<SearchFilterModel>({
@@ -46,6 +51,9 @@ const filters = reactive<SearchFilterModel>({
 let requestSequence = 0
 
 const searchTerm = computed(() => (typeof route.query.q === 'string' ? route.query.q.trim() : ''))
+const aiSearchEnabled = computed(
+  () => typeof route.query.ai === 'string' && ['true', '1'].includes(route.query.ai.toLowerCase()),
+)
 const activeFilterCount = computed(
   () =>
     [
@@ -100,23 +108,51 @@ async function loadResults(): Promise<void> {
   const sequence = ++requestSequence
   loading.value = true
   errorMessage.value = ''
+  aiExplanation.value = ''
+  aiResultUsed.value = false
+  fallbackNotice.value = ''
   try {
+    if (aiSearchEnabled.value && searchTerm.value) {
+      try {
+        const response = await searchApi.smartSearch(requestParams())
+        if (sequence !== requestSequence) return
+        const result = normalizeSmartSearchData(response.data.data)
+        products.value = result.results
+        aiExplanation.value = result.explanation
+        aiResultUsed.value = result.ai_used
+        if (result.fallback_used) {
+          fallbackNotice.value =
+            'AI Search đã chuyển sang tìm kiếm từ khóa để bảo đảm bạn vẫn nhận được kết quả.'
+        }
+        updateMeta(response.data.meta)
+        return
+      } catch {
+        if (sequence !== requestSequence) return
+        fallbackNotice.value =
+          'AI Search tạm thời không khả dụng. Đang hiển thị kết quả tìm kiếm theo từ khóa.'
+      }
+    }
+
     const response = await searchApi.search(requestParams())
     if (sequence !== requestSequence) return
     products.value = response.data.data
-    meta.value =
-      response.data.meta ??
-      ({
-        page: 1,
-        page_size: products.value.length,
-        total_items: products.value.length,
-        total_pages: products.value.length ? 1 : 0,
-      } satisfies PaginationMeta)
+    updateMeta(response.data.meta)
   } catch (error) {
     if (sequence === requestSequence) errorMessage.value = getErrorMessage(error)
   } finally {
     if (sequence === requestSequence) loading.value = false
   }
+}
+
+function updateMeta(responseMeta?: PaginationMeta): void {
+  meta.value =
+    responseMeta ??
+    ({
+      page: 1,
+      page_size: products.value.length,
+      total_items: products.value.length,
+      total_pages: products.value.length ? 1 : 0,
+    } satisfies PaginationMeta)
 }
 
 function queryForFilters(
@@ -135,6 +171,7 @@ function queryForFilters(
     shop: nextFilters.shop || undefined,
     sort: nextSort || undefined,
     page: page > 1 ? String(page) : undefined,
+    ai: aiSearchEnabled.value ? 'true' : undefined,
   }
 }
 
@@ -168,6 +205,17 @@ async function changePage(page: number): Promise<void> {
     query: queryForFilters({ ...filters }, sort.value, page),
   })
   window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+async function changeAiSearch(enabled: boolean): Promise<void> {
+  await router.push({
+    path: '/search',
+    query: {
+      ...route.query,
+      ai: enabled ? 'true' : undefined,
+      page: undefined,
+    },
+  })
 }
 
 function handleEscape(event: KeyboardEvent): void {
@@ -217,20 +265,50 @@ onBeforeUnmount(() => {
           Lọc theo danh mục, thương hiệu, giá, đánh giá và tình trạng tồn kho.
         </p>
       </div>
-      <button
-        class="relative inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold lg:hidden"
-        type="button"
-        @click="mobileFiltersOpen = true"
-      >
-        <AdjustmentsHorizontalIcon class="h-5 w-5" />
-        Bộ lọc
-        <span
-          v-if="activeFilterCount"
-          class="grid h-5 min-w-5 place-items-center rounded-full bg-indigo-600 px-1 text-[10px] text-white"
+      <div class="flex items-center gap-3">
+        <AiSearchToggle :model-value="aiSearchEnabled" @update:model-value="changeAiSearch" />
+        <button
+          class="relative inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold lg:hidden"
+          type="button"
+          @click="mobileFiltersOpen = true"
         >
-          {{ activeFilterCount }}
-        </span>
-      </button>
+          <AdjustmentsHorizontalIcon class="h-5 w-5" />
+          Bộ lọc
+          <span
+            v-if="activeFilterCount"
+            class="grid h-5 min-w-5 place-items-center rounded-full bg-indigo-600 px-1 text-[10px] text-white"
+          >
+            {{ activeFilterCount }}
+          </span>
+        </button>
+      </div>
+    </div>
+
+    <div
+      v-if="aiResultUsed || aiExplanation || fallbackNotice"
+      class="mt-6 flex items-start gap-3 rounded-2xl border px-4 py-3"
+      :class="
+        fallbackNotice
+          ? 'border-amber-200 bg-amber-50 text-amber-950'
+          : 'border-indigo-200 bg-indigo-50 text-indigo-950'
+      "
+      role="status"
+    >
+      <SparklesIcon class="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+      <div>
+        <div class="flex flex-wrap items-center gap-2">
+          <span
+            v-if="aiResultUsed"
+            class="rounded-full bg-indigo-600 px-2 py-0.5 text-xs font-black uppercase tracking-wide text-white"
+            data-testid="ai-result-badge"
+          >
+            AI
+          </span>
+          <strong v-if="fallbackNotice" class="text-sm">Kết quả dự phòng</strong>
+        </div>
+        <p v-if="aiExplanation" class="mt-1 text-sm">{{ aiExplanation }}</p>
+        <p v-if="fallbackNotice" class="mt-1 text-sm">{{ fallbackNotice }}</p>
+      </div>
     </div>
 
     <FormMessage v-if="errorMessage" class="mt-6" :message="errorMessage" />

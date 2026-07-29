@@ -13,6 +13,8 @@ CHANNEL_LAYERS = {
     "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"},
 }
 CELERY_TASK_ALWAYS_EAGER = True
+AI_FEATURES_ENABLED = False
+GEMINI_API_KEY = ""
 
 if os.environ.get("TEST_USE_SQLITE", "false").lower() == "true":
     DATABASES = {  # noqa: F405
