@@ -46,6 +46,21 @@ export const adminRoutes: RouteRecordRaw[] = [
         name: 'admin-brands',
         component: () => import('@/features/admin/pages/BrandManagerPage.vue'),
       },
+      {
+        path: 'banners',
+        name: 'admin-banners',
+        component: () => import('@/features/admin-banners/pages/BannerListPage.vue'),
+      },
+      {
+        path: 'banners/new',
+        name: 'admin-banner-create',
+        component: () => import('@/features/admin-banners/pages/BannerFormPage.vue'),
+      },
+      {
+        path: 'banners/:bannerId/edit',
+        name: 'admin-banner-edit',
+        component: () => import('@/features/admin-banners/pages/BannerFormPage.vue'),
+      },
     ],
   },
 ]

@@ -4,6 +4,7 @@ import {
   BuildingStorefrontIcon,
   CubeIcon,
   HomeIcon,
+  PhotoIcon,
   RectangleStackIcon,
   TagIcon,
   UsersIcon,
@@ -69,6 +70,14 @@ async function logout(): Promise<void> {
           >
             <TagIcon class="h-4 w-4" />
             <span class="hidden lg:inline">Thương hiệu</span>
+          </RouterLink>
+          <RouterLink
+            class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white"
+            active-class="!bg-indigo-500 !text-white"
+            to="/admin/banners"
+          >
+            <PhotoIcon class="h-4 w-4" />
+            <span class="hidden lg:inline">Banner</span>
           </RouterLink>
           <RouterLink
             class="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-slate-400 hover:bg-white/10 hover:text-white"
