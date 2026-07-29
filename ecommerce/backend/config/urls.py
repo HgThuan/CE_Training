@@ -20,6 +20,7 @@ urlpatterns = [
     path("api/v1/", include("apps.catalog.urls")),
     path("api/v1/", include("apps.product.urls")),
     path("api/v1/", include("apps.inventory.urls")),
+    path("api/v1/", include("apps.storefront.urls")),
     path(
         "protected-media/seller-documents/<str:token>/",
         seller_document_download,

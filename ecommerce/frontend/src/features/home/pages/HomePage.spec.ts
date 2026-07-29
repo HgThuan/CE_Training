@@ -1,20 +1,19 @@
-import { createPinia } from 'pinia'
 import { mount } from '@vue/test-utils'
-import { RouterLinkStub } from '@vue/test-utils'
 
 import HomePage from './HomePage.vue'
 
 describe('HomePage', () => {
-  it('renders the auth entry points for a guest', () => {
+  it('renders the dynamic home content boundary', () => {
     const wrapper = mount(HomePage, {
       global: {
-        plugins: [createPinia()],
-        stubs: { RouterLink: RouterLinkStub },
+        stubs: {
+          HomePageContent: {
+            template: '<section>Trang chủ động</section>',
+          },
+        },
       },
     })
 
-    expect(wrapper.text()).toContain('Multi-Vendor AI E-commerce')
-    expect(wrapper.text()).toContain('Đăng nhập')
-    expect(wrapper.text()).toContain('Đăng ký')
+    expect(wrapper.text()).toContain('Trang chủ động')
   })
 })
