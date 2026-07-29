@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import pytest
 from django.core.cache import cache
+from django.db.models import CharField
 from django.urls import reverse
 
 from apps.catalog.tests.factories import BrandFactory, CategoryFactory
@@ -19,6 +20,10 @@ def isolate_cache():
     cache.clear()
     yield
     cache.clear()
+
+
+def test_postgres_trigram_lookup_is_registered():
+    assert CharField().get_lookup("trigram_similar") is not None
 
 
 @pytest.mark.django_db
