@@ -32,6 +32,25 @@ trong `plansprint05.md`; các nguyên tắc của `PROJECT_CONSTITUTION.md` vẫ
 - Hash `#description`, `#qa`, `#reviews` là deep link ổn định; khách chưa đăng nhập quay lại đúng
   tab Q&A sau luồng login.
 
+## Part D — Wishlist, follow shop và responsive storefront
+
+- `Wishlist`, `WishlistItem` và `ShopFollower` nằm trong `apps.engagement`. Unique/check
+  constraints bảo vệ dữ liệu; toggle khóa Customer và, với follow, khóa cả Shop trong transaction.
+- Wishlist luôn suy ra owner từ access token, chỉ serialize sản phẩm public và lưu
+  `price_when_added` dạng snapshot. Trạng thái theo user không được nhúng vào response Product
+  public đang dùng cache chung.
+- Public shop dùng serializer allowlist riêng, không lộ `owner_email`, `owner_id`, trạng thái khóa
+  hoặc lý do khóa. Endpoint trả sản phẩm thật, phân trang/sort whitelist, `follower_count` và
+  `is_following` theo request user.
+- `/shops/:slug` là route web canonical; `/shop/:slug` được giữ làm redirect tương thích. Follow
+  API dùng numeric shop ID từ payload public shop.
+- Storefront có wishlist page, nút tim dùng chung giữa card/detail, follow UX, skeleton, empty,
+  retry, stale-response guard, lazy product images và breakpoint mobile-first. Button wishlist
+  là sibling của product link để không tạo nested interactive controls.
+- Test unit kiểm tra contract responsive/accessibility (menu Escape/focus, touch target, responsive
+  grid classes). Chrome headless đã xác minh manual visual matrix ở 375/768/1024 với dữ liệu
+  storefront thật; jsdom vẫn chỉ dùng cho hành vi component vì không thực thi media query Tailwind.
+
 ## Nguyên tắc tương thích và fallback
 
 - PostgreSQL + `pg_trgm`/`pgvector` là runtime mục tiêu. Test SQLite dùng keyword fallback và

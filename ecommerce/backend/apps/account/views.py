@@ -19,7 +19,6 @@ from .models import Address, SellerDocument, User
 from .permissions import IsAdmin, IsCustomer, IsSellerApplicationOwner, IsShopOwner
 from .selectors import (
     get_customer_for_admin,
-    get_public_shop,
     get_seller_application_for_admin,
     get_seller_application_for_user,
     get_seller_for_admin,
@@ -919,37 +918,4 @@ class AdminShopUnlockView(APIView):
         return success_response(
             message="Mở khóa gian hàng thành công",
             data=ShopSerializer(shop).data,
-        )
-
-
-class PublicShopView(APIView):
-    permission_classes = [AllowAny]
-
-    @extend_schema(responses={200: ShopResponseSerializer})
-    def get(self, request, slug: str):
-        shop = get_public_shop(slug)
-        if shop is None:
-            raise BusinessError("Không tìm thấy gian hàng", http_status=404)
-        try:
-            page = max(int(request.query_params.get("page", 1)), 1)
-            page_size = min(max(int(request.query_params.get("page_size", 20)), 1), 100)
-        except ValueError as exc:
-            raise BusinessError(
-                "Tham số phân trang không hợp lệ",
-                errors={"pagination": ["page và page_size phải là số nguyên"]},
-            ) from exc
-        return success_response(
-            message="Lấy thông tin gian hàng thành công",
-            data={
-                "shop": ShopSerializer(shop, context={"request": request}).data,
-                "products": [],
-                "available_filters": [],
-                "available_sorts": ["newest", "price_asc", "price_desc", "rating"],
-            },
-            meta={
-                "page": page,
-                "page_size": page_size,
-                "total_items": 0,
-                "total_pages": 1,
-            },
         )

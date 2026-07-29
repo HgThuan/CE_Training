@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   ArrowLeftStartOnRectangleIcon,
+  HeartIcon,
   ShoppingBagIcon,
   UserCircleIcon,
 } from '@heroicons/vue/24/outline'
@@ -34,6 +35,13 @@ async function logout(): Promise<void> {
           >
             <ShoppingBagIcon class="h-5 w-5" />
             <span class="hidden sm:inline">Mua sắm</span>
+          </RouterLink>
+          <RouterLink
+            class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100"
+            to="/wishlist"
+          >
+            <HeartIcon class="h-5 w-5" />
+            <span class="hidden sm:inline">Yêu thích</span>
           </RouterLink>
           <RouterLink
             class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100"

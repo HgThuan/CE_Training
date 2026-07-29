@@ -2,11 +2,12 @@
 import {
   ArrowLeftStartOnRectangleIcon,
   Bars3Icon,
+  HeartIcon,
   ShoppingBagIcon,
   UserCircleIcon,
   XMarkIcon,
 } from '@heroicons/vue/24/outline'
-import { ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 
 import { homePathForRole } from '@/features/auth/routes'
@@ -18,12 +19,22 @@ const route = useRoute()
 const router = useRouter()
 const mobileMenuOpen = ref(false)
 
+const mobileMenuButton = ref<HTMLButtonElement | null>(null)
 watch(
   () => route.fullPath,
   () => {
     mobileMenuOpen.value = false
   },
 )
+
+function handleKeydown(event: KeyboardEvent): void {
+  if (event.key !== 'Escape' || !mobileMenuOpen.value) return
+  mobileMenuOpen.value = false
+  mobileMenuButton.value?.focus()
+}
+
+onMounted(() => window.addEventListener('keydown', handleKeydown))
+onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 
 async function logout(): Promise<void> {
   await authStore.logout()
@@ -65,6 +76,14 @@ async function logout(): Promise<void> {
             Sản phẩm
           </RouterLink>
           <RouterLink
+            v-if="authStore.user?.role === 'customer'"
+            class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-rose-700"
+            to="/wishlist"
+          >
+            <HeartIcon class="h-4 w-4" />
+            Yêu thích
+          </RouterLink>
+          <RouterLink
             v-if="authStore.user"
             class="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-white hover:bg-indigo-700"
             :to="homePathForRole(authStore.user.role)"
@@ -98,6 +117,7 @@ async function logout(): Promise<void> {
         </nav>
 
         <button
+          ref="mobileMenuButton"
           class="order-2 ml-auto grid h-10 w-10 place-items-center rounded-xl border border-slate-300 bg-white lg:hidden"
           type="button"
           :aria-expanded="mobileMenuOpen"
@@ -120,6 +140,14 @@ async function logout(): Promise<void> {
           <RouterLink class="rounded-xl px-4 py-3 hover:bg-slate-100" to="/">Trang chủ</RouterLink>
           <RouterLink class="rounded-xl px-4 py-3 hover:bg-slate-100" to="/products">
             Sản phẩm
+          </RouterLink>
+          <RouterLink
+            v-if="authStore.user?.role === 'customer'"
+            class="inline-flex items-center gap-2 rounded-xl px-4 py-3 hover:bg-slate-100"
+            to="/wishlist"
+          >
+            <HeartIcon class="h-5 w-5 text-rose-500" />
+            Yêu thích
           </RouterLink>
           <RouterLink
             v-if="authStore.user"

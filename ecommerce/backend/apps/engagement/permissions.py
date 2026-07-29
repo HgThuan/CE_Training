@@ -14,7 +14,7 @@ def _is_active_role(user, role: str) -> bool:
 
 
 class IsActiveCustomer(BasePermission):
-    message = "Chỉ Customer đang hoạt động mới có thể đặt câu hỏi"
+    message = "Chỉ Customer đang hoạt động mới có thể thực hiện thao tác này"
 
     def has_permission(self, request, view) -> bool:
         return _is_active_role(request.user, User.Role.CUSTOMER)

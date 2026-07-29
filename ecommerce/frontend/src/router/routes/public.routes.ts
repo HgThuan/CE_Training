@@ -11,9 +11,18 @@ export const publicRoutes: RouteRecordRaw[] = [
         component: () => import('@/features/home/pages/HomePage.vue'),
       },
       {
-        path: 'shop/:slug',
+        path: 'shops/:slug',
         name: 'public-shop',
         component: () => import('@/features/shop/pages/PublicShopPage.vue'),
+      },
+      {
+        path: 'shop/:slug',
+        redirect: (to) => ({
+          name: 'public-shop',
+          params: { slug: to.params.slug },
+          query: to.query,
+          hash: to.hash,
+        }),
       },
       {
         path: 'products',
@@ -24,6 +33,12 @@ export const publicRoutes: RouteRecordRaw[] = [
         path: 'products/:slug',
         name: 'product-detail',
         component: () => import('@/features/product/pages/ProductDetailPage.vue'),
+      },
+      {
+        path: 'wishlist',
+        name: 'wishlist',
+        component: () => import('@/features/wishlist/pages/WishlistPage.vue'),
+        meta: { requiresAuth: true, roles: ['customer'] },
       },
       {
         path: 'search',
