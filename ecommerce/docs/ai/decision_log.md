@@ -158,6 +158,25 @@ toàn từ biến môi trường và mọi caller chỉ đi qua `AIService`.
 **Tác động:** `.env.example`, Django settings, `GeminiProvider`, mock contract tests và tài liệu
 Sprint 05. Việc đổi model sau này không cần sửa caller nhưng phải chạy regression test AI.
 
+### C3 Recommendation endpoint và cache isolation — 2026-07-29
+
+**Bối cảnh:** Product Detail có product ID làm ngữ cảnh, nhưng Home vẫn phải gợi ý cho Customer mới
+chưa có browsing history. Payload `/home` hiện được cache public toàn cục nên không thể chứa dữ liệu
+theo user.
+
+**Phương án xem xét:**
+- Dùng product gần nhất làm ID neo — tái dùng endpoint detail nhưng không phục vụ user mới và làm
+  sai ngữ nghĩa profile khi chọn một best seller làm ID giả.
+- Thêm endpoint recommendation không cần ID — thêm một route nhỏ nhưng giữ đúng semantics, cho phép
+  dùng wishlist/history hoặc fallback global và cô lập cache theo context/user.
+
+**Quyết định:** giữ các endpoint có product context cho Product Detail và thêm endpoint
+`/api/v1/ai/recommendations/` cho Home. Recommendation chỉ cache ordered product ID/strategy theo
+context hash; `/home` tiếp tục là payload public không cá nhân hóa.
+
+**Tác động:** `RecommendationService`, AI/product URL configuration, Home/Product Detail frontend,
+cache-key contract, permission/privacy tests và tài liệu Sprint 05.
+
 ### B6 Cổng thanh toán sandbox — 2026-07-21
 
 **Bối cảnh:** ngoài COD, đồ án cần một luồng thanh toán online có redirect, callback/IPN và kiểm thử idempotency.

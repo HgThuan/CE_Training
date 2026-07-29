@@ -17,6 +17,7 @@ from .services import AIService
 
 MAX_EMBEDDING_SOURCE_CHARS = 16_000
 AI_SEARCH_FEATURE_KEY = "feature.ai_search.enabled"
+AI_RECOMMENDATION_FEATURE_KEY = "feature.ai_recommendation.enabled"
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,13 +36,18 @@ class EmbeddingIndexResult:
 class EmbeddingService:
     @staticmethod
     def is_enabled() -> bool:
-        if not AIService.is_configured():
+        if not settings.AI_FEATURES_ENABLED or not AIService.is_configured():
             return False
         try:
-            return SiteSetting.get_bool(
+            search_enabled = SiteSetting.get_bool(
                 AI_SEARCH_FEATURE_KEY,
                 default=settings.AI_FEATURES_ENABLED,
             )
+            recommendation_enabled = SiteSetting.get_bool(
+                AI_RECOMMENDATION_FEATURE_KEY,
+                default=settings.AI_FEATURES_ENABLED,
+            )
+            return search_enabled or recommendation_enabled
         except DatabaseError:
             return False
 

@@ -142,6 +142,14 @@ export interface PublicProductListItem {
   shop_slug: string
 }
 
+export interface ProductRecommendationData {
+  results: PublicProductListItem[]
+  ai_used: boolean
+  fallback_used: boolean
+  personalized: boolean
+  strategy: string
+}
+
 export interface PublicProductDetail {
   id: string
   name: string

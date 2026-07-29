@@ -69,6 +69,26 @@ trong `plansprint05.md`; các nguyên tắc của `PROJECT_CONSTITUTION.md` vẫ
 - Frontend giữ `ai=true` trong URL, gắn badge/giải thích AI và tự gọi lại keyword endpoint nếu AI
   endpoint lỗi. Trạng thái fallback được hiển thị rõ, không giả rằng kết quả keyword là do AI tạo.
 
+## Part F — Recommendation và sản phẩm tương tự
+
+- Recommendation không gọi AI provider trong request web. Service chỉ dùng embedding đã index;
+  trên PostgreSQL, tầng đầu lấy tập ứng viên hữu hạn theo cosine distance trực tiếp để HNSW có thể
+  được dùng, sau đó mới rerank theo preference/rating/sold count. SQLite, feature flag tắt, vector
+  thiếu hoặc lỗi database đều chuyển sang fallback SQL deterministic.
+- Signal cá nhân hóa gồm sản phẩm ngữ cảnh, browsing history tối đa 20 ID và wishlist của đúng
+  active Customer đang đăng nhập. Kết quả luôn loại các signal đầu vào, chỉ trả sản phẩm public còn
+  hàng và không trả wishlist/profile preference cho client.
+- Fallback recommendation ưu tiên category/brand từ signal rồi best seller toàn hệ thống. Fallback
+  similar đi theo thứ tự cùng category + brand, cùng category, cùng brand rồi best seller.
+- Cache recommendation có TTL 15 phút; cache similar có TTL 30 phút. Cache chỉ chứa ordered product
+  IDs và metadata thuật toán, có key theo model/context/user fingerprint. Mỗi cache hit phải
+  rehydrate qua public/in-stock selector để không lộ sản phẩm vừa bị ẩn hoặc hết hàng.
+- Product Detail dùng hai endpoint có product context. Home gọi endpoint recommendation riêng
+  không cần product neo; dữ liệu cá nhân hóa không được nhúng vào `/home` vì payload này dùng cache
+  public toàn cục.
+- Frontend lưu browsing history best-effort, newest-first, dedupe và tách namespace guest/user.
+  Hai carousel tải độc lập, bỏ response cũ khi đổi route và không làm hỏng trang chính nếu lỗi.
+
 ## Nguyên tắc tương thích và fallback
 
 - PostgreSQL + `pg_trgm`/`pgvector` là runtime mục tiêu. Test SQLite dùng keyword fallback và

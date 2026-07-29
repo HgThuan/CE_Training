@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import { ArrowRightIcon, SparklesIcon } from '@heroicons/vue/24/outline'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import FormMessage from '@/features/auth/components/FormMessage.vue'
 import { getErrorMessage } from '@/features/auth/errors'
+import { productApi } from '@/features/product/api'
+import { readBrowsingHistory } from '@/features/product/browsingHistory'
+import ProductRecommendationCarousel from '@/features/product/components/ProductRecommendationCarousel.vue'
+import type { PublicProductListItem } from '@/features/product/types'
+import { useAuthStore } from '@/stores/auth'
 
 import { homeApi } from '../api'
 import type { HomePageData } from '../types'
@@ -11,9 +16,13 @@ import CategoryShowcase from './CategoryShowcase.vue'
 import HeroBanner from './HeroBanner.vue'
 import ProductGrid from './ProductGrid.vue'
 
+const authStore = useAuthStore()
 const data = ref<HomePageData | null>(null)
 const loading = ref(true)
 const errorMessage = ref('')
+const personalizedProducts = ref<PublicProductListItem[]>([])
+const recommendationsLoading = ref(false)
+let recommendationRequestSequence = 0
 
 const heroBanners = computed(
   () => data.value?.banners.filter((banner) => banner.position === 'hero') ?? [],
@@ -34,7 +43,42 @@ async function loadHome(): Promise<void> {
   }
 }
 
+async function loadPersonalizedRecommendations(): Promise<void> {
+  const sequence = ++recommendationRequestSequence
+  const userId = authStore.user?.id
+  personalizedProducts.value = []
+  recommendationsLoading.value = false
+
+  if (!authStore.initialized || !authStore.isAuthenticated || userId === undefined) return
+
+  recommendationsLoading.value = true
+  try {
+    const response = await productApi.homeRecommendations(readBrowsingHistory(userId))
+    if (
+      sequence === recommendationRequestSequence &&
+      authStore.isAuthenticated &&
+      authStore.user?.id === userId
+    ) {
+      personalizedProducts.value = response.data.data.results
+    }
+  } catch {
+    // Personalized recommendations are optional and must not block the home page.
+  } finally {
+    if (sequence === recommendationRequestSequence) recommendationsLoading.value = false
+  }
+}
+
+watch(
+  () => [authStore.initialized, authStore.isAuthenticated, authStore.user?.id] as const,
+  () => void loadPersonalizedRecommendations(),
+  { immediate: true },
+)
+
 onMounted(loadHome)
+
+onBeforeUnmount(() => {
+  recommendationRequestSequence += 1
+})
 </script>
 
 <template>
@@ -105,6 +149,12 @@ onMounted(loadHome)
 
         <div class="mt-14 space-y-16 lg:mt-20 lg:space-y-24">
           <CategoryShowcase :categories="data.categories" />
+          <ProductRecommendationCarousel
+            v-if="authStore.isAuthenticated"
+            title="Gợi ý cho bạn"
+            :products="personalizedProducts"
+            :loading="recommendationsLoading"
+          />
           <ProductGrid
             title="Sản phẩm mới"
             description="Những lựa chọn vừa xuất hiện trên Mercato."
