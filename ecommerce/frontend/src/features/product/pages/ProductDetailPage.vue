@@ -17,19 +17,28 @@ import { getErrorMessage } from '@/features/auth/errors'
 import WaitlistButton from '@/features/inventory/components/WaitlistButton.vue'
 import WishlistToggleButton from '@/features/wishlist/components/WishlistToggleButton.vue'
 import { formatVnd } from '@/shared/lib/formatters'
+import { useAuthStore } from '@/stores/auth'
 
+import { productApi } from '../api'
+import { readBrowsingHistory, recordBrowsingProduct } from '../browsingHistory'
 import ProductDetailTabs from '../components/ProductDetailTabs.vue'
 import ProductGallery from '../components/ProductGallery.vue'
+import ProductRecommendationCarousel from '../components/ProductRecommendationCarousel.vue'
 import VariantSelector from '../components/VariantSelector.vue'
 import { useProductStore } from '../store'
-import type { ProductVariant } from '../types'
+import type { ProductVariant, PublicProductListItem } from '../types'
 
 const route = useRoute()
+const authStore = useAuthStore()
 const productStore = useProductStore()
 const errorMessage = ref('')
 const selectedVariant = ref<ProductVariant | null>(null)
 const quantity = ref(1)
 const cartNotice = ref('')
+const similarProducts = ref<PublicProductListItem[]>([])
+const recommendedProducts = ref<PublicProductListItem[]>([])
+const similarLoading = ref(false)
+const recommendationsLoading = ref(false)
 let pageRequestSequence = 0
 
 const product = computed(() => productStore.detail)
@@ -71,21 +80,63 @@ function prepareCart(action: 'cart' | 'buy'): void {
       : 'Luồng mua ngay đã sẵn sàng và sẽ được nối với Checkout ở Sprint tiếp theo.'
 }
 
+function isCurrentProductRequest(sequence: number, productId: string): boolean {
+  return sequence === pageRequestSequence && product.value?.id === productId
+}
+
+async function loadProductRecommendations(sequence: number, productId: string): Promise<void> {
+  const browsingHistory = readBrowsingHistory(authStore.user?.id)
+  similarLoading.value = true
+  recommendationsLoading.value = true
+
+  const similarRequest = productApi
+    .similar(productId)
+    .then((response) => {
+      if (isCurrentProductRequest(sequence, productId)) {
+        similarProducts.value = response.data.data.results
+      }
+    })
+    .finally(() => {
+      if (isCurrentProductRequest(sequence, productId)) similarLoading.value = false
+    })
+
+  const recommendationRequest = productApi
+    .recommendations(productId, browsingHistory)
+    .then((response) => {
+      if (isCurrentProductRequest(sequence, productId)) {
+        recommendedProducts.value = response.data.data.results
+      }
+    })
+    .finally(() => {
+      if (isCurrentProductRequest(sequence, productId)) recommendationsLoading.value = false
+    })
+
+  recordBrowsingProduct(productId, authStore.user?.id)
+  await Promise.allSettled([similarRequest, recommendationRequest])
+}
+
 async function loadProduct(): Promise<void> {
   const sequence = ++pageRequestSequence
   errorMessage.value = ''
   selectedVariant.value = null
   quantity.value = 1
   cartNotice.value = ''
+  similarProducts.value = []
+  recommendedProducts.value = []
+  similarLoading.value = false
+  recommendationsLoading.value = false
   try {
     await productStore.loadDetail(
       String(route.params.slug),
       typeof route.query.shop === 'string' ? route.query.shop : undefined,
     )
     if (sequence !== pageRequestSequence) return
-    if (!product.value?.attributes.length && product.value?.variants.length === 1) {
-      selectedVariant.value = product.value.variants[0] ?? null
+    const loadedProduct = product.value
+    if (!loadedProduct) return
+    if (!loadedProduct.attributes.length && loadedProduct.variants.length === 1) {
+      selectedVariant.value = loadedProduct.variants[0] ?? null
     }
+    await loadProductRecommendations(sequence, loadedProduct.id)
   } catch (error) {
     if (sequence === pageRequestSequence) errorMessage.value = getErrorMessage(error)
   }
@@ -317,6 +368,19 @@ onBeforeUnmount(() => {
             </p>
           </RouterLink>
         </section>
+
+        <div class="mt-16 space-y-16 lg:mt-24 lg:space-y-24">
+          <ProductRecommendationCarousel
+            title="Sản phẩm tương tự"
+            :products="similarProducts"
+            :loading="similarLoading"
+          />
+          <ProductRecommendationCarousel
+            title="Gợi ý dành cho bạn"
+            :products="recommendedProducts"
+            :loading="recommendationsLoading"
+          />
+        </div>
       </template>
     </main>
   </div>

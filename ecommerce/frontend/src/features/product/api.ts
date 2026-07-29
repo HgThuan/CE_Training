@@ -7,10 +7,16 @@ import type {
   CreateQuestionPayload,
   ProductListFilters,
   ProductQuestion,
+  ProductRecommendationData,
   PublicProductDetail,
   PublicProductListItem,
   QuestionListParams,
 } from './types'
+
+function browsingHistoryParams(browsingHistory: string[]): { browsing_history?: string } {
+  const serializedHistory = browsingHistory.join(',')
+  return serializedHistory ? { browsing_history: serializedHistory } : {}
+}
 
 export const productApi = {
   list: (filters: ProductListFilters) =>
@@ -18,6 +24,16 @@ export const productApi = {
   detail: (slug: string, shopSlug?: string) =>
     http.get<ApiResponse<PublicProductDetail>>(`/products/${slug}/`, {
       params: { shop_slug: shopSlug },
+    }),
+  similar: (productId: string) =>
+    http.get<ApiResponse<ProductRecommendationData>>(`/products/${productId}/similar/`),
+  recommendations: (productId: string, browsingHistory: string[] = []) =>
+    http.get<ApiResponse<ProductRecommendationData>>(`/products/${productId}/recommendations/`, {
+      params: browsingHistoryParams(browsingHistory),
+    }),
+  homeRecommendations: (browsingHistory: string[] = []) =>
+    http.get<ApiResponse<ProductRecommendationData>>('/ai/recommendations/', {
+      params: browsingHistoryParams(browsingHistory),
     }),
   listQuestions: (productId: string, params: QuestionListParams = {}) =>
     http.get<ApiResponse<ProductQuestion[]>>(`/products/${productId}/questions/`, {

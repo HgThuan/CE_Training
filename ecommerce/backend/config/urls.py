@@ -5,6 +5,10 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from apps.account.views import seller_document_download
+from apps.ai.recommendation_views import (
+    ProductRecommendationsView,
+    SimilarProductsView,
+)
 from apps.common.views import HealthCheckView
 
 urlpatterns = [
@@ -18,6 +22,16 @@ urlpatterns = [
     ),
     path("api/v1/", include("apps.account.urls")),
     path("api/v1/", include("apps.catalog.urls")),
+    path(
+        "api/v1/products/<uuid:product_id>/recommendations/",
+        ProductRecommendationsView.as_view(),
+        name="product-recommendations",
+    ),
+    path(
+        "api/v1/products/<uuid:product_id>/similar/",
+        SimilarProductsView.as_view(),
+        name="product-similar",
+    ),
     path("api/v1/", include("apps.product.urls")),
     path("api/v1/", include("apps.inventory.urls")),
     path("api/v1/", include("apps.storefront.urls")),

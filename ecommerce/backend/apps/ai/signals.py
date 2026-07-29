@@ -21,6 +21,7 @@ from .search_service import AI_SEARCH_FEATURE_KEY
 from .services import AIService
 from .tasks import index_product_embedding
 
+AI_RECOMMENDATION_FEATURE_KEY = "feature.ai_recommendation.enabled"
 _SOURCE_CHANGED_ATTRIBUTE = "_ai_embedding_source_changed"
 _PREVIOUS_PRODUCT_ID_ATTRIBUTE = "_ai_embedding_previous_product_id"
 
@@ -33,10 +34,15 @@ def _embedding_indexing_enabled() -> bool:
     if not settings.AI_FEATURES_ENABLED or not AIService.is_configured():
         return False
     try:
-        return SiteSetting.get_bool(
+        search_enabled = SiteSetting.get_bool(
             AI_SEARCH_FEATURE_KEY,
             default=settings.AI_FEATURES_ENABLED,
         )
+        recommendation_enabled = SiteSetting.get_bool(
+            AI_RECOMMENDATION_FEATURE_KEY,
+            default=settings.AI_FEATURES_ENABLED,
+        )
+        return search_enabled or recommendation_enabled
     except DatabaseError:
         return False
 
