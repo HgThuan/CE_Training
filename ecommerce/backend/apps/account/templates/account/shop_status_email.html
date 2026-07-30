@@ -1,0 +1,11 @@
+{% extends "account/base_email.html" %}
+
+{% block content %}
+<p>Chào bạn,</p>
+<p>Gian hàng của bạn đã <strong>{{ status_text }}</strong>.</p>
+<p><strong>Lý do/Ghi chú:</strong> {{ reason }}</p>
+{% if locked %}
+<p>Gian hàng bị khóa sẽ không thể tạo sản phẩm hoặc nhận đơn hàng mới.</p>
+<p>Vui lòng liên hệ quản trị viên để biết thêm chi tiết và được hỗ trợ mở khóa.</p>
+{% endif %}
+{% endblock %}

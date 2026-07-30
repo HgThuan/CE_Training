@@ -3,8 +3,9 @@ from django.contrib.auth.models import update_last_login
 from django.core import signing
 from django.http import FileResponse, Http404
 from django_filters.rest_framework import DjangoFilterBackend
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiTypes, extend_schema
 from rest_framework import filters, generics
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.throttling import ScopedRateThrottle
@@ -75,6 +76,17 @@ from .services import AccountService, SellerDocumentService, SellerOnboardingSer
 from .tokens import VersionedTokenRefreshSerializer
 
 
+@extend_schema(
+    operation_id="seller_documents_download",
+    responses={
+        200: OpenApiTypes.BINARY,
+        404: OpenApiTypes.OBJECT,
+    },
+    description="Tải xuống tài liệu người bán thông qua token",
+)
+@api_view(["GET"])
+@authentication_classes([])
+@permission_classes([AllowAny])
 def seller_document_download(request, token: str):
     try:
         payload = signing.loads(

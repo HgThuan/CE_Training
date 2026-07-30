@@ -1,0 +1,8 @@
+{% extends "account/base_email.html" %}
+
+{% block content %}
+<p>Chào bạn,</p>
+<p>Tài khoản <strong>{{ email }}</strong> của bạn đã <strong>{{ status_text }}</strong>.</p>
+<p><strong>Lý do:</strong> {{ reason }}</p>
+<p>Vui lòng liên hệ quản trị viên nếu bạn cần hỗ trợ.</p>
+{% endblock %}

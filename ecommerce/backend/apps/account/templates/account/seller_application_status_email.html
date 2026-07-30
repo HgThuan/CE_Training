@@ -1,0 +1,15 @@
+{% extends "account/base_email.html" %}
+
+{% block content %}
+<p>Chào bạn,</p>
+<p>Hồ sơ seller của bạn <strong>{{ status_text }}</strong>.</p>
+{% if approved %}
+<p>Bạn có thể đăng nhập lại để truy cập Seller workspace và bắt đầu bán hàng.</p>
+<p style="text-align: center;">
+    <a href="{{ login_url }}" class="btn">Đăng nhập ngay</a>
+</p>
+{% else %}
+<p><strong>Lý do:</strong> {{ reason }}</p>
+<p>Bạn có thể cập nhật lại hồ sơ theo yêu cầu và gửi lại để được xem xét.</p>
+{% endif %}
+{% endblock %}

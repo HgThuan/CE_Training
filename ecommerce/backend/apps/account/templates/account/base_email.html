@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; color: #333; line-height: 1.6; margin: 0; padding: 0; background-color: #f9f9f9; }
+        .container { max-width: 600px; margin: 20px auto; padding: 20px; background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; }
+        .header { background-color: #f4f4f4; padding: 15px 20px; text-align: center; border-radius: 8px 8px 0 0; border-bottom: 1px solid #e0e0e0; }
+        .header h2 { margin: 0; color: #333; }
+        .content { padding: 30px 20px; }
+        .footer { text-align: center; font-size: 0.85em; color: #777; margin-top: 30px; border-top: 1px solid #e0e0e0; padding-top: 15px; }
+        .btn { display: inline-block; padding: 12px 24px; background-color: #007bff; color: #ffffff; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 10px; margin-bottom: 10px; }
+        .btn:hover { background-color: #0056b3; }
+        p { margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>{{ subject }}</h2>
+        </div>
+        <div class="content">
+            {% block content %}{% endblock %}
+        </div>
+        <div class="footer">
+            <p>&copy; Multi-Vendor AI E-commerce. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{% extends "account/base_email.html" %}
+
+{% block content %}
+<p>Chào bạn,</p>
+<p>Cảm ơn bạn đã đăng ký tài khoản tại Multi-Vendor AI E-commerce. Hãy xác thực tài khoản của bạn bằng cách nhấn vào nút bên dưới:</p>
+<p style="text-align: center;">
+    <a href="{{ verification_url }}" class="btn">Xác thực tài khoản</a>
+</p>
+<p>Hoặc bạn có thể sao chép và dán liên kết sau vào trình duyệt:</p>
+<p><a href="{{ verification_url }}">{{ verification_url }}</a></p>
+<p>Nếu bạn không đăng ký tài khoản, hãy bỏ qua email này.</p>
+{% endblock %}
