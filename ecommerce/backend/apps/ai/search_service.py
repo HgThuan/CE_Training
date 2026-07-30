@@ -312,8 +312,6 @@ class AISearchService:
                     keyword.casefold() for keyword in keywords
                 }:
                     keywords.append(normalized)
-        if not keywords:
-            keywords = [query]
 
         raw_filters = raw_intent.get("filters")
         filters = (
@@ -326,7 +324,8 @@ class AISearchService:
             "q": " ".join(keywords),
             **explicit_filters,
         }
-        candidate_params.setdefault("sort", "relevance")
+        if candidate_params.get("q"):
+            candidate_params.setdefault("sort", "relevance")
         validator = SearchFilterSerializer(data=candidate_params)
         if not validator.is_valid():
             return (

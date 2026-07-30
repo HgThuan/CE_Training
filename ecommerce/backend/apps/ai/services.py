@@ -440,8 +440,11 @@ class AIService:
         prompt = (
             "Extract ecommerce search intent from the query below. "
             "Return only JSON with keys: keywords (array of strings), filters "
-            "(object using only category, brand, price_min, price_max, "
-            "rating_min, in_stock, shop), and explanation (short string).\n"
+            "(object using only price_min, price_max, "
+            "rating_min, in_stock), and explanation (short string).\n"
+            "Rules:\n"
+            "1. Keywords must contain the core product names, features, categories, and brands. Do NOT include price words in keywords if mapped to filters.\n"
+            "2. For price filters, ALWAYS convert to pure numbers in VND (e.g. '10 triệu' -> 10000000, '50k' -> 50000).\n"
             f"Query: {normalized_query}"
         )
         result = self.generate_text(
@@ -449,27 +452,17 @@ class AIService:
             prompt=prompt,
             system_prompt=(
                 "You parse Vietnamese ecommerce queries into strict structured data. "
-                "Never invent filters that are not explicit in the query."
+                "Never invent filters that are not explicit in the query. "
+                "Prices must be converted to exact VND integer values. "
+                "Do NOT extract categories or brands as filters; leave them in keywords."
             ),
             user=user,
             fallback="",
             cache_context={"query": normalized_query},
-            prompt_template_version="smart-search-v1",
+            prompt_template_version="smart-search-v8",
             response_mime_type="application/json",
-            response_schema={
-                "type": "object",
-                "properties": {
-                    "keywords": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                    },
-                    "filters": {"type": "object"},
-                    "explanation": {"type": "string"},
-                },
-                "required": ["keywords", "filters", "explanation"],
-            },
             temperature=0,
-            max_output_tokens=512,
+            max_output_tokens=8192,
         )
         if not result.ai_used:
             return fallback
@@ -487,8 +480,7 @@ class AIService:
             normalized_keyword = keyword.strip()[:100]
             if normalized_keyword:
                 normalized_keywords.append(normalized_keyword)
-        if not normalized_keywords:
-            normalized_keywords = fallback["keywords"]
+        # We allow normalized_keywords to be empty if all terms were mapped to filters.
 
         raw_filters = parsed.get("filters")
         filters = self._normalize_search_filters(
