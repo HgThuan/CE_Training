@@ -17,7 +17,7 @@ export function setAuthSessionAdapter(adapter: AuthSessionAdapter): void {
   authSessionAdapter = adapter
 }
 
-export const http = axios.create({
+export const axiosClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api/v1',
   timeout: 15_000,
   withCredentials: true,
@@ -26,7 +26,10 @@ export const http = axios.create({
   },
 })
 
-http.interceptors.request.use((config) => {
+// Backward-compatible alias for feature API modules that have not migrated names yet.
+export const http = axiosClient
+
+axiosClient.interceptors.request.use((config) => {
   const accessToken = authSessionAdapter?.getAccessToken()
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`
@@ -45,7 +48,7 @@ const publicAuthPaths = [
   '/auth/reset-password/',
 ]
 
-http.interceptors.response.use(
+axiosClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const config = error.config as RetryableRequestConfig | undefined
@@ -66,7 +69,7 @@ http.interceptors.response.use(
     try {
       const accessToken = await refreshPromise
       config.headers.Authorization = `Bearer ${accessToken}`
-      return await http(config)
+      return await axiosClient(config)
     } catch (refreshError) {
       authSessionAdapter.onAuthenticationFailure()
       return Promise.reject(refreshError)
