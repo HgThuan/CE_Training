@@ -17,6 +17,47 @@ const loading = ref(true)
 const message = ref('')
 const errorMessage = ref('')
 
+const dialogConfig = ref({
+  isOpen: false,
+  title: '',
+  message: '',
+  isPrompt: false,
+  inputValue: '',
+  resolve: null as ((value: string | boolean | null) => void) | null,
+})
+
+function openConfirm(title: string, message: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    dialogConfig.value = {
+      isOpen: true,
+      title,
+      message,
+      isPrompt: false,
+      inputValue: '',
+      resolve: (value) => resolve(Boolean(value)),
+    }
+  })
+}
+
+function openPrompt(title: string, message: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    dialogConfig.value = {
+      isOpen: true,
+      title,
+      message,
+      isPrompt: true,
+      inputValue: '',
+      resolve: (value) => resolve(typeof value === 'string' ? value : null),
+    }
+  })
+}
+
+function closeDialog(result: string | boolean | null): void {
+  dialogConfig.value.resolve?.(result)
+  dialogConfig.value.isOpen = false
+  dialogConfig.value.resolve = null
+}
+
 async function loadApplications(page = 1): Promise<void> {
   loading.value = true
   try {
@@ -44,7 +85,8 @@ async function selectApplication(profileId: number): Promise<void> {
 }
 
 async function approve(profile: SellerApplication): Promise<void> {
-  if (!window.confirm(`Duyệt gian hàng ${profile.business_name}?`)) return
+  const confirmed = await openConfirm('Xác nhận duyệt', `Duyệt gian hàng ${profile.business_name}?`)
+  if (!confirmed) return
   try {
     message.value = (await adminSellersApi.approveApplication(profile.id)).data.message
     selected.value = null
@@ -55,7 +97,7 @@ async function approve(profile: SellerApplication): Promise<void> {
 }
 
 async function reject(profile: SellerApplication): Promise<void> {
-  const reason = window.prompt('Nhập lý do từ chối:')
+  const reason = await openPrompt('Từ chối hồ sơ', 'Nhập lý do từ chối:')
   if (!reason?.trim()) return
   try {
     message.value = (
@@ -69,7 +111,7 @@ async function reject(profile: SellerApplication): Promise<void> {
 }
 
 async function reviewDocument(document: SellerDocument, verified: boolean): Promise<void> {
-  const reason = verified ? '' : window.prompt('Mô tả nội dung cần bổ sung:')
+  const reason = verified ? '' : await openPrompt('Yêu cầu bổ sung', 'Mô tả nội dung cần bổ sung:')
   if (!verified && !reason?.trim()) return
   try {
     await adminSellersApi.reviewDocument(
@@ -184,6 +226,51 @@ onMounted(loadApplications)
             @click="reject(selected)"
           >
             Từ chối
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <div
+      v-if="dialogConfig.isOpen"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      role="presentation"
+      @click.self="closeDialog(null)"
+    >
+      <section
+        aria-labelledby="seller-dialog-title"
+        aria-modal="true"
+        class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+        role="dialog"
+        @keyup.esc="closeDialog(null)"
+      >
+        <h2 id="seller-dialog-title" class="text-xl font-bold">{{ dialogConfig.title }}</h2>
+        <p class="mt-2 text-gray-600">{{ dialogConfig.message }}</p>
+
+        <input
+          v-if="dialogConfig.isPrompt"
+          v-model="dialogConfig.inputValue"
+          autofocus
+          class="mt-4 w-full rounded-xl border px-3 py-2.5 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          placeholder="Nhập nội dung..."
+          type="text"
+          @keyup.enter="closeDialog(dialogConfig.inputValue)"
+        />
+
+        <div class="mt-6 flex justify-end gap-3">
+          <button
+            class="rounded-xl border px-5 py-2.5 font-bold hover:bg-gray-50"
+            type="button"
+            @click="closeDialog(null)"
+          >
+            Hủy
+          </button>
+          <button
+            class="rounded-xl bg-indigo-600 px-5 py-2.5 font-bold text-white hover:bg-indigo-700"
+            type="button"
+            @click="closeDialog(dialogConfig.isPrompt ? dialogConfig.inputValue : true)"
+          >
+            Xác nhận
           </button>
         </div>
       </section>
