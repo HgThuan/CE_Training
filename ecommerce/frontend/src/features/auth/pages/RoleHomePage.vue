@@ -15,13 +15,13 @@ async function logout(): Promise<void> {
 <template>
   <main class="mx-auto max-w-5xl px-6 py-12">
     <section class="rounded-3xl bg-white p-8 shadow-sm ring-1 ring-gray-200">
-      <p class="text-sm font-bold uppercase tracking-[0.2em] text-indigo-600">
-        {{ authStore.user?.role }} workspace
-      </p>
+      <p class="text-sm font-bold uppercase tracking-[0.2em] text-indigo-600">Trang quản lý</p>
       <h1 class="mt-3 text-4xl font-bold text-gray-950">
         Xin chào, {{ authStore.user?.full_name || authStore.user?.email }}
       </h1>
-      <p class="mt-4 text-gray-600">Workspace được bảo vệ bằng JWT và route guard theo vai trò.</p>
+      <p class="mt-4 text-gray-600">
+        Chọn một chức năng bên dưới để quản lý tài khoản và thực hiện công việc của bạn.
+      </p>
       <div class="mt-8 flex flex-wrap gap-3">
         <RouterLink
           class="rounded-xl bg-indigo-600 px-4 py-2 font-semibold text-white"
