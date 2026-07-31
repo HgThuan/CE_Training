@@ -8,6 +8,11 @@ import type { PaginationMeta } from '@/shared/types/api'
 
 import { adminSellersApi } from '../api'
 
+type DocumentReviewAction = Extract<
+  SellerDocument['review_status'],
+  'verified' | 'additional_required'
+>
+
 const applications = ref<SellerApplication[]>([])
 const selected = ref<SellerApplication | null>(null)
 const status = ref<'pending' | 'approved' | 'rejected'>('pending')
@@ -110,15 +115,19 @@ async function reject(profile: SellerApplication): Promise<void> {
   }
 }
 
-async function reviewDocument(document: SellerDocument, verified: boolean): Promise<void> {
-  const reason = verified ? '' : await openPrompt('Yêu cầu bổ sung', 'Mô tả nội dung cần bổ sung:')
-  if (!verified && !reason?.trim()) return
+async function reviewDocument(
+  document: SellerDocument,
+  reviewStatus: DocumentReviewAction,
+): Promise<void> {
+  let reason = ''
+  if (reviewStatus === 'additional_required') {
+    const providedReason = await openPrompt('Yêu cầu bổ sung', 'Mô tả nội dung cần bổ sung:')
+    if (!providedReason?.trim()) return
+    reason = providedReason.trim()
+  }
+
   try {
-    await adminSellersApi.reviewDocument(
-      document.id,
-      verified ? 'verified' : 'additional_required',
-      reason?.trim() ?? '',
-    )
+    await adminSellersApi.reviewDocument(document.id, reviewStatus, reason)
     if (selected.value) await selectApplication(selected.value.id)
   } catch (error) {
     errorMessage.value = getErrorMessage(error)
@@ -199,14 +208,14 @@ onMounted(loadApplications)
             <button
               class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white"
               type="button"
-              @click="reviewDocument(document, true)"
+              @click="reviewDocument(document, 'verified')"
             >
               Xác minh
             </button>
             <button
               class="rounded-lg border px-3 py-2 text-sm font-bold"
               type="button"
-              @click="reviewDocument(document, false)"
+              @click="reviewDocument(document, 'additional_required')"
             >
               Yêu cầu bổ sung
             </button>
