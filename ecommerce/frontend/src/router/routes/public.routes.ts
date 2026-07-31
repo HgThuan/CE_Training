@@ -45,6 +45,16 @@ export const publicRoutes: RouteRecordRaw[] = [
         name: 'search-results',
         component: () => import('@/features/search/pages/SearchResultsPage.vue'),
       },
+      {
+        path: 'cart',
+        name: 'cart',
+        component: () => import('@/features/cart/views/CartPage.vue'),
+      },
+      {
+        path: 'flash-sales',
+        name: 'flash-sales',
+        component: () => import('@/features/promotion/views/customer/FlashSaleListPage.vue'),
+      },
     ],
   },
   {

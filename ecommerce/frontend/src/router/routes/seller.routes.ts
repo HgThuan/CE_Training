@@ -56,6 +56,11 @@ export const sellerRoutes: RouteRecordRaw[] = [
         name: 'seller-application-status',
         component: () => import('@/features/seller/pages/SellerApplicationPage.vue'),
       },
+      {
+        path: 'promotions',
+        name: 'seller-promotions',
+        component: () => import('@/features/promotion/views/seller/VoucherSellerList.vue'),
+      },
     ],
   },
 ]

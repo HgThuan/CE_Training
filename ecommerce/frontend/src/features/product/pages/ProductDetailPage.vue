@@ -13,6 +13,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import FormMessage from '@/features/auth/components/FormMessage.vue'
+import { useCartStore } from '@/features/cart/store'
 import { getErrorMessage } from '@/features/auth/errors'
 import WaitlistButton from '@/features/inventory/components/WaitlistButton.vue'
 import WishlistToggleButton from '@/features/wishlist/components/WishlistToggleButton.vue'
@@ -30,6 +31,7 @@ import type { ProductVariant, PublicProductListItem } from '../types'
 
 const route = useRoute()
 const authStore = useAuthStore()
+const cartStore = useCartStore()
 const productStore = useProductStore()
 const errorMessage = ref('')
 const selectedVariant = ref<ProductVariant | null>(null)
@@ -73,11 +75,24 @@ function handleVariantChange(variant: ProductVariant | null): void {
   quantity.value = 1
 }
 
-function prepareCart(action: 'cart' | 'buy'): void {
-  cartNotice.value =
-    action === 'cart'
-      ? `Đã chuẩn bị ${quantity.value} sản phẩm cho giỏ hàng. Tính năng lưu giỏ sẽ mở ở Sprint tiếp theo.`
-      : 'Luồng mua ngay đã sẵn sàng và sẽ được nối với Checkout ở Sprint tiếp theo.'
+async function prepareCart(action: 'cart' | 'buy'): Promise<void> {
+  if (!product.value || !selectedVariant.value) return
+  try {
+    await cartStore.addItem(selectedVariant.value.id, quantity.value, {
+      product_slug: product.value.slug,
+      shop_slug: product.value.shop.slug,
+      product_name: product.value.name,
+      variant_name: selectedVariant.value.name,
+      image: galleryMedia.value[0]?.file_url ?? null,
+      price: selectedVariant.value.sale_price,
+    })
+    cartNotice.value =
+      action === 'cart'
+        ? `Đã thêm ${quantity.value} sản phẩm vào giỏ.`
+        : 'Đã thêm sản phẩm. Mở giỏ để xem giá tạm tính.'
+  } catch {
+    cartNotice.value = cartStore.error
+  }
 }
 
 function isCurrentProductRequest(sequence: number, productId: string): boolean {

@@ -76,6 +76,13 @@ async function logout(): Promise<void> {
             Sản phẩm
           </RouterLink>
           <RouterLink
+            class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-indigo-700"
+            to="/cart"
+          >
+            <ShoppingBagIcon class="h-4 w-4" />
+            Giỏ hàng
+          </RouterLink>
+          <RouterLink
             v-if="authStore.user?.role === 'customer'"
             class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-rose-700"
             to="/wishlist"
@@ -140,6 +147,9 @@ async function logout(): Promise<void> {
           <RouterLink class="rounded-xl px-4 py-3 hover:bg-slate-100" to="/">Trang chủ</RouterLink>
           <RouterLink class="rounded-xl px-4 py-3 hover:bg-slate-100" to="/products">
             Sản phẩm
+          </RouterLink>
+          <RouterLink class="rounded-xl px-4 py-3 hover:bg-slate-100" to="/cart">
+            Giỏ hàng
           </RouterLink>
           <RouterLink
             v-if="authStore.user?.role === 'customer'"

@@ -62,6 +62,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(payload: LoginPayload): Promise<void> {
     const response = await authApi.login(payload)
     applySession(response.data.data)
+    window.dispatchEvent(new CustomEvent('auth:authenticated'))
   }
 
   async function logout(): Promise<void> {

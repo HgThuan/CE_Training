@@ -9,6 +9,8 @@ export function formatVnd(value: string | number | null | undefined): string {
   }).format(amount)
 }
 
+export const formatCurrency = formatVnd
+
 export function formatDateTime(value: string): string {
   return new Intl.DateTimeFormat('vi-VN', {
     dateStyle: 'medium',
