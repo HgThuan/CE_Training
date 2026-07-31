@@ -59,7 +59,7 @@ async function mountSelectedApplication() {
   return wrapper
 }
 
-describe('SellerApprovalPage document review', () => {
+describe('SellerApprovalPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(adminSellersApi.listApplications).mockResolvedValue({
@@ -76,6 +76,33 @@ describe('SellerApprovalPage document review', () => {
     vi.mocked(adminSellersApi.reviewDocument).mockResolvedValue({
       data: { success: true, message: 'updated', data: document },
     } as Awaited<ReturnType<typeof adminSellersApi.reviewDocument>>)
+  })
+
+  it('renders status choices from configuration and applies the selected filter', async () => {
+    const wrapper = mount(SellerApprovalPage, {
+      global: { stubs: { RouterLink: RouterLinkStub } },
+    })
+    await flushPromises()
+
+    const statusSelect = wrapper.get('select[aria-label="Trạng thái hồ sơ"]')
+    expect(
+      statusSelect.findAll('option').map((option) => ({
+        value: option.attributes('value'),
+        label: option.text(),
+      })),
+    ).toEqual([
+      { value: 'pending', label: 'Chờ duyệt' },
+      { value: 'approved', label: 'Đã duyệt' },
+      { value: 'rejected', label: 'Từ chối' },
+    ])
+
+    await statusSelect.setValue('rejected')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(adminSellersApi.listApplications).toHaveBeenLastCalledWith(
+      expect.objectContaining({ onboarding_status: 'rejected', page: 1 }),
+    )
   })
 
   it('sends the verified status without a reason', async () => {

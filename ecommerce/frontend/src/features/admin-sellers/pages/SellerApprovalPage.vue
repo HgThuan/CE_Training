@@ -12,10 +12,17 @@ type DocumentReviewAction = Extract<
   SellerDocument['review_status'],
   'verified' | 'additional_required'
 >
+type SellerApplicationStatus = SellerApplication['onboarding_status']
+
+const APPLICATION_STATUS_OPTIONS = [
+  { value: 'pending', label: 'Chờ duyệt' },
+  { value: 'approved', label: 'Đã duyệt' },
+  { value: 'rejected', label: 'Từ chối' },
+] as const satisfies ReadonlyArray<{ value: SellerApplicationStatus; label: string }>
 
 const applications = ref<SellerApplication[]>([])
 const selected = ref<SellerApplication | null>(null)
-const status = ref<'pending' | 'approved' | 'rejected'>('pending')
+const status = ref<SellerApplicationStatus>('pending')
 const search = ref('')
 const meta = ref<PaginationMeta>({ page: 1, page_size: 20, total_items: 0, total_pages: 0 })
 const loading = ref(true)
@@ -152,10 +159,14 @@ onMounted(loadApplications)
         class="min-w-64 flex-1 rounded-xl border px-3 py-2.5"
         placeholder="Tên shop, email, mã số thuế"
       />
-      <select v-model="status" class="rounded-xl border px-3 py-2.5">
-        <option value="pending">Chờ duyệt</option>
-        <option value="approved">Đã duyệt</option>
-        <option value="rejected">Từ chối</option>
+      <select v-model="status" aria-label="Trạng thái hồ sơ" class="rounded-xl border px-3 py-2.5">
+        <option
+          v-for="option in APPLICATION_STATUS_OPTIONS"
+          :key="option.value"
+          :value="option.value"
+        >
+          {{ option.label }}
+        </option>
       </select>
       <button class="rounded-xl bg-gray-950 px-5 py-2.5 font-bold text-white">Lọc</button>
     </form>
