@@ -9,6 +9,7 @@ from django.contrib.postgres.search import (
 from django.db import connections
 from django.db.models import Exists, F, FloatField, OuterRef, Prefetch, Q, QuerySet, Value
 from django.db.models.functions import Greatest
+from django.utils import timezone
 
 from apps.account.models import Shop, User
 from apps.common.exceptions import BusinessError
@@ -97,7 +98,28 @@ class ProductSelector:
             "attribute",
             "attribute_value",
         ).order_by("attribute__sort_order", "attribute__name")
-        variant_queryset = ProductVariant.objects.filter(is_deleted=False)
+        # Keep the active promotion attached to each variant so every public
+        # serializer can expose one consistent effective price without N+1 queries.
+        from apps.promotion.models import FlashSaleItem
+
+        now = timezone.now()
+        active_flash_items = (
+            FlashSaleItem.objects.select_related("flash_sale")
+            .filter(
+                flash_sale__is_active=True,
+                flash_sale__start_time__lte=now,
+                flash_sale__end_time__gte=now,
+                sold_count__lt=F("quota"),
+            )
+            .order_by("sale_price", "flash_sale__end_time", "id")
+        )
+        variant_queryset = ProductVariant.objects.filter(is_deleted=False).prefetch_related(
+            Prefetch(
+                "flash_sale_items",
+                queryset=active_flash_items,
+                to_attr="_active_flash_sale_items",
+            )
+        )
         if public_only:
             variant_queryset = variant_queryset.filter(is_active=True)
         variants = (
@@ -140,6 +162,9 @@ class ProductSelector:
 
     @staticmethod
     def _with_list_relations(queryset: QuerySet[Product]) -> QuerySet[Product]:
+        from apps.promotion.models import FlashSaleItem
+
+        now = timezone.now()
         list_images = ProductMedia.objects.filter(
             media_type=ProductMedia.MediaType.IMAGE,
         ).order_by(
@@ -148,8 +173,31 @@ class ProductSelector:
             "created_at",
             "id",
         )
+        active_flash_items = (
+            FlashSaleItem.objects.select_related("flash_sale")
+            .filter(
+                flash_sale__is_active=True,
+                flash_sale__start_time__lte=now,
+                flash_sale__end_time__gte=now,
+                sold_count__lt=F("quota"),
+            )
+            .order_by("sale_price", "flash_sale__end_time", "id")
+        )
+        price_variants = (
+            ProductVariant.objects.filter(is_active=True, is_deleted=False)
+            .select_related("inventory_balance")
+            .prefetch_related(
+                Prefetch(
+                    "flash_sale_items",
+                    queryset=active_flash_items,
+                    to_attr="_active_flash_sale_items",
+                )
+            )
+            .order_by("created_at", "id")
+        )
         return queryset.select_related("shop", "category", "brand").prefetch_related(
-            Prefetch("media", queryset=list_images, to_attr="_public_list_images")
+            Prefetch("media", queryset=list_images, to_attr="_public_list_images"),
+            Prefetch("variants", queryset=price_variants, to_attr="_public_price_variants"),
         )
 
     @staticmethod

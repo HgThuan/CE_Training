@@ -76,6 +76,14 @@ function choose(attributeId: string, valueId: string): void {
       SKU: <strong class="text-slate-900">{{ selectedVariant.sku }}</strong>
       <span class="mx-2 text-slate-300">•</span>
       Giá: <strong class="text-indigo-700">{{ priceLabel }}</strong>
+      <template v-if="selectedVariant.is_flash_sale">
+        <span class="ml-1 text-slate-400 line-through">
+          {{ formatVnd(selectedVariant.regular_price) }}
+        </span>
+        <span class="ml-2 rounded-full bg-rose-100 px-2 py-0.5 text-xs font-black text-rose-700">
+          FLASH SALE · còn {{ selectedVariant.remaining_flash_quota }}
+        </span>
+      </template>
       <span class="mx-2 text-slate-300">•</span>
       Tồn:
       <strong :class="selectedVariant.available_stock ? 'text-emerald-700' : 'text-rose-700'">

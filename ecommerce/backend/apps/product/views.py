@@ -18,6 +18,7 @@ from apps.common.cache_utils import (
 )
 from apps.common.exceptions import BusinessError
 from apps.common.responses import success_response
+from apps.promotion.services import FlashSaleService
 
 from .permissions import IsShopOwner
 from .selectors import ProductSelector, SearchSelector
@@ -492,7 +493,8 @@ class SearchView(generics.GenericAPIView):
         filters = SearchFilterSerializer(data=request.query_params)
         filters.is_valid(raise_exception=True)
         cache_key = search_results_cache_key(filters.validated_data)
-        cached_payload = safe_cache_get(cache_key)
+        dynamic_prices = FlashSaleService.has_active_or_upcoming_sale()
+        cached_payload = None if dynamic_prices else safe_cache_get(cache_key)
         if cached_payload is not None:
             return Response(cached_payload)
 
@@ -503,11 +505,12 @@ class SearchView(generics.GenericAPIView):
             context=self.get_serializer_context(),
         ).data
         response = self.get_paginated_response(data)
-        safe_cache_set(
-            cache_key,
-            response.data,
-            timeout=SEARCH_RESULTS_CACHE_TTL,
-        )
+        if not dynamic_prices:
+            safe_cache_set(
+                cache_key,
+                response.data,
+                timeout=SEARCH_RESULTS_CACHE_TTL,
+            )
         return response
 
 
@@ -590,7 +593,8 @@ class PublicProductViewSet(viewsets.GenericViewSet):
             slug=slug,
             shop_slug=shop_slug,
         )
-        cached_data = safe_cache_get(cache_key)
+        dynamic_prices = FlashSaleService.has_active_or_upcoming_sale()
+        cached_data = None if dynamic_prices else safe_cache_get(cache_key)
         if cached_data is not None:
             return success_response(
                 message="Lấy chi tiết sản phẩm thành công",
@@ -607,11 +611,12 @@ class PublicProductViewSet(viewsets.GenericViewSet):
             product,
             context=self.get_serializer_context(),
         ).data
-        safe_cache_set(
-            cache_key,
-            data,
-            timeout=PRODUCT_DETAIL_CACHE_TTL,
-        )
+        if not dynamic_prices:
+            safe_cache_set(
+                cache_key,
+                data,
+                timeout=PRODUCT_DETAIL_CACHE_TTL,
+            )
         return success_response(
             message="Lấy chi tiết sản phẩm thành công",
             data=data,

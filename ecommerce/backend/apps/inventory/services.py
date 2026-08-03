@@ -659,6 +659,7 @@ class StockService:
         reservations = list(
             base_query.select_for_update().select_related("variant").order_by("variant_id", "pk")
         )
+        committed_lines = []
         for reservation in reservations:
             if reservation.status != StockReservation.Status.ACTIVE:
                 continue
@@ -702,6 +703,20 @@ class StockService:
                 status=StockReservation.Status.ACTIVE,
             ).update(status=target_status, updated_at=timezone.now())
             reservation.status = target_status
+            if target_status == StockReservation.Status.COMMITTED:
+                committed_lines.append(
+                    {
+                        "variant_id": reservation.variant_id,
+                        "quantity": reservation.quantity,
+                    }
+                )
+        if committed_lines:
+            # Purchase origin is deliberately irrelevant. A reservation may
+            # come from home, search, shop, product detail, or Flash Sale UI;
+            # successful inventory commit consumes quota by variant exactly once.
+            from apps.promotion.services import FlashSaleService
+
+            FlashSaleService.commit_successful_purchase(committed_lines)
         return reservations
 
     @staticmethod

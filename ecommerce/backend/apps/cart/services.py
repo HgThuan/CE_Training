@@ -25,6 +25,27 @@ class CartService:
     def _available_stock(variant: ProductVariant) -> int:
         return variant.available_stock
 
+    @staticmethod
+    def _price(variant: ProductVariant):
+        from apps.promotion.services import FlashSaleService
+
+        return FlashSaleService.get_active_price(variant)
+
+    @staticmethod
+    def _flash_item(variant: ProductVariant):
+        from apps.promotion.services import FlashSaleService
+
+        return FlashSaleService.get_active_item(variant)
+
+    @classmethod
+    def _validate_flash_quota(cls, variant: ProductVariant, quantity: int) -> None:
+        flash_item = cls._flash_item(variant)
+        if flash_item and quantity > flash_item.remaining_quota:
+            raise BusinessError(
+                "Số lượng vượt quá suất Flash Sale còn lại",
+                errors={"quantity": [f"Chỉ còn {flash_item.remaining_quota} suất Flash Sale"]},
+            )
+
     @classmethod
     def add_item(
         cls,
@@ -64,6 +85,7 @@ class CartService:
                     "Số lượng vượt quá tồn kho khả dụng",
                     errors={"quantity": [f"Chỉ còn {available_stock} sản phẩm"]},
                 )
+            cls._validate_flash_quota(variant, target_quantity)
             if item:
                 item.quantity = target_quantity
                 item.is_selected = is_selected
@@ -74,7 +96,7 @@ class CartService:
                 variant=variant,
                 quantity=quantity,
                 is_selected=is_selected,
-                unit_price_snapshot=variant.sale_price,
+                unit_price_snapshot=cls._price(variant),
             )
 
     @classmethod
@@ -94,6 +116,7 @@ class CartService:
                     "Số lượng vượt quá tồn kho khả dụng",
                     errors={"quantity": [f"Chỉ còn {available_stock} sản phẩm"]},
                 )
+            cls._validate_flash_quota(item.variant, quantity)
             item.quantity = quantity
         if is_selected is not None:
             item.is_selected = is_selected
@@ -142,6 +165,7 @@ class CartService:
                         "Không thể gộp giỏ vì số lượng vượt tồn kho",
                         errors={"variant_id": [variant_id]},
                     )
+                cls._validate_flash_quota(variant, target)
                 if current:
                     current.quantity = target
                     current.save(update_fields=("quantity", "updated_at"))
@@ -150,7 +174,7 @@ class CartService:
                         cart=cart,
                         variant=variant,
                         quantity=guest_quantity,
-                        unit_price_snapshot=variant.sale_price,
+                        unit_price_snapshot=cls._price(variant),
                     )
         return cart
 
@@ -166,12 +190,15 @@ class CartService:
         total_quantity = 0
         selected_quantity = 0
 
+        from apps.promotion.services import FlashSaleService
+
         for item in items:
             variant = item.variant
             product = variant.product
             shop = variant.shop
             stock = cls._available_stock(variant)
-            current_price = variant.sale_price
+            flash_item = FlashSaleService.get_active_item(variant)
+            current_price = flash_item.sale_price if flash_item else variant.sale_price
             price_changed = item.unit_price_snapshot != current_price
             is_valid = (
                 variant.is_active
@@ -181,6 +208,7 @@ class CartService:
                 and shop.status == shop.Status.APPROVED
                 and not shop.is_deleted
                 and item.quantity <= stock
+                and (flash_item is None or item.quantity <= flash_item.remaining_quota)
             )
             media = list(product.media.all())
             primary = next(
@@ -201,6 +229,12 @@ class CartService:
                 "is_selected": item.is_selected,
                 "unit_price_snapshot": item.unit_price_snapshot,
                 "current_price": current_price,
+                "regular_price": variant.sale_price,
+                "is_flash_sale": flash_item is not None,
+                "flash_sale_ends_at": (
+                    flash_item.flash_sale.end_time if flash_item else None
+                ),
+                "remaining_flash_quota": flash_item.remaining_quota if flash_item else None,
                 "line_total": line_total,
                 "available_stock": stock,
                 "price_changed": price_changed,

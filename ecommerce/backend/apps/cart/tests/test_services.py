@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 import pytest
+from django.utils import timezone
 
 from apps.account.models import CustomerProfile
 from apps.account.tests.factories import ShopFactory, UserFactory
@@ -10,6 +11,7 @@ from apps.common.exceptions import BusinessError
 from apps.inventory.tests.factories import InventoryBalanceFactory
 from apps.product.models import Product
 from apps.product.tests.factories import ProductVariantFactory
+from apps.promotion.models import FlashSale, FlashSaleItem
 
 
 @pytest.fixture
@@ -88,3 +90,32 @@ def test_cart_summary_marks_price_and_stock_changes(cart_context):
     assert rendered["price_changed"] is True
     assert rendered["is_valid"] is False
     assert rendered["available_stock"] == 3
+
+
+@pytest.mark.django_db
+def test_cart_uses_flash_sale_price_regardless_of_product_entry_point(cart_context):
+    _, cart, variant = cart_context
+    sale = FlashSale.objects.create(
+        name="Cart Flash Sale",
+        start_time=timezone.now() - timezone.timedelta(minutes=1),
+        end_time=timezone.now() + timezone.timedelta(hours=1),
+    )
+    FlashSaleItem.objects.create(
+        flash_sale=sale,
+        variant=variant,
+        sale_price=Decimal("70000"),
+        quota=3,
+    )
+
+    item = CartService.add_item(cart, variant, 2)
+    summary = CartService.get_cart_summary(cart)
+    rendered = summary["shops"][0]["items"][0]
+
+    assert item.unit_price_snapshot == Decimal("70000")
+    assert rendered["current_price"] == Decimal("70000")
+    assert rendered["regular_price"] == Decimal("100000")
+    assert rendered["is_flash_sale"] is True
+    assert rendered["remaining_flash_quota"] == 3
+
+    with pytest.raises(BusinessError, match="suất Flash Sale"):
+        CartService.update_item(item, quantity=4)

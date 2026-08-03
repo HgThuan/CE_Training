@@ -218,7 +218,9 @@ def test_search_query_count_is_bounded(
         )
         ProductMediaFactory(product=product)
 
-    with django_assert_max_num_queries(4):
+    # The two fixed promotion-prefetch queries keep effective Flash Sale
+    # prices accurate without scaling with the number of products.
+    with django_assert_max_num_queries(6):
         response = api_client.get(
             reverse("product:search"),
             {"q": "Optimized search", "page_size": 10},

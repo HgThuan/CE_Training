@@ -26,6 +26,84 @@ def _thumbnail_for_product(product: Product) -> str | None:
     return (primary or (images[0] if images else None)).file_url if images else None
 
 
+def _active_flash_item(variant: ProductVariant):
+    prefetched = getattr(variant, "_active_flash_sale_items", None)
+    if prefetched is not None:
+        return prefetched[0] if prefetched else None
+    from apps.promotion.services import FlashSaleService
+
+    return FlashSaleService.get_active_item(variant)
+
+
+def _variant_price_data(variant: ProductVariant) -> dict:
+    flash_item = _active_flash_item(variant)
+    return {
+        "price": flash_item.sale_price if flash_item else variant.sale_price,
+        "regular_price": variant.sale_price,
+        "flash_item": flash_item,
+    }
+
+
+def _product_price_data(product: Product) -> dict:
+    variants = getattr(product, "_public_price_variants", None)
+    if variants is None:
+        variants = [
+            variant
+            for variant in product.variants.all()
+            if variant.is_active and not variant.is_deleted
+        ]
+    rows = [_variant_price_data(variant) for variant in variants]
+    if not rows:
+        return {
+            "min_price": None,
+            "max_price": None,
+            "regular_min_price": product.min_price,
+            "regular_max_price": product.max_price,
+            "flash_items": [],
+        }
+    return {
+        "min_price": min(row["price"] for row in rows),
+        "max_price": max(row["price"] for row in rows),
+        "regular_min_price": min(row["regular_price"] for row in rows),
+        "regular_max_price": max(row["regular_price"] for row in rows),
+        "flash_items": [row["flash_item"] for row in rows if row["flash_item"]],
+    }
+
+
+class PublicFlashSaleProductMixin:
+    def _prices(self, product: Product) -> dict:
+        cache = getattr(product, "_serialized_public_prices", None)
+        if cache is None:
+            cache = _product_price_data(product)
+            product._serialized_public_prices = cache
+        return cache
+
+    def get_min_price(self, product: Product) -> str | None:
+        value = self._prices(product)["min_price"]
+        return str(value) if value is not None else None
+
+    def get_max_price(self, product: Product) -> str | None:
+        value = self._prices(product)["max_price"]
+        return str(value) if value is not None else None
+
+    def get_regular_min_price(self, product: Product) -> str | None:
+        value = self._prices(product)["regular_min_price"]
+        return str(value) if value is not None else None
+
+    def get_regular_max_price(self, product: Product) -> str | None:
+        value = self._prices(product)["regular_max_price"]
+        return str(value) if value is not None else None
+
+    def get_is_flash_sale(self, product: Product) -> bool:
+        return bool(self._prices(product)["flash_items"])
+
+    def get_flash_sale_ends_at(self, product: Product) -> str | None:
+        items = self._prices(product)["flash_items"]
+        if not items:
+            return None
+        return min(item.flash_sale.end_time for item in items).isoformat()
+
+
 class SellerProductCreateSerializer(serializers.ModelSerializer):
     category_id = serializers.PrimaryKeyRelatedField(
         source="category",
@@ -259,6 +337,11 @@ class SellerProductVariantSerializer(serializers.ModelSerializer):
 
 
 class PublicProductVariantSerializer(serializers.ModelSerializer):
+    sale_price = serializers.SerializerMethodField()
+    regular_price = serializers.SerializerMethodField()
+    is_flash_sale = serializers.SerializerMethodField()
+    flash_sale_ends_at = serializers.SerializerMethodField()
+    remaining_flash_quota = serializers.SerializerMethodField()
     stock_quantity = serializers.IntegerField(source="available_stock", read_only=True)
     available_stock = serializers.IntegerField(read_only=True)
     attributes = VariantAttributeValueSerializer(
@@ -275,12 +358,33 @@ class PublicProductVariantSerializer(serializers.ModelSerializer):
             "name",
             "original_price",
             "sale_price",
+            "regular_price",
+            "is_flash_sale",
+            "flash_sale_ends_at",
+            "remaining_flash_quota",
             "stock_quantity",
             "available_stock",
             "weight_grams",
             "attributes",
         )
         read_only_fields = fields
+
+    def get_sale_price(self, variant: ProductVariant) -> str:
+        return str(_variant_price_data(variant)["price"])
+
+    def get_regular_price(self, variant: ProductVariant) -> str:
+        return str(variant.sale_price)
+
+    def get_is_flash_sale(self, variant: ProductVariant) -> bool:
+        return _active_flash_item(variant) is not None
+
+    def get_flash_sale_ends_at(self, variant: ProductVariant) -> str | None:
+        item = _active_flash_item(variant)
+        return item.flash_sale.end_time.isoformat() if item else None
+
+    def get_remaining_flash_quota(self, variant: ProductVariant) -> int | None:
+        item = _active_flash_item(variant)
+        return item.remaining_quota if item else None
 
 
 class CategorySummarySerializer(serializers.ModelSerializer):
@@ -413,7 +517,13 @@ class AdminProductRejectSerializer(serializers.Serializer):
     )
 
 
-class PublicProductListSerializer(serializers.ModelSerializer):
+class PublicProductListSerializer(PublicFlashSaleProductMixin, serializers.ModelSerializer):
+    min_price = serializers.SerializerMethodField()
+    max_price = serializers.SerializerMethodField()
+    regular_min_price = serializers.SerializerMethodField()
+    regular_max_price = serializers.SerializerMethodField()
+    is_flash_sale = serializers.SerializerMethodField()
+    flash_sale_ends_at = serializers.SerializerMethodField()
     thumbnail = serializers.SerializerMethodField()
     shop_name = serializers.CharField(source="shop.name", read_only=True)
     shop_slug = serializers.SlugField(source="shop.slug", read_only=True)
@@ -427,6 +537,10 @@ class PublicProductListSerializer(serializers.ModelSerializer):
             "thumbnail",
             "min_price",
             "max_price",
+            "regular_min_price",
+            "regular_max_price",
+            "is_flash_sale",
+            "flash_sale_ends_at",
             "rating_average",
             "rating_count",
             "sold_count",
@@ -467,9 +581,16 @@ class PublicShopSummarySerializer(serializers.Serializer):
 
 
 class PublicProductDetailSerializer(
+    PublicFlashSaleProductMixin,
     ProductAttributesMixin,
     serializers.ModelSerializer,
 ):
+    min_price = serializers.SerializerMethodField()
+    max_price = serializers.SerializerMethodField()
+    regular_min_price = serializers.SerializerMethodField()
+    regular_max_price = serializers.SerializerMethodField()
+    is_flash_sale = serializers.SerializerMethodField()
+    flash_sale_ends_at = serializers.SerializerMethodField()
     category = CategorySummarySerializer(read_only=True)
     brand = BrandSummarySerializer(read_only=True)
     shop = PublicShopSummarySerializer(read_only=True)
@@ -493,6 +614,10 @@ class PublicProductDetailSerializer(
             "attributes",
             "min_price",
             "max_price",
+            "regular_min_price",
+            "regular_max_price",
+            "is_flash_sale",
+            "flash_sale_ends_at",
             "rating_average",
             "rating_count",
             "sold_count",
