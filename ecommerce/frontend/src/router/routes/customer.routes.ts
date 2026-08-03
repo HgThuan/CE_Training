@@ -24,6 +24,18 @@ export const customerRoutes: RouteRecordRaw[] = [
         component: () => import('@/features/seller/pages/SellerApplicationPage.vue'),
         meta: { roles: ['customer'] },
       },
+      {
+        path: 'orders',
+        name: 'customer-orders',
+        component: () => import('@/features/order/pages/OrderListPage.vue'),
+        meta: { roles: ['customer'] },
+      },
+      {
+        path: 'orders/:orderId',
+        name: 'customer-order-detail',
+        component: () => import('@/features/order/pages/OrderDetailPage.vue'),
+        meta: { roles: ['customer'] },
+      },
     ],
   },
 ]

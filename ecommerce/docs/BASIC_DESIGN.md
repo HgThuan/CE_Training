@@ -1171,7 +1171,7 @@ Yêu cầu thiết kế:
 - mapping trạng thái provider sang trạng thái nội bộ;
 - log payload nhưng che dữ liệu nhạy cảm.
 
-**Provider sandbox chính:** TBD.
+**Provider sandbox chính:** VNPay sandbox; COD bắt buộc. Payment gắn với `Order` để một checkout chỉ tạo một giao dịch online.
 
 ### 17.2. AI Provider
 
@@ -1526,11 +1526,11 @@ Mã yêu cầu cụ thể cần được điền từ từng sheet của file đ
 | D-03 | Chart.js hay ApexCharts | TBD |
 | D-04 | AI provider mặc định | TBD |
 | D-05 | Embedding model tiếng Việt/đa ngôn ngữ | TBD |
-| D-06 | Cổng thanh toán sandbox ngoài COD | TBD |
-| D-07 | Voucher sàn và voucher shop có cộng dồn không | TBD |
-| D-08 | Trừ kho ngay khi tạo đơn hay giữ kho đến khi thanh toán | TBD |
-| D-09 | Thời gian hết hạn đơn chưa thanh toán | TBD |
-| D-10 | Hủy theo Order tổng hay từng ShopOrder | TBD |
+| D-06 | Cổng thanh toán sandbox ngoài COD | Chốt VNPay sandbox |
+| D-07 | Voucher sàn và voucher shop có cộng dồn không | Chốt tối đa 1 platform + 1 shop/ShopOrder |
+| D-08 | Trừ kho ngay khi tạo đơn hay giữ kho đến khi thanh toán | Chốt reserve lúc checkout, commit khi seller confirm |
+| D-09 | Thời gian hết hạn đơn chưa thanh toán | Chốt 15 phút |
+| D-10 | Hủy theo Order tổng hay từng ShopOrder | Chốt từng ShopOrder |
 | D-11 | Thay đổi sản phẩm đã duyệt có phải duyệt lại không | TBD |
 | D-12 | SLA API, số người dùng đồng thời và dung lượng mục tiêu | TBD |
 | D-13 | Object storage và email provider | TBD |

@@ -71,6 +71,11 @@ export const adminRoutes: RouteRecordRaw[] = [
         name: 'admin-flash-sales',
         component: () => import('@/features/promotion/views/admin/FlashSaleAdminList.vue'),
       },
+      {
+        path: 'orders',
+        name: 'admin-orders',
+        component: () => import('@/features/admin/order/AdminOrderPage.vue'),
+      },
     ],
   },
 ]

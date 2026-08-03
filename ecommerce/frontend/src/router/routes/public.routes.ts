@@ -51,6 +51,12 @@ export const publicRoutes: RouteRecordRaw[] = [
         component: () => import('@/features/cart/views/CartPage.vue'),
       },
       {
+        path: 'checkout',
+        name: 'checkout',
+        component: () => import('@/features/checkout/CheckoutPage.vue'),
+        meta: { requiresAuth: true, roles: ['customer'] },
+      },
+      {
         path: 'flash-sales',
         name: 'flash-sales',
         component: () => import('@/features/promotion/views/customer/FlashSaleListPage.vue'),
@@ -67,6 +73,12 @@ export const publicRoutes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, roles: ['customer'] },
       },
     ],
+  },
+  {
+    path: '/payment/return',
+    name: 'payment-return',
+    component: () => import('@/features/payment/PaymentReturnPage.vue'),
+    meta: { requiresAuth: true, roles: ['customer'] },
   },
   {
     path: '/auth/login',

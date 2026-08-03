@@ -1,5 +1,7 @@
 import uuid
 
+from .logging import request_context
+
 
 class RequestIdMiddleware:
     def __init__(self, get_response):
@@ -7,6 +9,20 @@ class RequestIdMiddleware:
 
     def __call__(self, request):
         request.request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
-        response = self.get_response(request)
-        response["X-Request-ID"] = request.request_id
-        return response
+        user = getattr(request, "user", None)
+        token = request_context.set(
+            {
+                "request_id": request.request_id,
+                "user_id": getattr(user, "pk", "-")
+                if getattr(user, "is_authenticated", False)
+                else "-",
+                "path": request.path,
+                "method": request.method,
+            }
+        )
+        try:
+            response = self.get_response(request)
+            response["X-Request-ID"] = request.request_id
+            return response
+        finally:
+            request_context.reset(token)

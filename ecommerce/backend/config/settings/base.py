@@ -48,6 +48,8 @@ INSTALLED_APPS = [
     "apps.ai.apps.AIConfig",
     "apps.cart.apps.CartConfig",
     "apps.promotion.apps.PromotionConfig",
+    "apps.order.apps.OrderConfig",
+    "apps.payment.apps.PaymentConfig",
 ]
 
 MIDDLEWARE = [
@@ -166,6 +168,7 @@ REST_FRAMEWORK = {
         "ai_authenticated": env("AI_AUTHENTICATED_RATE_LIMIT", default="30/minute"),
         "ai_search_anonymous": env("AI_ANONYMOUS_RATE_LIMIT", default="10/minute"),
         "ai_search_authenticated": env("AI_AUTHENTICATED_RATE_LIMIT", default="30/minute"),
+        "payment_callback": env("PAYMENT_CALLBACK_RATE_LIMIT", default="120/minute"),
     },
 }
 
@@ -217,17 +220,22 @@ CELERY_TASK_TIME_LIMIT = env.int("CELERY_TASK_TIME_LIMIT_SECONDS", default=300)
 CELERY_TASK_SOFT_TIME_LIMIT = env.int("CELERY_TASK_SOFT_TIME_LIMIT_SECONDS", default=270)
 CELERY_TIMEZONE = "UTC"
 CELERY_ENABLE_UTC = True
+CELERY_BEAT_SCHEDULE = {
+    "expire-pending-orders": {
+        "task": "apps.order.tasks.expire_pending_orders",
+        "schedule": 60.0,
+    },
+    "release-expired-stock-reservations": {
+        "task": "apps.order.tasks.release_expired_stock_reservations",
+        "schedule": 300.0,
+    },
+}
 
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "verbose": {
-            "format": (
-                "{levelname} {asctime} {name} request_id={request_id} user_id={user_id} {message}"
-            ),
-            "style": "{",
-        },
+        "json": {"()": "apps.common.logging.JsonFormatter"},
     },
     "filters": {
         "request_context": {"()": "apps.common.logging.RequestContextFilter"},
@@ -235,7 +243,7 @@ LOGGING = {
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "verbose",
+            "formatter": "json",
             "filters": ["request_context"],
         },
     },
@@ -274,3 +282,10 @@ GEMINI_EMBEDDING_BASE_URL = env(
     "GEMINI_EMBEDDING_BASE_URL",
     default="https://generativelanguage.googleapis.com/v1beta",
 )
+
+VNPAY_TMN_CODE = env("VNPAY_TMN_CODE", default="")
+VNPAY_HASH_SECRET = env("VNPAY_HASH_SECRET", default="")
+VNPAY_PAYMENT_URL = env(
+    "VNPAY_PAYMENT_URL", default="https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
+)
+VNPAY_RETURN_URL = env("VNPAY_RETURN_URL", default=f"{FRONTEND_URL.rstrip('/')}/payment/return")

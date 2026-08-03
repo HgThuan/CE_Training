@@ -631,6 +631,42 @@ class StockService:
 
     @staticmethod
     @transaction.atomic
+    def adjust_stock(*, variant, quantity, reference, user, note="") -> InventoryBalance:
+        """Restore committed stock through the inventory ledger (cancellation adjustment IN)."""
+        _validate_actor(user)
+        try:
+            adjustment = int(quantity)
+        except (TypeError, ValueError) as exc:
+            raise BusinessError("Số lượng điều chỉnh phải là số nguyên dương") from exc
+        if adjustment <= 0 or not str(reference).strip():
+            raise BusinessError("Số lượng và mã tham chiếu điều chỉnh không hợp lệ")
+        locked_variant = (
+            ProductVariant.objects.select_related("product", "shop")
+            .filter(pk=getattr(variant, "pk", variant), is_deleted=False)
+            .first()
+        )
+        if locked_variant is None:
+            raise BusinessError("Không tìm thấy biến thể", http_status=404)
+        balance = StockService._lock_balances([locked_variant])[str(locked_variant.pk)]
+        StockService._apply_delta(
+            balance=balance,
+            bucket=StockMovement.Bucket.AVAILABLE,
+            delta=adjustment,
+        )
+        StockService._append_movement(
+            balance=balance,
+            movement_type=StockMovement.MovementType.ADJUSTMENT,
+            bucket=StockMovement.Bucket.AVAILABLE,
+            quantity=adjustment,
+            reference_type=StockMovement.ReferenceType.ADJUSTMENT,
+            reference_id=str(reference),
+            user=user,
+            note=note or "Hoàn tồn do hủy đơn đã xác nhận",
+        )
+        return balance
+
+    @staticmethod
+    @transaction.atomic
     def _close_reservations(
         *,
         order_reference,
