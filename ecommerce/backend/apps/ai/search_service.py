@@ -12,6 +12,7 @@ from apps.product.models import Product
 from apps.product.selectors import ProductSelector, SearchSelector
 from apps.product.serializers import SearchFilterSerializer
 
+from .db_capabilities import product_embedding_table_available
 from .models import ProductEmbedding
 from .services import AIService
 
@@ -201,7 +202,11 @@ class AISearchService:
 
     @staticmethod
     def _supports_vector_search() -> bool:
-        return CosineDistance is not None and connections["default"].vendor == "postgresql"
+        return (
+            CosineDistance is not None
+            and connections["default"].vendor == "postgresql"
+            and product_embedding_table_available()
+        )
 
     @staticmethod
     def _postgres_semantic_candidates(

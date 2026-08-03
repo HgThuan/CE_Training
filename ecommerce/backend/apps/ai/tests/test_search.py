@@ -106,6 +106,14 @@ def test_global_kill_switch_cannot_be_overridden_by_database_flag():
     extract_intent.assert_not_called()
 
 
+def test_semantic_search_is_unavailable_when_embedding_table_is_missing():
+    with patch(
+        "apps.ai.search_service.product_embedding_table_available",
+        return_value=False,
+    ):
+        assert AISearchService._supports_vector_search() is False
+
+
 @pytest.mark.django_db
 @override_settings(AI_FEATURES_ENABLED=True)
 def test_semantic_search_rejects_non_finite_query_vector_before_database_query():

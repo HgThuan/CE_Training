@@ -7,6 +7,7 @@ from django.test import override_settings
 from apps.ai.embedding_service import EmbeddingService
 from apps.ai.models import EMBEDDING_DIMENSIONS, ProductEmbedding
 from apps.ai.services import AIService, EmbeddingResult
+from apps.ai.signals import _delete_product_embeddings
 from apps.ai.tasks import index_product_embedding, reindex_all_products
 from apps.catalog.tests.factories import BrandFactory, CategoryFactory
 from apps.product.models import Product, ProductAttributeValue
@@ -147,6 +148,16 @@ def test_queued_task_does_not_call_provider_after_feature_is_disabled():
     assert result["status"] == "disabled"
     assert bulk_result == {"status": "disabled", "enqueued": 0}
     get_embedding.assert_not_called()
+
+
+def test_embedding_cleanup_is_safe_before_optional_ai_schema_is_migrated():
+    with (
+        patch("apps.ai.signals.product_embedding_table_available", return_value=False),
+        patch("apps.ai.signals.ProductEmbedding.objects.filter") as embedding_filter,
+    ):
+        _delete_product_embeddings("00000000-0000-4000-8000-000000000001")
+
+    embedding_filter.assert_not_called()
 
 
 @pytest.mark.django_db

@@ -16,6 +16,7 @@ from apps.product.models import (
 )
 from apps.product.selectors import ProductSelector
 
+from .db_capabilities import product_embedding_table_available
 from .models import ProductEmbedding
 from .search_service import AI_SEARCH_FEATURE_KEY
 from .services import AIService
@@ -27,6 +28,8 @@ _PREVIOUS_PRODUCT_ID_ATTRIBUTE = "_ai_embedding_previous_product_id"
 
 
 def _delete_product_embeddings(product_id) -> None:
+    if not product_embedding_table_available():
+        return
     ProductEmbedding.objects.filter(product_id=product_id).delete()
 
 

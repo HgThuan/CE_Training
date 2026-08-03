@@ -85,6 +85,15 @@ def test_similar_fallback_uses_deterministic_tiers_and_never_returns_anchor():
     assert outcome.personalized is False
 
 
+@override_settings(AI_FEATURES_ENABLED=True)
+def test_recommendations_disable_vectors_when_embedding_table_is_missing():
+    with patch(
+        "apps.ai.recommendation_service.product_embedding_table_available",
+        return_value=False,
+    ):
+        assert RecommendationService.is_vector_enabled() is False
+
+
 @pytest.mark.django_db
 def test_customer_wishlist_is_owner_scoped_and_excluded_from_results():
     category_a = CategoryFactory()

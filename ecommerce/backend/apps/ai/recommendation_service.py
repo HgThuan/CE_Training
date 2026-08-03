@@ -20,6 +20,7 @@ from apps.engagement.models import WishlistItem
 from apps.product.models import Product
 from apps.product.selectors import ProductSelector, SearchSelector
 
+from .db_capabilities import product_embedding_table_available
 from .models import ProductEmbedding
 
 try:
@@ -86,6 +87,8 @@ class RecommendationService:
         if not settings.AI_FEATURES_ENABLED:
             return False
         if CosineDistance is None or connections["default"].vendor != "postgresql":
+            return False
+        if not product_embedding_table_available():
             return False
         try:
             return SiteSetting.get_bool(
