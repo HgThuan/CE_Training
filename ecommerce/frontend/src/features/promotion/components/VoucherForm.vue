@@ -28,7 +28,7 @@ const form = reactive({
   code: '',
   name: '',
   description: '',
-  discount_type: 'percentage' as VoucherPayload['discount_type'],
+  discount_type: 'percent' as VoucherPayload['discount_type'],
   discount_value: 10,
   max_discount_amount: 50000 as number | null,
   min_order_amount: 0,
@@ -37,6 +37,8 @@ const form = reactive({
   valid_from: localDate(new Date().toISOString()),
   valid_until: localDate(new Date(Date.now() + 7 * 86400000).toISOString()),
   applicable_category: null as string | null,
+  collect_type: 'manual' as VoucherPayload['collect_type'],
+  stackable_with: [props.scope === 'platform' ? 'shop' : 'platform'] as VoucherScope[],
   is_active: true,
 })
 
@@ -58,6 +60,8 @@ watch(
       valid_from: localDate(voucher.valid_from),
       valid_until: localDate(voucher.valid_until),
       applicable_category: voucher.applicable_category,
+      collect_type: voucher.collect_type,
+      stackable_with: voucher.stackable_with,
       is_active: voucher.is_active,
     })
   },
@@ -70,7 +74,7 @@ function validate(): boolean {
   if (!form.name.trim()) fieldErrors.value.name = 'Tên chương trình là bắt buộc'
   if (form.discount_value <= 0) fieldErrors.value.discount_value = 'Giá trị giảm phải lớn hơn 0'
   if (
-    form.discount_type === 'percentage' &&
+    form.discount_type === 'percent' &&
     (!form.max_discount_amount || form.max_discount_amount <= 0)
   ) {
     fieldErrors.value.max_discount_amount = 'Voucher phần trăm cần mức giảm tối đa'
@@ -88,7 +92,7 @@ function submit(): void {
     ...form,
     code: form.code.trim().toUpperCase(),
     name: form.name.trim(),
-    max_discount_amount: form.discount_type === 'percentage' ? form.max_discount_amount : null,
+    max_discount_amount: form.discount_type === 'percent' ? form.max_discount_amount : null,
     valid_from: new Date(form.valid_from).toISOString(),
     valid_until: new Date(form.valid_until).toISOString(),
     applicable_category: props.scope === 'platform' ? form.applicable_category || null : null,
@@ -149,8 +153,9 @@ defineExpose({ showServerError })
       <label class="text-sm font-bold"
         >Loại giảm
         <select v-model="form.discount_type" class="mt-1 w-full rounded-xl border px-3 py-2">
-          <option value="percentage">Phần trăm</option>
-          <option value="fixed_amount">Số tiền</option>
+          <option value="percent">Phần trăm</option>
+          <option value="fixed">Số tiền</option>
+          <option value="freeship">Miễn phí vận chuyển</option>
         </select>
       </label>
       <label class="text-sm font-bold"
@@ -165,7 +170,7 @@ defineExpose({ showServerError })
           fieldErrors.discount_value
         }}</span>
       </label>
-      <label v-if="form.discount_type === 'percentage'" class="text-sm font-bold"
+      <label v-if="form.discount_type === 'percent'" class="text-sm font-bold"
         >Giảm tối đa
         <input
           v-model.number="form.max_discount_amount"
@@ -176,6 +181,27 @@ defineExpose({ showServerError })
         <span v-if="fieldErrors.max_discount_amount" class="mt-1 block text-xs text-rose-600">{{
           fieldErrors.max_discount_amount
         }}</span>
+      </label>
+    </div>
+    <div class="grid gap-4 sm:grid-cols-2">
+      <label class="text-sm font-bold"
+        >Cách phát hành
+        <select v-model="form.collect_type" class="mt-1 w-full rounded-xl border px-3 py-2">
+          <option value="manual">Người dùng bấm Lưu</option>
+          <option value="auto">Tự động cấp ở checkout</option>
+        </select>
+      </label>
+      <label class="flex items-center gap-2 self-end pb-2 text-sm font-bold">
+        <input
+          type="checkbox"
+          :checked="form.stackable_with.includes(scope === 'platform' ? 'shop' : 'platform')"
+          @change="
+            form.stackable_with = ($event.target as HTMLInputElement).checked
+              ? [scope === 'platform' ? 'shop' : 'platform']
+              : []
+          "
+        />
+        Cho cộng dồn với voucher {{ scope === 'platform' ? 'shop' : 'sàn' }}
       </label>
     </div>
     <div class="grid gap-4 sm:grid-cols-3">

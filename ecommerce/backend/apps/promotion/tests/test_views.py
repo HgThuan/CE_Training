@@ -6,6 +6,9 @@ from rest_framework.test import APIClient
 
 from apps.account.models import CustomerProfile
 from apps.account.tests.factories import ShopFactory, UserFactory
+from apps.inventory.tests.factories import InventoryBalanceFactory
+from apps.product.models import Product
+from apps.product.tests.factories import ProductVariantFactory
 from apps.promotion.models import FlashSale, Voucher
 
 
@@ -87,6 +90,43 @@ def test_active_flash_sales_is_public_and_paginated():
     assert response.status_code == 200
     assert response.data["success"] is True
     assert response.data["meta"]["total_items"] == 1
+
+
+@pytest.mark.django_db
+def test_admin_flash_sale_catalog_is_readable_and_filterable():
+    admin = UserFactory(role="admin", is_staff=True)
+    variant = ProductVariantFactory(
+        product__name="Chuột không dây",
+        product__status=Product.Status.APPROVED,
+        stock_quantity=0,
+    )
+    InventoryBalanceFactory(variant=variant, available_stock=7)
+    hidden = ProductVariantFactory(product__status=Product.Status.DRAFT, stock_quantity=4)
+    client = APIClient()
+    client.force_authenticate(user=admin)
+
+    response = client.get(
+        "/api/v1/admin/flash-sales/catalog",
+        {"search": "Chuột", "category_id": str(variant.product.category_id)},
+    )
+
+    assert response.status_code == 200
+    assert response.data["meta"]["total_items"] == 1
+    assert response.data["data"][0] == {
+        "id": str(variant.pk),
+        "sku": variant.sku,
+        "name": variant.name,
+        "sale_price": "90000",
+        "available_stock": 7,
+        "product_id": str(variant.product_id),
+        "product_name": "Chuột không dây",
+        "category_id": str(variant.product.category_id),
+        "category_name": variant.product.category.name,
+        "shop_id": variant.shop_id,
+        "shop_name": variant.shop.name,
+        "primary_image": None,
+    }
+    assert hidden.pk != variant.pk
 
 
 @pytest.mark.django_db

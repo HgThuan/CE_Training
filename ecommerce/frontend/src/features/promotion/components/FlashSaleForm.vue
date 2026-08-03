@@ -42,6 +42,19 @@ function submit(): void {
     form.items.some((item) => !item.variant || Number(item.sale_price) < 0 || item.quota < 1)
   )
     error.value = 'Thông tin sản phẩm Flash Sale chưa hợp lệ'
+  else if (
+    form.items.some(
+      (item) => item.available_stock !== undefined && item.quota > item.available_stock,
+    )
+  )
+    error.value = 'Số lượng Flash Sale không được vượt quá tồn kho hiện có'
+  else if (
+    form.items.some(
+      (item) =>
+        item.original_price !== undefined && Number(item.sale_price) > Number(item.original_price),
+    )
+  )
+    error.value = 'Giá Flash Sale không được cao hơn giá bán hiện tại'
   if (error.value) return
   emit('submit', {
     name: form.name.trim(),

@@ -12,6 +12,9 @@ import { useRoute, useRouter } from 'vue-router'
 import FormMessage from '@/features/auth/components/FormMessage.vue'
 import { getErrorMessage } from '@/features/auth/errors'
 import ProductCard from '@/features/product/components/ProductCard.vue'
+import VoucherCard from '@/features/promotion/components/VoucherCard.vue'
+import { promotionApi } from '@/features/promotion/api'
+import type { Voucher } from '@/features/promotion/types'
 import type { PaginationMeta } from '@/shared/types/api'
 import { useAuthStore } from '@/stores/auth'
 
@@ -32,6 +35,8 @@ const loading = ref(true)
 const following = ref(false)
 const errorMessage = ref('')
 const followMessage = ref('')
+const shopVouchers = ref<Voucher[]>([])
+const voucherNotice = ref('')
 let requestSequence = 0
 
 const page = computed(() => Math.max(Number(route.query.page) || 1, 1))
@@ -44,6 +49,14 @@ const sort = computed<PublicShopSort>(() => {
 const followDisabled = computed(
   () => following.value || Boolean(authStore.user && authStore.user.role !== 'customer'),
 )
+
+async function loadShopVouchers(shopId: number): Promise<void> {
+  try {
+    shopVouchers.value = (await promotionApi.shopVouchers(shopId)).data.data
+  } catch {
+    shopVouchers.value = []
+  }
+}
 
 async function loadShop(): Promise<void> {
   const sequence = ++requestSequence
@@ -59,6 +72,7 @@ async function loadShop(): Promise<void> {
     )
     if (sequence !== requestSequence) return
     data.value = response.data.data
+    void loadShopVouchers(data.value.shop.id)
     meta.value =
       response.data.meta ??
       ({
@@ -74,6 +88,21 @@ async function loadShop(): Promise<void> {
     }
   } finally {
     if (sequence === requestSequence) loading.value = false
+  }
+}
+
+async function collectVoucher(voucher: Voucher): Promise<void> {
+  if (!authStore.isAuthenticated) {
+    await router.push({ name: 'login', query: { redirect: route.fullPath } })
+    return
+  }
+  voucher.is_collected = true
+  try {
+    await promotionApi.collectVoucher(voucher.id, crypto.randomUUID())
+    voucherNotice.value = `Đã lưu ${voucher.code}.`
+  } catch {
+    voucher.is_collected = false
+    voucherNotice.value = 'Không thể lưu voucher này.'
   }
 }
 
@@ -230,6 +259,28 @@ onBeforeUnmount(() => {
             </button>
           </div>
           <p class="sr-only" aria-live="polite">{{ followMessage }}</p>
+        </section>
+
+        <section v-if="shopVouchers.length" class="mt-8">
+          <div class="flex items-center justify-between">
+            <h2 class="text-xl font-black">Voucher của shop</h2>
+            <RouterLink class="text-sm font-bold text-indigo-600" to="/voucher-center">
+              Xem tất cả
+            </RouterLink>
+          </div>
+          <p v-if="voucherNotice" class="mt-2 text-sm font-bold text-emerald-700">
+            {{ voucherNotice }}
+          </p>
+          <div class="mt-3 grid gap-3 md:grid-cols-2">
+            <VoucherCard
+              v-for="voucher in shopVouchers.slice(0, 4)"
+              :key="voucher.id"
+              :voucher="voucher"
+              :collected="voucher.is_collected"
+              compact
+              @collect="collectVoucher"
+            />
+          </div>
         </section>
 
         <section class="mt-10">

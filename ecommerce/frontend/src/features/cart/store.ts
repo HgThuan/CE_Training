@@ -4,6 +4,8 @@ import { computed, ref } from 'vue'
 
 import { productApi } from '@/features/product/api'
 import type { PublicProductDetail } from '@/features/product/types'
+import { promotionApi } from '@/features/promotion/api'
+import type { CheckoutVoucher } from '@/features/promotion/types'
 import { useAuthStore } from '@/stores/auth'
 
 import { cartApi } from './api'
@@ -111,6 +113,9 @@ export const useCartStore = defineStore('cart', () => {
   const mergeWarning = ref('')
   const platformVoucher = ref('')
   const shopVouchers = ref<Record<string, string>>({})
+  const availableVouchers = ref<CheckoutVoucher[]>([])
+  const selectedUserVoucherIds = ref<string[]>([])
+  const checkoutToken = ref<string>()
 
   const isAuthenticatedCustomer = computed(
     () => authStore.isAuthenticated && authStore.user?.role === 'customer',
@@ -198,6 +203,7 @@ export const useCartStore = defineStore('cart', () => {
     try {
       if (isAuthenticatedCustomer.value) {
         cart.value = (await cartApi.getCart()).data.data
+        await loadAvailableVouchers()
       } else {
         await loadGuestCart()
       }
@@ -239,6 +245,7 @@ export const useCartStore = defineStore('cart', () => {
     }
     try {
       cart.value = (await cartApi.updateItem(item.id, payload)).data.data
+      await applyOwnedVouchers()
     } catch (caught) {
       error.value = errorMessage(caught)
       throw caught
@@ -252,6 +259,7 @@ export const useCartStore = defineStore('cart', () => {
       return
     }
     cart.value = (await cartApi.removeItem(item.id)).data.data
+    await applyOwnedVouchers()
   }
 
   function previewPayload(): CartPreviewPayload {
@@ -287,6 +295,72 @@ export const useCartStore = defineStore('cart', () => {
     }
   }
 
+  async function loadAvailableVouchers(): Promise<void> {
+    if (!isAuthenticatedCustomer.value) return
+    previewError.value = ''
+    try {
+      const data = (
+        await promotionApi.checkoutVouchers(selectedValidItems.value.map((item) => item.id))
+      ).data.data
+      availableVouchers.value = data.results
+      selectedUserVoucherIds.value = data.best_voucher_id ? [data.best_voucher_id] : []
+      if (selectedUserVoucherIds.value.length) await applyOwnedVouchers()
+    } catch (caught) {
+      previewError.value = errorMessage(caught)
+    }
+  }
+
+  async function applyOwnedVouchers(): Promise<void> {
+    previewing.value = true
+    previewError.value = ''
+    try {
+      const response = await promotionApi.applyOwnedVouchers({
+        user_voucher_ids: selectedUserVoucherIds.value,
+        selected_item_ids: selectedValidItems.value.map((item) => item.id),
+        checkout_token: checkoutToken.value,
+      })
+      preview.value = response.data.data
+      checkoutToken.value = response.data.data.checkout_token
+    } catch (caught) {
+      previewError.value = errorMessage(caught)
+      throw caught
+    } finally {
+      previewing.value = false
+    }
+  }
+
+  async function toggleOwnedVoucher(id: string, selected: boolean): Promise<void> {
+    const previous = [...selectedUserVoucherIds.value]
+    selectedUserVoucherIds.value = selected
+      ? [...selectedUserVoucherIds.value, id]
+      : selectedUserVoucherIds.value.filter((value) => value !== id)
+    try {
+      await applyOwnedVouchers()
+    } catch {
+      selectedUserVoucherIds.value = previous
+    }
+  }
+
+  async function applyVoucherByCode(code: string): Promise<void> {
+    previewing.value = true
+    previewError.value = ''
+    try {
+      const response = await promotionApi.applyVoucherByCode({
+        code,
+        idempotency_key: crypto.randomUUID(),
+        selected_item_ids: selectedValidItems.value.map((item) => item.id),
+        checkout_token: checkoutToken.value,
+      })
+      preview.value = response.data.data
+      checkoutToken.value = response.data.data.checkout_token
+      await loadAvailableVouchers()
+    } catch (caught) {
+      previewError.value = errorMessage(caught)
+    } finally {
+      previewing.value = false
+    }
+  }
+
   async function mergeGuestCart(): Promise<boolean> {
     const items = readGuestCart()
     if (!items.length || authStore.user?.role !== 'customer') return true
@@ -312,6 +386,8 @@ export const useCartStore = defineStore('cart', () => {
     mergeWarning,
     platformVoucher,
     shopVouchers,
+    availableVouchers,
+    selectedUserVoucherIds,
     isAuthenticatedCustomer,
     selectedValidItems,
     selectedTotal,
@@ -320,6 +396,10 @@ export const useCartStore = defineStore('cart', () => {
     updateItem,
     removeItem,
     calculatePreview,
+    loadAvailableVouchers,
+    toggleOwnedVoucher,
+    applyOwnedVouchers,
+    applyVoucherByCode,
     mergeGuestCart,
   }
 })

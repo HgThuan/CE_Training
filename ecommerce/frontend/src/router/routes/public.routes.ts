@@ -55,6 +55,17 @@ export const publicRoutes: RouteRecordRaw[] = [
         name: 'flash-sales',
         component: () => import('@/features/promotion/views/customer/FlashSaleListPage.vue'),
       },
+      {
+        path: 'voucher-center',
+        name: 'voucher-center',
+        component: () => import('@/features/promotion/views/customer/VoucherCenterPage.vue'),
+      },
+      {
+        path: 'me/vouchers',
+        name: 'my-vouchers',
+        component: () => import('@/features/promotion/views/customer/MyVouchersPage.vue'),
+        meta: { requiresAuth: true, roles: ['customer'] },
+      },
     ],
   },
   {

@@ -35,7 +35,7 @@ function status(voucher: Voucher): string {
           </td>
           <td class="px-5 py-4 font-bold">
             {{
-              voucher.discount_type === 'percentage'
+              ['percent', 'percentage'].includes(voucher.discount_type)
                 ? `${voucher.discount_value}%`
                 : formatVnd(voucher.discount_value)
             }}

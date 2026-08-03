@@ -1,45 +1,40 @@
-# Promotion module — Sprint 06 (ADM-19, ADM-20, SEL-12)
+# Promotion — campaign → collect → apply
 
-## Decisions
+Voucher codes are a secondary/private-code entry point. The normal lifecycle is:
 
-1. The domain names are `Voucher` and `VoucherUsage`.
-2. Each simulated shop order accepts at most one platform voucher and one voucher
-   owned by that shop. The limits are named constants in `services.py`.
-3. Flash Sale activity is evaluated from database timestamps when queried. This
-   avoids a scheduler and still restores the ordinary price immediately outside
-   the active window.
-4. An active Flash Sale price becomes the item base price; vouchers are applied
-   afterward.
+1. Admin or Seller publishes a `voucher_campaign`.
+2. Customer collects it atomically into `user_voucher`.
+3. Checkout lists owned vouchers with eligibility reasons and a best-voucher suggestion.
+4. Apply changes ownership to `pending_use` for 15 minutes.
+5. The future Order transaction calls `UserVoucherService.mark_used`; cancellation or
+   payment failure calls `UserVoucherService.rollback`.
 
-Bundle/combo, add-on deals, and WebSocket Flash Sale updates are intentionally
-outside this module and Sprint 06.
+The repository does not yet contain an Order/Payment aggregate, so this module does
+not create a fake order or payment endpoint. The two lifecycle hooks above are the
+integration boundary for that sprint.
 
-## Services and concurrency
+## Concurrency and audit
 
-- `VoucherService.validate_and_apply(..., commit=False)` is a dry-run.
-- With `commit=True`, it locks the voucher row and creates a unique
-  `VoucherUsage` using the checkout `order_reference`.
-- `FlashSaleService.reserve_flash_sale_quota` locks the sale item and updates
-  `sold_count` with an `F()` expression.
-- `PromotionCalculationService.calculate` is side-effect-free and returns a
-  per-shop breakdown.
+- Collect locks the campaign row with `SELECT ... FOR UPDATE`, checks per-user and
+  remaining limits, decrements `remaining_quantity`, and creates ownership in one
+  transaction.
+- `Idempotency-Key` is unique per customer, so retries cannot issue twice.
+- Apply locks ownership rows; a voucher cannot be held by another checkout token.
+- `VoucherEvent` records collect, apply, use, rollback, and expire operations.
+- Run `python manage.py expire_vouchers` from cron to expire saved vouchers and
+  release abandoned pending locks.
 
-Concurrency tests use `TransactionTestCase` and real threads on PostgreSQL.
-They are skipped on SQLite because SQLite does not implement the required
-row-lock semantics.
+## Customer API
 
-## API
-
-| Method | Path | Role |
+| Method | Path | Purpose |
 |---|---|---|
-| GET/POST | `/api/v1/admin/vouchers` | Admin, platform vouchers |
-| GET/PATCH/DELETE | `/api/v1/admin/vouchers/{id}` | Admin |
-| GET/POST | `/api/v1/seller/vouchers` | Seller, own shop |
-| GET/PATCH/DELETE | `/api/v1/seller/vouchers/{id}` | Seller, own shop |
-| GET | `/api/v1/customer/vouchers/available` | Customer |
-| GET/POST | `/api/v1/admin/flash-sales` | Admin |
-| GET/PATCH/DELETE | `/api/v1/admin/flash-sales/{id}` | Admin |
-| GET | `/api/v1/flash-sales/active` | Public |
+| GET | `/api/v1/voucher-center` | Collectable campaigns |
+| POST | `/api/v1/vouchers/{campaignId}/collect` | Atomic/idempotent collect |
+| GET | `/api/v1/me/vouchers?status=saved` | Owned voucher wallet/history |
+| GET | `/api/v1/checkout/available-vouchers` | Eligibility and best voucher |
+| POST | `/api/v1/checkout/apply-voucher` | Reprice and lock owned vouchers |
+| POST | `/api/v1/checkout/apply-voucher-by-code` | Secondary private-code flow |
+| GET | `/api/v1/shops/{shopId}/vouchers` | Public shop voucher badges |
 
-All list endpoints use the project `StandardPagination` response and use
-`select_related`/`prefetch_related` for related display data.
+Flash Sale remains side-effect-free during preview. Inventory, Flash Sale quota,
+voucher use, and order creation must later commit in one Order transaction.

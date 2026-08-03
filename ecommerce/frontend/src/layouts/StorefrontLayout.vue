@@ -83,6 +83,12 @@ async function logout(): Promise<void> {
             Giỏ hàng
           </RouterLink>
           <RouterLink
+            class="rounded-xl px-3 py-2 text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
+            to="/voucher-center"
+          >
+            Voucher
+          </RouterLink>
+          <RouterLink
             v-if="authStore.user?.role === 'customer'"
             class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-rose-700"
             to="/wishlist"
@@ -150,6 +156,9 @@ async function logout(): Promise<void> {
           </RouterLink>
           <RouterLink class="rounded-xl px-4 py-3 hover:bg-slate-100" to="/cart">
             Giỏ hàng
+          </RouterLink>
+          <RouterLink class="rounded-xl px-4 py-3 hover:bg-slate-100" to="/voucher-center">
+            Trung tâm Voucher
           </RouterLink>
           <RouterLink
             v-if="authStore.user?.role === 'customer'"

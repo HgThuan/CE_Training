@@ -212,6 +212,36 @@ def test_flash_sale_reservation_rejects_oversell(promotion_context):
         FlashSaleService.reserve_flash_sale_quota(item, 1)
 
 
+@pytest.mark.django_db
+def test_successful_purchase_consumes_flash_quota_by_variant(promotion_context):
+    variant = promotion_context["variant"]
+    sale = FlashSale.objects.create(
+        name="Any entry point",
+        start_time=timezone.now() - timezone.timedelta(minutes=1),
+        end_time=timezone.now() + timezone.timedelta(hours=1),
+    )
+    item = FlashSaleItem.objects.create(
+        flash_sale=sale,
+        variant=variant,
+        sale_price=Decimal("150000"),
+        quota=3,
+    )
+
+    consumed = FlashSaleService.commit_successful_purchase(
+        [{"variant_id": variant.pk, "quantity": 2}]
+    )
+
+    item.refresh_from_db()
+    assert [entry.pk for entry in consumed] == [item.pk]
+    assert item.sold_count == 2
+    with pytest.raises(BusinessError, match="chỉ còn 1"):
+        FlashSaleService.commit_successful_purchase(
+            [{"variant_id": variant.pk, "quantity": 2}]
+        )
+    item.refresh_from_db()
+    assert item.sold_count == 2
+
+
 @pytest.mark.skipif(
     connection.vendor != "postgresql",
     reason="Row-lock concurrency contract requires PostgreSQL",

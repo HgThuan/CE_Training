@@ -1,5 +1,5 @@
 export type VoucherScope = 'platform' | 'shop'
-export type DiscountType = 'percentage' | 'fixed_amount'
+export type DiscountType = 'percent' | 'fixed' | 'freeship' | 'percentage' | 'fixed_amount'
 
 export interface Voucher {
   id: string
@@ -23,6 +23,20 @@ export interface Voucher {
   is_valid_now: boolean
   created_at: string
   updated_at: string
+  issuer_type: VoucherScope
+  issuer_id: number | null
+  value: string
+  min_order_value: string
+  total_quantity: number | null
+  remaining_quantity: number | null
+  per_user_limit: number
+  start_time: string
+  end_time: string
+  collect_type: 'manual' | 'auto'
+  stackable_with: VoucherScope[]
+  applicable_scope: { shop_ids?: number[]; category_ids?: string[] } | null
+  issued_quantity: number | null
+  is_collected?: boolean
 }
 
 export interface VoucherPayload {
@@ -38,6 +52,8 @@ export interface VoucherPayload {
   valid_from: string
   valid_until: string
   applicable_category?: string | null
+  collect_type: 'manual' | 'auto'
+  stackable_with: VoucherScope[]
   is_active: boolean
 }
 
@@ -56,6 +72,24 @@ export interface FlashSaleItem {
   quota: number
   sold_count: number
   remaining_quota?: number
+  category_id?: string
+  category_name?: string
+  available_stock?: number
+}
+
+export interface FlashSaleCatalogVariant {
+  id: string
+  sku: string
+  name: string | null
+  sale_price: string
+  available_stock: number
+  product_id: string
+  product_name: string
+  category_id: string
+  category_name: string
+  shop_id: number
+  shop_name: string
+  primary_image: string | null
 }
 
 export interface FlashSale {
@@ -76,4 +110,28 @@ export interface FlashSalePayload {
   end_time: string
   is_active: boolean
   items: Array<Pick<FlashSaleItem, 'variant' | 'sale_price' | 'quota'>>
+}
+
+export type UserVoucherStatus = 'saved' | 'pending_use' | 'used' | 'expired'
+
+export interface UserVoucher {
+  id: string
+  campaign: Voucher
+  status: UserVoucherStatus
+  claimed_at: string
+  used_at: string | null
+  order_id: string | null
+  checkout_token: string | null
+  pending_expires_at: string | null
+}
+
+export interface CheckoutVoucher extends UserVoucher {
+  is_eligible: boolean
+  reason: string
+  estimated_discount: string
+}
+
+export interface CheckoutVoucherList {
+  results: CheckoutVoucher[]
+  best_voucher_id: string | null
 }

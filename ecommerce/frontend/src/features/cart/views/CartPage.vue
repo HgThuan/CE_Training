@@ -6,7 +6,7 @@ import { useCartStore } from '../store'
 import type { CartItem } from '../types'
 import CartShopGroup from '../components/CartShopGroup.vue'
 import CartSummaryBar from '../components/CartSummaryBar.vue'
-import VoucherInput from '../components/VoucherInput.vue'
+import OwnedVoucherPicker from '../components/OwnedVoucherPicker.vue'
 
 const store = useCartStore()
 
@@ -43,7 +43,7 @@ onMounted(() => void store.load())
     </div>
 
     <section
-      v-else-if="store.error"
+      v-else-if="store.error && !store.cart"
       class="rounded-3xl border border-rose-200 bg-rose-50 p-8 text-center"
     >
       <p class="font-bold text-rose-800">{{ store.error }}</p>
@@ -94,23 +94,23 @@ onMounted(() => void store.load())
       </div>
 
       <div class="space-y-5">
-        <VoucherInput
+        <OwnedVoucherPicker
           v-if="store.isAuthenticatedCustomer"
-          :platform-code="store.platformVoucher"
-          :shop-codes="store.shopVouchers"
-          :shops="store.cart.shops"
+          :vouchers="store.availableVouchers"
+          :selected-ids="store.selectedUserVoucherIds"
           :loading="store.previewing"
           :error="store.previewError"
-          @update:platform-code="store.platformVoucher = $event"
-          @update:shop-code="(shopId, value) => (store.shopVouchers[shopId] = value)"
-          @apply="store.calculatePreview"
+          @toggle="store.toggleOwnedVoucher"
+          @code="store.applyVoucherByCode"
         />
         <CartSummaryBar
           :selected-count="store.selectedValidItems.length"
           :selected-total="store.selectedTotal"
           :preview="store.preview"
           :disabled="store.selectedValidItems.length === 0"
-          @preview="store.calculatePreview"
+          @preview="
+            store.isAuthenticatedCustomer ? store.applyOwnedVouchers() : store.calculatePreview()
+          "
         />
       </div>
     </div>
