@@ -30,8 +30,11 @@ const emit = defineEmits<{ preview: [] }>()
         :disabled="disabled"
         @click="emit('preview')"
       >
-        Xem trước giá
+        Xem trước đơn hàng
       </button>
     </div>
+    <p class="mt-3 text-xs text-slate-400">
+      Bước này chỉ xác nhận sản phẩm, tồn kho, voucher và giá tạm tính; chưa thực hiện thanh toán.
+    </p>
   </aside>
 </template>

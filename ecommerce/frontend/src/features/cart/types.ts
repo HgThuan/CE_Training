@@ -11,6 +11,10 @@ export interface CartItem {
   is_selected: boolean
   unit_price_snapshot: string
   current_price: string
+  regular_price?: string
+  is_flash_sale?: boolean
+  flash_sale_ends_at?: string | null
+  remaining_flash_quota?: number | null
   line_total: string
   available_stock: number
   price_changed: boolean

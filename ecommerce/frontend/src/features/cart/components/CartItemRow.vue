@@ -69,6 +69,15 @@ onBeforeUnmount(() => {
       </p>
       <div class="mt-2 flex flex-wrap items-center gap-2">
         <strong class="text-indigo-700">{{ formatVnd(item.current_price) }}</strong>
+        <span v-if="item.is_flash_sale" class="text-xs text-slate-400 line-through">
+          {{ formatVnd(item.regular_price) }}
+        </span>
+        <span
+          v-if="item.is_flash_sale"
+          class="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-black text-rose-700"
+        >
+          FLASH SALE · còn {{ item.remaining_flash_quota }}
+        </span>
         <template v-if="item.price_changed">
           <span class="text-xs text-slate-400 line-through">
             {{ formatVnd(item.unit_price_snapshot) }}

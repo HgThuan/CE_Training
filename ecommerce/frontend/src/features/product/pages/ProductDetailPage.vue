@@ -10,7 +10,7 @@ import {
   TruckIcon,
 } from '@heroicons/vue/24/outline'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import FormMessage from '@/features/auth/components/FormMessage.vue'
 import { useCartStore } from '@/features/cart/store'
@@ -30,6 +30,7 @@ import { useProductStore } from '../store'
 import type { ProductVariant, PublicProductListItem } from '../types'
 
 const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 const cartStore = useCartStore()
 const productStore = useProductStore()
@@ -59,15 +60,24 @@ const displayPrice = computed(() => {
   if (product.value.min_price === product.value.max_price) return formatVnd(product.value.min_price)
   return `${formatVnd(product.value.min_price)} – ${formatVnd(product.value.max_price)}`
 })
+const displayRegularPrice = computed(() => {
+  if (selectedVariant.value?.is_flash_sale)
+    return formatVnd(selectedVariant.value.regular_price ?? selectedVariant.value.sale_price)
+  if (!selectedVariant.value && product.value?.is_flash_sale)
+    return formatVnd(product.value.regular_min_price)
+  return ''
+})
+const maximumQuantity = computed(() => {
+  const stock = selectedVariant.value?.available_stock ?? 0
+  const flashQuota = selectedVariant.value?.remaining_flash_quota
+  return Math.min(99, stock, flashQuota ?? stock)
+})
 const canAdd = computed(
-  () =>
-    Boolean(product.value && selectedVariant.value) &&
-    quantity.value <= (selectedVariant.value?.available_stock ?? 0),
+  () => Boolean(product.value && selectedVariant.value) && quantity.value <= maximumQuantity.value,
 )
 
 function updateQuantity(amount: number): void {
-  const maximum = Math.min(99, selectedVariant.value?.available_stock ?? 99)
-  quantity.value = Math.min(maximum, Math.max(1, quantity.value + amount))
+  quantity.value = Math.min(maximumQuantity.value, Math.max(1, quantity.value + amount))
 }
 
 function handleVariantChange(variant: ProductVariant | null): void {
@@ -89,7 +99,8 @@ async function prepareCart(action: 'cart' | 'buy'): Promise<void> {
     cartNotice.value =
       action === 'cart'
         ? `Đã thêm ${quantity.value} sản phẩm vào giỏ.`
-        : 'Đã thêm sản phẩm. Mở giỏ để xem giá tạm tính.'
+        : 'Đã thêm sản phẩm. Đang mở giỏ hàng...'
+    if (action === 'buy') await router.push({ name: 'cart' })
   } catch {
     cartNotice.value = cartStore.error
   }
@@ -148,8 +159,11 @@ async function loadProduct(): Promise<void> {
     if (sequence !== pageRequestSequence) return
     const loadedProduct = product.value
     if (!loadedProduct) return
-    if (!loadedProduct.attributes.length && loadedProduct.variants.length === 1) {
-      selectedVariant.value = loadedProduct.variants[0] ?? null
+    if (!loadedProduct.attributes.length) {
+      selectedVariant.value =
+        loadedProduct.variants.find((variant) => variant.available_stock > 0) ??
+        loadedProduct.variants[0] ??
+        null
     }
     await loadProductRecommendations(sequence, loadedProduct.id)
   } catch (error) {
@@ -261,6 +275,15 @@ onBeforeUnmount(() => {
             <p class="mt-7 text-3xl font-black tracking-tight text-indigo-700">
               {{ displayPrice }}
             </p>
+            <div v-if="displayRegularPrice" class="mt-2 flex flex-wrap items-center gap-3">
+              <span class="text-lg text-slate-400 line-through">{{ displayRegularPrice }}</span>
+              <span class="rounded-full bg-rose-100 px-3 py-1 text-xs font-black text-rose-700">
+                FLASH SALE
+                <template v-if="selectedVariant?.remaining_flash_quota != null">
+                  · còn {{ selectedVariant?.remaining_flash_quota }}
+                </template>
+              </span>
+            </div>
             <p v-if="product.short_description" class="mt-5 leading-7 text-slate-600">
               {{ product.short_description }}
             </p>
@@ -273,6 +296,27 @@ onBeforeUnmount(() => {
               :variants="product.variants"
               @change="handleVariantChange"
             />
+
+            <fieldset v-else-if="product.variants.length > 1" class="mt-8">
+              <legend class="text-sm font-bold text-slate-900">Chọn phiên bản</legend>
+              <div class="mt-3 flex flex-wrap gap-2.5">
+                <button
+                  v-for="variant in product.variants"
+                  :key="variant.id"
+                  class="min-h-11 rounded-xl border px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:line-through"
+                  :class="
+                    selectedVariant?.id === variant.id
+                      ? 'border-indigo-600 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600'
+                      : 'border-slate-300 bg-white text-slate-700 hover:border-slate-500'
+                  "
+                  type="button"
+                  :disabled="variant.available_stock === 0"
+                  @click="handleVariantChange(variant)"
+                >
+                  {{ variant.name || variant.sku }} · {{ formatVnd(variant.sale_price) }}
+                </button>
+              </div>
+            </fieldset>
 
             <div class="mt-8 flex flex-wrap items-center gap-4">
               <div
@@ -293,7 +337,7 @@ onBeforeUnmount(() => {
                   class="grid h-10 w-10 place-items-center rounded-lg hover:bg-slate-100"
                   type="button"
                   aria-label="Tăng số lượng"
-                  :disabled="quantity >= (selectedVariant?.available_stock ?? 0)"
+                  :disabled="quantity >= maximumQuantity"
                   @click="updateQuantity(1)"
                 >
                   <PlusIcon class="h-4 w-4" />

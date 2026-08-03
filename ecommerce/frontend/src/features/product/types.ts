@@ -105,6 +105,10 @@ export interface ProductVariant {
   name: string | null
   original_price: string
   sale_price: string
+  regular_price?: string
+  is_flash_sale?: boolean
+  flash_sale_ends_at?: string | null
+  remaining_flash_quota?: number | null
   /** @deprecated Use available_stock. */
   stock_quantity: number
   available_stock: number
@@ -135,6 +139,10 @@ export interface PublicProductListItem {
   thumbnail: string | null
   min_price: string | null
   max_price: string | null
+  regular_min_price?: string | null
+  regular_max_price?: string | null
+  is_flash_sale?: boolean
+  flash_sale_ends_at?: string | null
   rating_average: string
   rating_count: number
   sold_count: number
@@ -164,6 +172,10 @@ export interface PublicProductDetail {
   attributes: ProductAttribute[]
   min_price: string | null
   max_price: string | null
+  regular_min_price?: string | null
+  regular_max_price?: string | null
+  is_flash_sale?: boolean
+  flash_sale_ends_at?: string | null
   rating_average: string
   rating_count: number
   sold_count: number
