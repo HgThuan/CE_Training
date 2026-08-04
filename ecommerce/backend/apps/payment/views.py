@@ -33,7 +33,7 @@ class PaymentInitiateView(APIView):
 
     def post(self, request, order_id):
         order = get_object_or_404(Order, pk=order_id, customer__user=request.user)
-        payment, url = PaymentService.create_payment_intent(order)
+        payment, url = PaymentService.create_payment_intent(order, renew_reference=True)
         return success_response(
             data={"payment": PaymentStatusSerializer(payment).data, "payment_url": url},
             message="Đã khởi tạo thanh toán",
@@ -49,7 +49,14 @@ class PaymentCallbackView(APIView):
         payload = request.data.dict() if hasattr(request.data, "dict") else dict(request.data)
         payment = PaymentService.handle_callback(gateway, payload)
         if gateway.lower() == "vnpay":
-            return Response({"RspCode": "00", "Message": "Confirm Success"})
+            return Response(
+                {
+                    "RspCode": "00",
+                    "Message": "Confirm Success",
+                    "order_id": str(payment.order_id),
+                    "payment_status": payment.status,
+                }
+            )
         return success_response(
             data={"payment_code": payment.payment_code, "status": payment.status},
             message="Callback đã được ghi nhận",
@@ -58,7 +65,14 @@ class PaymentCallbackView(APIView):
     def get(self, request, gateway):
         payment = PaymentService.handle_callback(gateway, request.query_params.dict())
         if gateway.lower() == "vnpay":
-            return Response({"RspCode": "00", "Message": "Confirm Success"})
+            return Response(
+                {
+                    "RspCode": "00",
+                    "Message": "Confirm Success",
+                    "order_id": str(payment.order_id),
+                    "payment_status": payment.status,
+                }
+            )
         return success_response(
             data={"payment_code": payment.payment_code, "status": payment.status},
             message="Callback đã được ghi nhận",

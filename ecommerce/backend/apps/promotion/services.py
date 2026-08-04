@@ -64,7 +64,10 @@ class VoucherService:
         def execute() -> Decimal:
             queryset = Voucher.objects.select_related("shop")
             if commit:
-                queryset = queryset.select_for_update()
+                # ``shop`` is nullable for platform vouchers, so PostgreSQL
+                # renders it as an outer join. Lock only the voucher row;
+                # locking every joined row would fail on the nullable side.
+                queryset = queryset.select_for_update(of=("self",))
             try:
                 voucher = queryset.get(code__iexact=voucher_code.strip())
             except Voucher.DoesNotExist as exc:

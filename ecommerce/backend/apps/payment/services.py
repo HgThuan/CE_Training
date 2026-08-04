@@ -25,14 +25,17 @@ class PaymentService:
         return provider()
 
     @classmethod
-    def create_payment_intent(cls, order) -> tuple[Payment, str]:
+    def create_payment_intent(cls, order, *, renew_reference: bool = False) -> tuple[Payment, str]:
         existing = (
             order.payments.filter(status=Payment.Status.PENDING).order_by("-created_at").first()
         )
         if existing is not None:
+            if renew_reference or not existing.payment_code.isalnum():
+                existing.payment_code = f"PAY{uuid4().hex.upper()}"
+                existing.save(update_fields=("payment_code", "updated_at"))
             url = cls.provider_for(existing.method).create_payment_url(order, existing.payment_code)
             return existing, url
-        payment_code = f"PAY-{uuid4().hex.upper()}"
+        payment_code = f"PAY{uuid4().hex.upper()}"
         payment = Payment.objects.create(
             order=order,
             payment_code=payment_code,

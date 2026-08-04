@@ -3,6 +3,7 @@ import {
   ArrowLeftStartOnRectangleIcon,
   ArchiveBoxIcon,
   BuildingStorefrontIcon,
+  ClipboardDocumentListIcon,
   CubeIcon,
   HomeIcon,
   TicketIcon,
@@ -35,6 +36,14 @@ async function logout(): Promise<void> {
           </div>
         </RouterLink>
         <nav class="flex items-center gap-1 text-sm font-bold" aria-label="Seller navigation">
+          <RouterLink
+            class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+            active-class="!bg-indigo-50 !text-indigo-700"
+            to="/seller/orders"
+          >
+            <ClipboardDocumentListIcon class="h-4 w-4" />
+            <span class="hidden md:inline">Đơn hàng</span>
+          </RouterLink>
           <RouterLink
             class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950"
             active-class="!bg-indigo-50 !text-indigo-700"

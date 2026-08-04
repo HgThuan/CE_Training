@@ -1,9 +1,13 @@
 import hashlib
 import hmac
+import re
+from datetime import timedelta
 from decimal import Decimal
 from urllib.parse import quote_plus, urlencode
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
+from django.utils import timezone
 
 from apps.common.exceptions import BusinessError
 
@@ -14,7 +18,9 @@ def _canonical_payload(payload: dict) -> str:
     values = {
         str(key): str(value)
         for key, value in payload.items()
-        if value not in (None, "") and key not in {"vnp_SecureHash", "vnp_SecureHashType"}
+        if str(key).startswith("vnp_")
+        and value not in (None, "")
+        and key not in {"vnp_SecureHash", "vnp_SecureHashType"}
     }
     return "&".join(f"{quote_plus(key)}={quote_plus(values[key])}" for key in sorted(values))
 
@@ -29,8 +35,10 @@ class VNPayProvider(PaymentProvider):
     def create_payment_url(self, order, transaction_ref: str) -> str:
         if not settings.VNPAY_TMN_CODE or not settings.VNPAY_HASH_SECRET:
             raise BusinessError("VNPay sandbox chưa được cấu hình", http_status=503)
-        separator = "&" if "?" in settings.VNPAY_RETURN_URL else "?"
-        return_url = f"{settings.VNPAY_RETURN_URL}{separator}order_id={order.pk}"
+        if not transaction_ref.isalnum():
+            raise BusinessError("Mã giao dịch VNPay phải là chữ và số")
+        vietnam_now = timezone.now().astimezone(ZoneInfo("Asia/Ho_Chi_Minh"))
+        order_code = re.sub(r"[^A-Za-z0-9]", "", order.order_code)
         payload = {
             "vnp_Version": "2.1.0",
             "vnp_Command": "pay",
@@ -38,11 +46,13 @@ class VNPayProvider(PaymentProvider):
             "vnp_Amount": int(order.grand_total * 100),
             "vnp_CurrCode": order.currency,
             "vnp_TxnRef": transaction_ref,
-            "vnp_OrderInfo": f"Thanh toan don {order.order_code}",
+            "vnp_OrderInfo": f"Thanh toan don {order_code}",
             "vnp_OrderType": "other",
             "vnp_Locale": "vn",
-            "vnp_ReturnUrl": return_url,
-            "vnp_CreateDate": order.placed_at.strftime("%Y%m%d%H%M%S"),
+            "vnp_ReturnUrl": settings.VNPAY_RETURN_URL,
+            "vnp_IpAddr": "127.0.0.1",
+            "vnp_CreateDate": vietnam_now.strftime("%Y%m%d%H%M%S"),
+            "vnp_ExpireDate": (vietnam_now + timedelta(minutes=15)).strftime("%Y%m%d%H%M%S"),
         }
         payload["vnp_SecureHash"] = self._signature(payload)
         return f"{settings.VNPAY_PAYMENT_URL}?{urlencode(payload)}"

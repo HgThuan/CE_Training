@@ -1,14 +1,43 @@
 <script setup lang="ts">
 import { ShoppingBagIcon } from '@heroicons/vue/24/outline'
-import { onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { useCartStore } from '../store'
 import type { CartItem } from '../types'
 import CartShopGroup from '../components/CartShopGroup.vue'
 import CartSummaryBar from '../components/CartSummaryBar.vue'
-import OwnedVoucherPicker from '../components/OwnedVoucherPicker.vue'
 
 const store = useCartStore()
+const router = useRouter()
+const selectingAll = ref(false)
+const selectableItems = computed(
+  () => store.cart?.shops.flatMap((shop) => shop.items).filter((item) => item.is_valid) ?? [],
+)
+const allSelected = computed(
+  () =>
+    selectableItems.value.length > 0 && selectableItems.value.every((item) => item.is_selected),
+)
+
+async function toggleSelectAll(): Promise<void> {
+  selectingAll.value = true
+  try {
+    const target = !allSelected.value
+    for (const item of selectableItems.value) {
+      if (item.is_selected !== target) await store.updateItem(item, { is_selected: target })
+    }
+  } finally {
+    selectingAll.value = false
+  }
+}
+
+async function goToCheckout(): Promise<void> {
+  if (!store.isAuthenticatedCustomer) {
+    await router.push({ path: '/auth/login', query: { redirect: '/checkout' } })
+    return
+  }
+  await router.push('/checkout')
+}
 
 async function updateItem(
   item: CartItem,
@@ -72,6 +101,18 @@ onMounted(() => void store.load())
 
     <div v-else class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
       <div class="space-y-5">
+        <label
+          class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 font-bold shadow-sm"
+        >
+          <input
+            class="h-5 w-5 rounded border-slate-300 text-indigo-600"
+            type="checkbox"
+            :checked="allSelected"
+            :disabled="selectingAll || selectableItems.length === 0"
+            @change="toggleSelectAll"
+          />
+          Chọn tất cả sản phẩm khả dụng ({{ selectableItems.length }})
+        </label>
         <p
           v-if="store.mergeWarning"
           class="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900"
@@ -94,23 +135,11 @@ onMounted(() => void store.load())
       </div>
 
       <div class="space-y-5">
-        <OwnedVoucherPicker
-          v-if="store.isAuthenticatedCustomer"
-          :vouchers="store.availableVouchers"
-          :selected-ids="store.selectedUserVoucherIds"
-          :loading="store.previewing"
-          :error="store.previewError"
-          @toggle="store.toggleOwnedVoucher"
-          @code="store.applyVoucherByCode"
-        />
         <CartSummaryBar
           :selected-count="store.selectedValidItems.length"
           :selected-total="store.selectedTotal"
-          :preview="store.preview"
           :disabled="store.selectedValidItems.length === 0"
-          @preview="
-            store.isAuthenticatedCustomer ? store.applyOwnedVouchers() : store.calculatePreview()
-          "
+          @checkout="goToCheckout"
         />
       </div>
     </div>

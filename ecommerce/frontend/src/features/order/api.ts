@@ -21,6 +21,8 @@ export const orderApi = {
       reason_code: reasonCode,
     }),
   reorder: (orderId: string) => http.post(`/orders/${orderId}/reorder`, {}),
+  initiatePayment: (orderId: string) =>
+    http.post<ApiResponse<{ payment_url: string }>>(`/payment/${orderId}/initiate`, {}),
   sellerOrders: (status?: string) =>
     http.get<ApiResponse<ShopOrder[]>>('/seller/orders', { params: { status } }),
   sellerAction: (shopOrderId: string, action: string, reason = '') =>
@@ -28,7 +30,11 @@ export const orderApi = {
       reason,
       reason_code: 'SELLER_OPERATION',
     }),
+  packingSlip: (shopOrderId: string) =>
+    http.get<string>(`/seller/orders/${shopOrderId}/packing-slip`, { responseType: 'text' }),
   adminOrders: (params: Record<string, string>) =>
     http.get<ApiResponse<CommerceOrder[]>>('/admin/orders', { params }),
   paymentStatus: (orderId: string) => http.get(`/payment/${orderId}/status`),
+  verifyVnpayReturn: (params: Record<string, string>) =>
+    http.get('/payment/callback/vnpay', { params }),
 }

@@ -7,6 +7,8 @@ describe('public storefront routes', () => {
     const root = publicRoutes.find((route) => route.path === '/')
     const wishlist = root?.children?.find((route) => route.name === 'wishlist')
     const publicShop = root?.children?.find((route) => route.name === 'public-shop')
+    const checkout = root?.children?.find((route) => route.name === 'checkout')
+    const paymentReturn = publicRoutes.find((route) => route.name === 'payment-return')
 
     expect(wishlist?.path).toBe('wishlist')
     expect(wishlist?.meta).toEqual({
@@ -14,6 +16,9 @@ describe('public storefront routes', () => {
       roles: ['customer'],
     })
     expect(publicShop?.path).toBe('shops/:slug')
+    expect(checkout?.path).toBe('checkout')
+    expect(checkout?.meta).toEqual({ requiresAuth: true, roles: ['customer'] })
+    expect(paymentReturn?.path).toBe('/payment/return')
   })
 
   it('redirects legacy singular shop links without losing query or hash', async () => {

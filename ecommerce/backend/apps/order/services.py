@@ -82,6 +82,8 @@ class CheckoutService:
         payment_method,
         idempotency_key,
         checkout_note="",
+        shop_notes=None,
+        shipping_methods=None,
     ) -> tuple[Order, str | None, bool]:
         key = str(idempotency_key or "").strip()
         if not key:
@@ -96,6 +98,8 @@ class CheckoutService:
             return existing, cls._existing_payment_url(existing), False
         if payment_method not in Order.PaymentMethod.values:
             raise BusinessError("Phương thức thanh toán không hợp lệ")
+        shop_notes = shop_notes or {}
+        shipping_methods = shipping_methods or {}
         address = Address.objects.filter(
             pk=address_id, user=customer.user, is_deleted=False
         ).first()
@@ -165,6 +169,17 @@ class CheckoutService:
             )
             for shop_data in pricing["shops"]:
                 shop = Shop.objects.get(pk=shop_data["shop_id"])
+                shipping_method = shipping_methods.get(
+                    str(shop.pk), shipping_methods.get(shop.pk, {})
+                )
+                if not isinstance(shipping_method, dict):
+                    shipping_method = {}
+                shipping_code = str(shipping_method.get("code", "STANDARD")).strip().upper()
+                if shipping_code != "STANDARD":
+                    raise BusinessError(
+                        "Phương thức vận chuyển không hợp lệ",
+                        errors={"shipping_methods": [f"Shop {shop.pk} chỉ hỗ trợ STANDARD"]},
+                    )
                 shop_discount_amount = sum(
                     d["amount"] for d in shop_data["discounts"] if d["scope"] == "shop"
                 )
@@ -180,8 +195,11 @@ class CheckoutService:
                     platform_discount_allocated=platform_amount,
                     shipping_fee=shop_data["shipping_fee"],
                     total_amount=shop_data["total"],
-                    shipping_method_code="FLAT",
-                    shipping_method_name="Phí vận chuyển cố định",
+                    shipping_method_code=shipping_code,
+                    shipping_method_name="Giao hàng tiêu chuẩn (phí cố định)",
+                    seller_note=str(shop_notes.get(str(shop.pk), shop_notes.get(shop.pk, "")))[
+                        :2000
+                    ],
                 )
                 OrderStatusHistory.objects.create(
                     shop_order=shop_order,
@@ -280,9 +298,7 @@ class CheckoutService:
             return None
         from apps.payment.services import PaymentService
 
-        return PaymentService.provider_for(payment.method).create_payment_url(
-            order, payment.payment_code
-        )
+        return PaymentService.create_payment_intent(order)[1]
 
 
 class OrderService:

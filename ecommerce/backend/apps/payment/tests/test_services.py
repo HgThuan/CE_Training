@@ -1,4 +1,6 @@
+from datetime import datetime, timedelta
 from decimal import Decimal
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 from django.test import override_settings
@@ -38,6 +40,33 @@ def make_payment():
     return order, payment
 
 
+@override_settings(
+    VNPAY_TMN_CODE="DEMOV210",
+    VNPAY_HASH_SECRET="test-secret",
+    VNPAY_PAYMENT_URL="https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
+    VNPAY_RETURN_URL="http://localhost:8080/payment/return",
+)
+def test_payment_url_uses_vnpay_21_required_fields_and_rotates_legacy_reference():
+    order, payment = make_payment()
+
+    updated_payment, payment_url = PaymentService.create_payment_intent(order)
+
+    updated_payment.refresh_from_db()
+    assert updated_payment.pk == payment.pk
+    assert updated_payment.payment_code.isalnum()
+    params = {key: values[0] for key, values in parse_qs(urlparse(payment_url).query).items()}
+    assert params["vnp_TxnRef"] == updated_payment.payment_code
+    assert params["vnp_OrderInfo"].replace(" ", "").isalnum()
+    assert "-" not in params["vnp_OrderInfo"]
+    assert params["vnp_IpAddr"] == "127.0.0.1"
+    assert params["vnp_ReturnUrl"] == "http://localhost:8080/payment/return"
+    created_at = datetime.strptime(params["vnp_CreateDate"], "%Y%m%d%H%M%S")
+    expires_at = datetime.strptime(params["vnp_ExpireDate"], "%Y%m%d%H%M%S")
+    assert expires_at - created_at == timedelta(minutes=15)
+    supplied_hash = params.pop("vnp_SecureHash")
+    assert supplied_hash == VNPayProvider()._signature(params)
+
+
 @override_settings(VNPAY_HASH_SECRET="test-secret")
 def test_callback_is_idempotent_and_updates_order_once():
     order, payment = make_payment()
@@ -50,6 +79,7 @@ def test_callback_is_idempotent_and_updates_order_once():
         "vnp_TransactionNo": "VNP-001",
     }
     payload["vnp_SecureHash"] = VNPayProvider()._signature(payload)
+    payload["order_id"] = str(order.pk)
 
     PaymentService.handle_callback("VNPAY", payload)
     PaymentService.handle_callback("VNPAY", payload)

@@ -59,6 +59,8 @@ def test_checkout_is_idempotent_and_reserves_stock():
         "coupons": {},
         "payment_method": Order.PaymentMethod.COD,
         "idempotency_key": "checkout-once",
+        "shop_notes": {str(shop.pk): "Gọi trước khi giao"},
+        "shipping_methods": {str(shop.pk): {"code": "STANDARD"}},
     }
     order, payment_url, created = CheckoutService.checkout(**kwargs)
     retry, retry_url, retry_created = CheckoutService.checkout(**kwargs)
@@ -69,6 +71,9 @@ def test_checkout_is_idempotent_and_reserves_stock():
     assert payment_url is retry_url is None
     assert Order.objects.count() == 1
     assert order.shop_orders.count() == 1
+    shop_order = order.shop_orders.get()
+    assert shop_order.seller_note == "Gọi trước khi giao"
+    assert shop_order.shipping_method_code == "STANDARD"
     balance.refresh_from_db()
     assert (balance.available_stock, balance.reserved_stock) == (3, 2)
     assert StockReservation.objects.get().status == StockReservation.Status.ACTIVE

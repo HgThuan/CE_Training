@@ -11,6 +11,8 @@ class CheckoutSerializer(serializers.Serializer):
         child=serializers.UUIDField(), required=False, allow_empty=False
     )
     checkout_note = serializers.CharField(required=False, allow_blank=True, default="")
+    shop_notes = serializers.JSONField(required=False, default=dict)
+    shipping_methods = serializers.JSONField(required=False, default=dict)
 
     def validate_payment_method(self, value):
         normalized = value.strip().upper()

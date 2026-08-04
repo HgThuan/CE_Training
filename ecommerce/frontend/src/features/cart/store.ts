@@ -4,8 +4,6 @@ import { computed, ref } from 'vue'
 
 import { productApi } from '@/features/product/api'
 import type { PublicProductDetail } from '@/features/product/types'
-import { promotionApi } from '@/features/promotion/api'
-import type { CheckoutVoucher } from '@/features/promotion/types'
 import { useAuthStore } from '@/stores/auth'
 
 import { cartApi } from './api'
@@ -13,11 +11,9 @@ import { clearGuestCart, readGuestCart, useGuestCart } from './composables/useGu
 import type {
   CartData,
   CartItem,
-  CartPreviewPayload,
   CartShopGroup,
   GuestCartItem,
   GuestItemContext,
-  PreviewResult,
 } from './types'
 
 function errorMessage(error: unknown): string {
@@ -105,17 +101,9 @@ export const useCartStore = defineStore('cart', () => {
   const authStore = useAuthStore()
   const guestCart = useGuestCart()
   const cart = ref<CartData | null>(null)
-  const preview = ref<PreviewResult | null>(null)
   const loading = ref(false)
-  const previewing = ref(false)
   const error = ref('')
-  const previewError = ref('')
   const mergeWarning = ref('')
-  const platformVoucher = ref('')
-  const shopVouchers = ref<Record<string, string>>({})
-  const availableVouchers = ref<CheckoutVoucher[]>([])
-  const selectedUserVoucherIds = ref<string[]>([])
-  const checkoutToken = ref<string>()
 
   const isAuthenticatedCustomer = computed(
     () => authStore.isAuthenticated && authStore.user?.role === 'customer',
@@ -203,7 +191,6 @@ export const useCartStore = defineStore('cart', () => {
     try {
       if (isAuthenticatedCustomer.value) {
         cart.value = (await cartApi.getCart()).data.data
-        await loadAvailableVouchers()
       } else {
         await loadGuestCart()
       }
@@ -245,7 +232,6 @@ export const useCartStore = defineStore('cart', () => {
     }
     try {
       cart.value = (await cartApi.updateItem(item.id, payload)).data.data
-      await applyOwnedVouchers()
     } catch (caught) {
       error.value = errorMessage(caught)
       throw caught
@@ -259,106 +245,6 @@ export const useCartStore = defineStore('cart', () => {
       return
     }
     cart.value = (await cartApi.removeItem(item.id)).data.data
-    await applyOwnedVouchers()
-  }
-
-  function previewPayload(): CartPreviewPayload {
-    const shops = Object.fromEntries(
-      Object.entries(shopVouchers.value)
-        .filter(([, code]) => code.trim())
-        .map(([shopId, code]) => [shopId, [code.trim()]]),
-    )
-    return {
-      selected_item_ids: selectedValidItems.value.map((item) => item.id),
-      voucher_codes: {
-        platform: platformVoucher.value.trim() ? [platformVoucher.value.trim()] : [],
-        shops,
-      },
-    }
-  }
-
-  async function calculatePreview(): Promise<void> {
-    previewError.value = ''
-    if (!isAuthenticatedCustomer.value) {
-      preview.value = null
-      previewError.value = 'Đăng nhập để áp voucher và xem giá từ máy chủ'
-      return
-    }
-    previewing.value = true
-    try {
-      preview.value = (await cartApi.previewCheckout(previewPayload())).data.data
-    } catch (caught) {
-      preview.value = null
-      previewError.value = errorMessage(caught)
-    } finally {
-      previewing.value = false
-    }
-  }
-
-  async function loadAvailableVouchers(): Promise<void> {
-    if (!isAuthenticatedCustomer.value) return
-    previewError.value = ''
-    try {
-      const data = (
-        await promotionApi.checkoutVouchers(selectedValidItems.value.map((item) => item.id))
-      ).data.data
-      availableVouchers.value = data.results
-      selectedUserVoucherIds.value = data.best_voucher_id ? [data.best_voucher_id] : []
-      if (selectedUserVoucherIds.value.length) await applyOwnedVouchers()
-    } catch (caught) {
-      previewError.value = errorMessage(caught)
-    }
-  }
-
-  async function applyOwnedVouchers(): Promise<void> {
-    previewing.value = true
-    previewError.value = ''
-    try {
-      const response = await promotionApi.applyOwnedVouchers({
-        user_voucher_ids: selectedUserVoucherIds.value,
-        selected_item_ids: selectedValidItems.value.map((item) => item.id),
-        checkout_token: checkoutToken.value,
-      })
-      preview.value = response.data.data
-      checkoutToken.value = response.data.data.checkout_token
-    } catch (caught) {
-      previewError.value = errorMessage(caught)
-      throw caught
-    } finally {
-      previewing.value = false
-    }
-  }
-
-  async function toggleOwnedVoucher(id: string, selected: boolean): Promise<void> {
-    const previous = [...selectedUserVoucherIds.value]
-    selectedUserVoucherIds.value = selected
-      ? [...selectedUserVoucherIds.value, id]
-      : selectedUserVoucherIds.value.filter((value) => value !== id)
-    try {
-      await applyOwnedVouchers()
-    } catch {
-      selectedUserVoucherIds.value = previous
-    }
-  }
-
-  async function applyVoucherByCode(code: string): Promise<void> {
-    previewing.value = true
-    previewError.value = ''
-    try {
-      const response = await promotionApi.applyVoucherByCode({
-        code,
-        idempotency_key: crypto.randomUUID(),
-        selected_item_ids: selectedValidItems.value.map((item) => item.id),
-        checkout_token: checkoutToken.value,
-      })
-      preview.value = response.data.data
-      checkoutToken.value = response.data.data.checkout_token
-      await loadAvailableVouchers()
-    } catch (caught) {
-      previewError.value = errorMessage(caught)
-    } finally {
-      previewing.value = false
-    }
   }
 
   async function mergeGuestCart(): Promise<boolean> {
@@ -378,16 +264,9 @@ export const useCartStore = defineStore('cart', () => {
 
   return {
     cart,
-    preview,
     loading,
-    previewing,
     error,
-    previewError,
     mergeWarning,
-    platformVoucher,
-    shopVouchers,
-    availableVouchers,
-    selectedUserVoucherIds,
     isAuthenticatedCustomer,
     selectedValidItems,
     selectedTotal,
@@ -395,11 +274,6 @@ export const useCartStore = defineStore('cart', () => {
     addItem,
     updateItem,
     removeItem,
-    calculatePreview,
-    loadAvailableVouchers,
-    toggleOwnedVoucher,
-    applyOwnedVouchers,
-    applyVoucherByCode,
     mergeGuestCart,
   }
 })

@@ -1,15 +1,12 @@
 <script setup lang="ts">
 import { formatVnd } from '@/shared/lib/formatters'
 
-import type { PreviewResult } from '../types'
-
 defineProps<{
   selectedCount: number
   selectedTotal: number
-  preview: PreviewResult | null
   disabled: boolean
 }>()
-const emit = defineEmits<{ preview: [] }>()
+const emit = defineEmits<{ checkout: [] }>()
 </script>
 
 <template>
@@ -18,23 +15,22 @@ const emit = defineEmits<{ preview: [] }>()
       <div>
         <p class="text-sm text-slate-300">{{ selectedCount }} dòng hợp lệ đã chọn</p>
         <p class="mt-1 text-2xl font-black">
-          {{ formatVnd(preview?.total ?? selectedTotal) }}
-        </p>
-        <p v-if="preview && Number(preview.discount) > 0" class="mt-1 text-sm text-emerald-300">
-          Đã giảm {{ formatVnd(preview.discount) }}
+          {{ formatVnd(selectedTotal) }}
         </p>
       </div>
-      <button
-        class="rounded-2xl bg-indigo-500 px-6 py-3 font-black hover:bg-indigo-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
-        type="button"
-        :disabled="disabled"
-        @click="emit('preview')"
-      >
-        Xem trước đơn hàng
-      </button>
+      <div class="grid gap-2 sm:min-w-56">
+        <button
+          class="rounded-2xl bg-indigo-500 px-6 py-3 font-black hover:bg-indigo-400 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+          type="button"
+          :disabled="disabled"
+          @click="emit('checkout')"
+        >
+          Tiến hành thanh toán
+        </button>
+      </div>
     </div>
     <p class="mt-3 text-xs text-slate-400">
-      Bước này chỉ xác nhận sản phẩm, tồn kho, voucher và giá tạm tính; chưa thực hiện thanh toán.
+      Tạm tính tự động cập nhật theo sản phẩm đang chọn. Voucher và phí vận chuyển áp dụng ở checkout.
     </p>
   </aside>
 </template>
