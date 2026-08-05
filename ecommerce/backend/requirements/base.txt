@@ -13,4 +13,5 @@ psycopg[binary]>=3.2,<4.0
 pgvector>=0.3.6,<1.0
 Pillow>=11.0,<13.0
 whitenoise>=6.8,<7.0
-
+openpyxl>=3.1,<4.0
+reportlab>=4.2,<5.0

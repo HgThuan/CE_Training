@@ -700,7 +700,7 @@ class PublicProductFilterSerializer(serializers.Serializer):
         max_value=5,
         required=False,
     )
-    in_stock = serializers.BooleanField(required=False)
+    in_stock = serializers.BooleanField(required=False, allow_null=True, default=None)
     shop = serializers.CharField(max_length=255, required=False)
     q = serializers.CharField(
         max_length=255,

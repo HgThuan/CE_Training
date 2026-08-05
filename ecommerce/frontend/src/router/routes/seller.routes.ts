@@ -9,7 +9,8 @@ export const sellerRoutes: RouteRecordRaw[] = [
       {
         path: '',
         name: 'seller-home',
-        component: () => import('@/features/auth/pages/RoleHomePage.vue'),
+        component: () => import('@/features/analytics/pages/DashboardPage.vue'),
+        props: { mode: 'seller' },
       },
       {
         path: 'shop',

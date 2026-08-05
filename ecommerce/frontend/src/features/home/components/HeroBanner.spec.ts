@@ -14,7 +14,7 @@ const banners: HomeBanner[] = [
   },
   {
     id: 'two',
-    title: 'Sản phẩm mới',
+    title: 'Sản phẩm mới',  
     image_url: 'https://images.example.com/two.webp',
     target_url: '/products',
     position: 'hero',

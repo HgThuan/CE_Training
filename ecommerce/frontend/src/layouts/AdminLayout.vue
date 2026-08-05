@@ -12,6 +12,7 @@ import {
   TicketIcon,
   BoltIcon,
   UsersIcon,
+  ChartBarSquareIcon,
 } from '@heroicons/vue/24/outline'
 import { RouterView, useRouter } from 'vue-router'
 
@@ -43,6 +44,14 @@ async function logout(): Promise<void> {
           class="flex items-center gap-1 overflow-x-auto text-sm font-bold"
           aria-label="Admin navigation"
         >
+          <RouterLink
+            class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white"
+            active-class="!bg-indigo-500 !text-white"
+            to="/admin/operations"
+          >
+            <ChartBarSquareIcon class="h-4 w-4" />
+            <span class="hidden lg:inline">Báo cáo</span>
+          </RouterLink>
           <RouterLink
             class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white"
             active-class="!bg-indigo-500 !text-white"

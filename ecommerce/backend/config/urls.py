@@ -44,6 +44,7 @@ urlpatterns = [
     path("api/v1/", include("apps.review.urls")),
     path("api/v1/", include("apps.chat.urls")),
     path("api/v1/", include("apps.notification.urls")),
+    path("api/v1/", include("apps.report.urls")),
     path("api/v1/ai/", include("apps.ai.urls")),
     path(
         "protected-media/seller-documents/<str:token>/",
