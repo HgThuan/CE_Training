@@ -9,7 +9,13 @@ export const adminRoutes: RouteRecordRaw[] = [
       {
         path: '',
         name: 'admin-home',
-        component: () => import('@/features/auth/pages/RoleHomePage.vue'),
+        component: () => import('@/features/analytics/pages/DashboardPage.vue'),
+        props: { mode: 'admin' },
+      },
+      {
+        path: 'operations',
+        name: 'admin-operations',
+        component: () => import('@/features/analytics/pages/AdminOperationsPage.vue'),
       },
       {
         path: 'roles',

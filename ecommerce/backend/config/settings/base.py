@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "apps.review.apps.ReviewConfig",
     "apps.chat.apps.ChatConfig",
     "apps.notification.apps.NotificationConfig",
+    "apps.report.apps.ReportConfig",
 ]
 
 MIDDLEWARE = [
@@ -135,6 +136,7 @@ STATIC_URL = "/static/"
 STATIC_ROOT = Path(env("STATIC_ROOT", default=str(BASE_DIR / "staticfiles")))
 MEDIA_URL = "/media/"
 MEDIA_ROOT = Path(env("MEDIA_ROOT", default=str(BASE_DIR / "media")))
+BACKUP_ROOT = Path(env("BACKUP_ROOT", default=str(BASE_DIR / "backups")))
 MAX_AVATAR_UPLOAD_MB = env.int("MAX_AVATAR_UPLOAD_MB", default=5)
 MAX_SELLER_DOCUMENT_UPLOAD_MB = env.int("MAX_SELLER_DOCUMENT_UPLOAD_MB", default=10)
 MAX_IMAGE_UPLOAD_MB = env.int("MAX_IMAGE_UPLOAD_MB", default=10)
