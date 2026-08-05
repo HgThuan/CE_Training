@@ -3,6 +3,7 @@ import {
   ArrowLeftStartOnRectangleIcon,
   ArchiveBoxIcon,
   BuildingStorefrontIcon,
+  ClipboardDocumentListIcon,
   CubeIcon,
   HomeIcon,
   ChatBubbleBottomCenterTextIcon,
@@ -26,104 +27,157 @@ async function logout(): Promise<void> {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50">
-    <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
-      <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <RouterLink class="flex items-center gap-3" to="/seller">
-          <span
-            class="grid h-10 w-10 place-items-center rounded-2xl bg-indigo-600 font-black text-white"
-            >M</span
-          >
-          <div class="hidden sm:block">
-            <p class="text-xs font-bold uppercase tracking-widest text-indigo-600">Mercato</p>
-            <p class="text-sm font-black">Seller Center</p>
-          </div>
-        </RouterLink>
-        <nav class="flex items-center gap-1 text-sm font-bold" aria-label="Seller navigation">
-          <RouterLink
-            class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-            active-class="!bg-indigo-50 !text-indigo-700"
-            to="/seller/chat"
-          >
-            <EnvelopeIcon class="h-4 w-4" />
-            <span class="hidden md:inline">Chat</span>
-          </RouterLink>
-          <NotificationBell to="/seller/notifications" />
-          <RouterLink
-            class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-            active-class="!bg-indigo-50 !text-indigo-700"
-            to="/seller/customers"
-          >
-            <UsersIcon class="h-4 w-4" />
-            <span class="hidden md:inline">Khách</span>
-          </RouterLink>
-          <RouterLink
-            class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-            active-class="!bg-indigo-50 !text-indigo-700"
-            to="/seller/reviews"
-          >
-            <ChatBubbleBottomCenterTextIcon class="h-4 w-4" />
-            <span class="hidden md:inline">Review</span>
-          </RouterLink>
-          <RouterLink
-            class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-            active-class="!bg-indigo-50 !text-indigo-700"
-            to="/seller/returns"
-          >
-            <ArrowPathIcon class="h-4 w-4" />
-            <span class="hidden md:inline">Trả hàng</span>
-          </RouterLink>
-          <RouterLink
-            class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-            active-class="!bg-indigo-50 !text-indigo-700"
-            to="/seller/promotions"
-          >
-            <TicketIcon class="h-4 w-4" />
-            <span class="hidden md:inline">Voucher</span>
-          </RouterLink>
-          <RouterLink
-            class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-            active-class="!bg-indigo-50 !text-indigo-700"
-            to="/seller"
-          >
-            <HomeIcon class="h-4 w-4" />
-            <span class="hidden md:inline">Tổng quan</span>
-          </RouterLink>
-          <RouterLink
-            class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-            active-class="!bg-indigo-50 !text-indigo-700"
-            to="/seller/products"
-          >
-            <CubeIcon class="h-4 w-4" />
-            <span class="hidden md:inline">Sản phẩm</span>
-          </RouterLink>
-          <RouterLink
-            class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-            active-class="!bg-indigo-50 !text-indigo-700"
-            to="/seller/inventory"
-          >
-            <ArchiveBoxIcon class="h-4 w-4" />
-            <span class="hidden md:inline">Kho</span>
-          </RouterLink>
-          <RouterLink
-            class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-            active-class="!bg-indigo-50 !text-indigo-700"
-            to="/seller/shop"
-          >
-            <BuildingStorefrontIcon class="h-4 w-4" />
-            <span class="hidden md:inline">Gian hàng</span>
-          </RouterLink>
-          <button
-            class="ml-1 grid h-10 w-10 place-items-center rounded-xl text-slate-500 hover:bg-rose-50 hover:text-rose-700"
-            type="button"
-            aria-label="Đăng xuất"
-            @click="logout"
-          >
-            <ArrowLeftStartOnRectangleIcon class="h-5 w-5" />
-          </button>
-        </nav>
+  <div class="flex min-h-screen bg-slate-50 text-slate-900 font-sans">
+    <!-- Sidebar -->
+    <aside class="w-[260px] flex-shrink-0 border-r border-slate-200 flex flex-col bg-white shadow-sm">
+      <!-- Header -->
+      <div class="flex items-center gap-3 px-6 py-6 border-b border-slate-100">
+        <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-sm font-bold text-white shadow-md shadow-indigo-200">
+          M
+        </span>
+        <div>
+          <span class="block font-black text-slate-800 text-lg tracking-tight leading-tight">Seller Center</span>
+          <span class="block text-xs font-semibold text-indigo-600 uppercase tracking-widest">Mercato</span>
+        </div>
       </div>
-    </header>
-    <RouterView />
+
+      <!-- Navigation -->
+      <nav class="flex-1 overflow-y-auto px-4 py-4 space-y-6 scrollbar-hide pb-8">
+        <!-- Main -->
+        <div>
+          <RouterLink
+            to="/seller"
+            end
+            class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+            active-class="!bg-indigo-50 !text-indigo-700 ring-1 ring-inset ring-indigo-100"
+          >
+            <HomeIcon class="h-5 w-5" />
+            Tổng quan
+          </RouterLink>
+        </div>
+
+        <!-- Sản phẩm -->
+        <div>
+          <p class="mb-2 px-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Sản phẩm & Kho</p>
+          <div class="space-y-1">
+            <RouterLink
+              to="/seller/products"
+              class="flex items-center gap-3 rounded-xl px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+              active-class="!bg-indigo-50 !text-indigo-700 ring-1 ring-inset ring-indigo-100 font-semibold"
+            >
+              <CubeIcon class="h-5 w-5" /> Quản lý sản phẩm
+            </RouterLink>
+            <RouterLink
+              to="/seller/inventory"
+              class="flex items-center gap-3 rounded-xl px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+              active-class="!bg-indigo-50 !text-indigo-700 ring-1 ring-inset ring-indigo-100 font-semibold"
+            >
+              <ArchiveBoxIcon class="h-5 w-5" /> Tồn kho
+            </RouterLink>
+          </div>
+        </div>
+
+        <!-- Bán hàng -->
+        <div>
+          <p class="mb-2 px-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Bán hàng</p>
+          <div class="space-y-1">
+            <RouterLink
+              to="/seller/orders"
+              class="flex items-center gap-3 rounded-xl px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+              active-class="!bg-indigo-50 !text-indigo-700 ring-1 ring-inset ring-indigo-100 font-semibold"
+            >
+              <ClipboardDocumentListIcon class="h-5 w-5" /> Đơn hàng
+            </RouterLink>
+            <RouterLink
+              to="/seller/returns"
+              class="flex items-center gap-3 rounded-xl px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+              active-class="!bg-indigo-50 !text-indigo-700 ring-1 ring-inset ring-indigo-100 font-semibold"
+            >
+              <ArrowPathIcon class="h-5 w-5" /> Trả hàng
+            </RouterLink>
+            <RouterLink
+              to="/seller/promotions"
+              class="flex items-center gap-3 rounded-xl px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+              active-class="!bg-indigo-50 !text-indigo-700 ring-1 ring-inset ring-indigo-100 font-semibold"
+            >
+              <TicketIcon class="h-5 w-5" /> Voucher
+            </RouterLink>
+          </div>
+        </div>
+
+        <!-- CSKH -->
+        <div>
+          <p class="mb-2 px-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Khách hàng</p>
+          <div class="space-y-1">
+            <RouterLink
+              to="/seller/chat"
+              class="flex items-center gap-3 rounded-xl px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+              active-class="!bg-indigo-50 !text-indigo-700 ring-1 ring-inset ring-indigo-100 font-semibold"
+            >
+              <EnvelopeIcon class="h-5 w-5" /> Chat
+            </RouterLink>
+            <RouterLink
+              to="/seller/customers"
+              class="flex items-center gap-3 rounded-xl px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+              active-class="!bg-indigo-50 !text-indigo-700 ring-1 ring-inset ring-indigo-100 font-semibold"
+            >
+              <UsersIcon class="h-5 w-5" /> Khách hàng
+            </RouterLink>
+            <RouterLink
+              to="/seller/reviews"
+              class="flex items-center gap-3 rounded-xl px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+              active-class="!bg-indigo-50 !text-indigo-700 ring-1 ring-inset ring-indigo-100 font-semibold"
+            >
+              <ChatBubbleBottomCenterTextIcon class="h-5 w-5" /> Đánh giá
+            </RouterLink>
+          </div>
+        </div>
+
+        <!-- Cửa hàng -->
+        <div>
+          <p class="mb-2 px-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Cửa hàng</p>
+          <div class="space-y-1">
+            <RouterLink
+              to="/seller/shop"
+              class="flex items-center gap-3 rounded-xl px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+              active-class="!bg-indigo-50 !text-indigo-700 ring-1 ring-inset ring-indigo-100 font-semibold"
+            >
+              <BuildingStorefrontIcon class="h-5 w-5" /> Hồ sơ gian hàng
+            </RouterLink>
+          </div>
+        </div>
+      </nav>
+
+      <!-- Footer / Notifications / Logout -->
+      <div class="border-t border-slate-100 p-4 bg-slate-50 flex flex-col gap-2">
+        <!-- Re-use the NotificationBell here, with some custom flex styling to fit the sidebar -->
+        <div class="flex items-center justify-between px-2">
+          <span class="text-sm font-semibold text-slate-700">Thông báo</span>
+          <NotificationBell to="/seller/notifications" />
+        </div>
+        <button
+          @click="logout"
+          class="flex w-full mt-2 items-center justify-center gap-2 rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 transition-all shadow-sm"
+        >
+          <ArrowLeftStartOnRectangleIcon class="h-5 w-5" />
+          Đăng xuất
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto bg-slate-50 p-6">
+      <RouterView />
+    </main>
   </div>
 </template>
+
+<style scoped>
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+</style>
