@@ -22,7 +22,8 @@ def days_from(request):
 
 
 def cached(request, namespace, producer):
-    key = build_cache_key(namespace, {"days": days_from(request), "user": request.user.pk})
+    period = request.query_params.get("period", "day")
+    key = build_cache_key(namespace, {"days": days_from(request), "period": period, "user": request.user.pk})
     value = cache.get(key)
     if value is None:
         value = producer()
@@ -36,9 +37,10 @@ class AdminDashboardView(APIView):
 
     def get(self, request):
         days = days_from(request)
+        period = request.query_params.get("period", "day")
         producers = {
             "summary": lambda: selectors.admin_summary(days),
-            "revenue": lambda: selectors.revenue_chart(days),
+            "revenue": lambda: selectors.revenue_chart(days, period=period),
             "products": lambda: selectors.top_products(days),
         }
         return cached(request, f"admin-dashboard-{self.metric}", producers[self.metric])
@@ -51,9 +53,10 @@ class SellerDashboardView(APIView):
     def get(self, request):
         shop = Shop.objects.get(owner=request.user, is_deleted=False)
         days = days_from(request)
+        period = request.query_params.get("period", "day")
         producers = {
             "summary": lambda: selectors.seller_summary(shop, days),
-            "revenue": lambda: selectors.revenue_chart(days, shop),
+            "revenue": lambda: selectors.revenue_chart(days, shop, period=period),
             "products": lambda: selectors.top_products(days, shop),
         }
         return cached(request, f"seller-dashboard-{self.metric}", producers[self.metric])
@@ -65,10 +68,11 @@ class ShopRevenueView(APIView):
     def get(self, request, shop_id):
         shop = Shop.objects.get(pk=shop_id, is_deleted=False)
         days = days_from(request)
+        period = request.query_params.get("period", "day")
         return success_response(
             data={
                 "summary": selectors.seller_summary(shop, days),
-                "chart": selectors.revenue_chart(days, shop),
+                "chart": selectors.revenue_chart(days, shop, period=period),
             }
         )
 
