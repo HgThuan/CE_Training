@@ -45,6 +45,11 @@ function resetAddressForm(): void {
   }
 }
 
+function cancelAddressForm(): void {
+  showAddressForm.value = false
+  resetAddressForm()
+}
+
 async function saveAddress(): Promise<void> {
   addressSaving.value = true
   error.value = ''
@@ -221,10 +226,7 @@ onMounted(async () => {
                 <button
                   class="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold hover:bg-slate-50"
                   type="button"
-                  @click="
-                    showAddressForm = false
-                    resetAddressForm()
-                  "
+                  @click="cancelAddressForm"
                 >
                   Hủy
                 </button>
