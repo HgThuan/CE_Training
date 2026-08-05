@@ -1,5 +1,3 @@
-import type { Review } from '@/features/after-sales/types'
-
 export interface StatusHistory {
   id: string
   from_status: string
@@ -7,6 +5,8 @@ export interface StatusHistory {
   reason: string
   created_at: string
 }
+
+import type { Review } from '@/features/after-sales/types'
 
 export interface OrderItem {
   id: string
@@ -22,6 +22,7 @@ export interface ShopOrder {
   id: string
   shop_order_code: string
   shop_name: string
+  shop_slug: string
   fulfillment_status: string
   total_amount: string
   cod_collected_at: string | null

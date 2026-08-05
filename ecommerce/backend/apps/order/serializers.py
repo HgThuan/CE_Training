@@ -1,7 +1,5 @@
 from rest_framework import serializers
 
-from apps.review.serializers import ReviewSerializer
-
 from .models import Order, OrderAddress, OrderItem, OrderStatusHistory, ShopOrder
 
 
@@ -13,6 +11,8 @@ class CheckoutSerializer(serializers.Serializer):
         child=serializers.UUIDField(), required=False, allow_empty=False
     )
     checkout_note = serializers.CharField(required=False, allow_blank=True, default="")
+    shop_notes = serializers.JSONField(required=False, default=dict)
+    shipping_methods = serializers.JSONField(required=False, default=dict)
 
     def validate_payment_method(self, value):
         normalized = value.strip().upper()
@@ -35,8 +35,18 @@ class OrderAddressSerializer(serializers.ModelSerializer):
         exclude = ("order", "updated_at")
 
 
+class OrderItemReviewSerializer(serializers.ModelSerializer):
+    from apps.review.serializers import ReviewMediaSerializer
+    media = ReviewMediaSerializer(many=True, read_only=True)
+
+    class Meta:
+        from apps.review.models import Review
+        model = Review
+        fields = ("id", "rating", "content", "media", "editable_until", "status")
+
+
 class OrderItemSerializer(serializers.ModelSerializer):
-    review = ReviewSerializer(read_only=True, allow_null=True)
+    review = OrderItemReviewSerializer(read_only=True)
 
     class Meta:
         model = OrderItem
@@ -76,6 +86,7 @@ class OrderStatusHistorySerializer(serializers.ModelSerializer):
 
 class ShopOrderSerializer(serializers.ModelSerializer):
     shop_name = serializers.CharField(source="shop.name")
+    shop_slug = serializers.CharField(source="shop.slug")
     items = OrderItemSerializer(many=True)
     status_history = OrderStatusHistorySerializer(many=True)
 
@@ -86,6 +97,7 @@ class ShopOrderSerializer(serializers.ModelSerializer):
             "shop_order_code",
             "shop",
             "shop_name",
+            "shop_slug",
             "fulfillment_status",
             "subtotal",
             "shop_discount",
