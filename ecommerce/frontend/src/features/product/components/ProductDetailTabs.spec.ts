@@ -4,6 +4,12 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import type { PublicProductDetail } from '../types'
 import ProductDetailTabs from './ProductDetailTabs.vue'
 
+vi.mock('@/features/after-sales/api', () => ({
+  afterSalesApi: {
+    productReviews: vi.fn().mockResolvedValue({ data: { data: [] } }),
+  },
+}))
+
 const product: PublicProductDetail = {
   id: 'product-1',
   name: 'Điện thoại mới',
@@ -62,7 +68,7 @@ describe('ProductDetailTabs', () => {
     wrapper.unmount()
   })
 
-  it('updates the hash and renders the reviews placeholder', async () => {
+  it('updates the hash and renders the review list empty state', async () => {
     const { router, wrapper } = await mountTabs()
 
     await wrapper.get('#product-tab-reviews').trigger('click')
@@ -70,7 +76,7 @@ describe('ProductDetailTabs', () => {
     await flushPromises()
 
     expect(router.currentRoute.value.hash).toBe('#reviews')
-    expect(wrapper.text()).toContain('Sprint 08')
+    expect(wrapper.text()).toContain('Sản phẩm chưa có đánh giá')
     wrapper.unmount()
   })
 

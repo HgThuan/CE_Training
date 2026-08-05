@@ -40,6 +40,8 @@ urlpatterns = [
     path("api/v1/", include("apps.promotion.urls")),
     path("api/v1/", include("apps.order.urls")),
     path("api/v1/", include("apps.payment.urls")),
+    path("api/v1/", include("apps.after_sales.urls")),
+    path("api/v1/", include("apps.review.urls")),
     path("api/v1/ai/", include("apps.ai.urls")),
     path(
         "protected-media/seller-documents/<str:token>/",
