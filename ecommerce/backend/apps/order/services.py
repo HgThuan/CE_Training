@@ -26,12 +26,24 @@ from .models import (
 from .state_machine import OrderStateMachine
 
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 def _order_code(prefix: str) -> str:
     return f"{prefix}-{timezone.now():%Y%m%d}-{uuid4().hex[:10].upper()}"
 
 
 def _queue(task, *args) -> None:
-    transaction.on_commit(lambda: task.delay(*args))
+    def enqueue():
+        try:
+            task.delay(*args)
+        except Exception:
+            logger.exception("Failed to enqueue background task %s", getattr(task, "name", str(task)))
+
+    transaction.on_commit(enqueue)
+
 
 
 class CheckoutService:
