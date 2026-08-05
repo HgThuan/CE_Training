@@ -20,7 +20,7 @@ class ReviewService:
     def create(cls, *, order_item: OrderItem, user, rating: int, content="", media=()):
         item = (
             OrderItem.objects.select_for_update()
-            .select_related("shop_order__order__customer__user", "product")
+            .select_related("shop_order__order__customer__user")
             .get(pk=order_item.pk)
         )
         if item.shop_order.order.customer.user_id != user.pk:

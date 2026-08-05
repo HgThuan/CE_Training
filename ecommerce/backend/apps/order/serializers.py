@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from apps.review.serializers import ReviewSerializer
+
 from .models import Order, OrderAddress, OrderItem, OrderStatusHistory, ShopOrder
 
 
@@ -34,6 +36,8 @@ class OrderAddressSerializer(serializers.ModelSerializer):
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
+    review = ReviewSerializer(read_only=True, allow_null=True)
+
     class Meta:
         model = OrderItem
         fields = (
@@ -50,6 +54,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "shop_discount",
             "platform_discount",
             "line_total",
+            "review",
         )
 
 

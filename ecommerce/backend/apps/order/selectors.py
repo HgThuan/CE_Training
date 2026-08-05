@@ -14,7 +14,12 @@ def get_orders_for_customer(user, *, status=None):
     queryset = (
         Order.objects.filter(customer__user=user)
         .select_related(*ORDER_GRAPH)
-        .prefetch_related("shop_orders__shop", "shop_orders__items", "shop_orders__status_history")
+        .prefetch_related(
+            "shop_orders__shop",
+            "shop_orders__items__review",
+            "shop_orders__items__review__media",
+            "shop_orders__status_history",
+        )
     )
     if status:
         queryset = queryset.filter(shop_orders__fulfillment_status=status).distinct()
