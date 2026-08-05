@@ -57,7 +57,7 @@ Sau mỗi Sprint, trước khi báo hoàn thành hoặc tạo Release, phải th
 ### Quản lý đơn hàng
 
 - [ ] 🔴 **ADM-17** — Theo dõi đơn toàn hệ thống
-- [ ] 🟡 **ADM-18** — Xử lý tranh chấp / khiếu nại
+- [x] 🟡 **ADM-18** — Xử lý tranh chấp / khiếu nại
 
 ### Khuyến mãi
 
@@ -109,16 +109,16 @@ Sau mỗi Sprint, trước khi báo hoàn thành hoặc tạo Release, phải th
 
 ### Khách hàng
 
-- [ ] 🟡 **SEL-13** — Danh sách khách của shop
+- [x] 🟡 **SEL-13** — Danh sách khách của shop
 
 ### Đánh giá
 
-- [ ] 🔴 **SEL-14** — Trả lời review
-- [ ] 🟡 **SEL-15** — Báo cáo review vi phạm
+- [x] 🔴 **SEL-14** — Trả lời review
+- [x] 🟡 **SEL-15** — Báo cáo review vi phạm
 
 ### Chat
 
-- [ ] 🔴 **SEL-16** — Chat với khách hàng
+- [x] 🔴 **SEL-16** — Chat với khách hàng
 
 ### Hồ sơ shop
 
@@ -169,19 +169,19 @@ Sau mỗi Sprint, trước khi báo hoàn thành hoặc tạo Release, phải th
 
 - [ ] 🔴 **CUS-16** — Theo dõi đơn hàng
 - [ ] 🔴 **CUS-17** — Hủy đơn & mua lại
-- [ ] 🟡 **CUS-18** — Yêu cầu trả hàng / hoàn tiền
+- [x] 🟡 **CUS-18** — Yêu cầu trả hàng / hoàn tiền
 
 ### Đánh giá
 
-- [ ] 🔴 **CUS-19** — Viết đánh giá
+- [x] 🔴 **CUS-19** — Viết đánh giá
 
 ### Chat
 
-- [ ] 🔴 **CUS-20** — Chat với shop
+- [x] 🔴 **CUS-20** — Chat với shop
 
 ### Thông báo
 
-- [ ] 🟡 **CUS-21** — Trung tâm thông báo
+- [x] 🟡 **CUS-21** — Trung tâm thông báo
 
 ### Giao diện
 
@@ -238,7 +238,7 @@ Sau mỗi Sprint, trước khi báo hoàn thành hoặc tạo Release, phải th
 - [ ] ⚪ **BON-05** — Affiliate
 - [ ] ⚪ **BON-06** — Điểm thưởng (loyalty)
 - [ ] ⚪ **BON-07** — Ví điện tử nội bộ
-- [ ] 🟡 **BON-08** — Thông báo realtime
+- [x] 🟡 **BON-08** — Thông báo realtime
 - [ ] ⚪ **BON-09** — Waitlist khi hết hàng
 - [ ] ⚪ **BON-10** — Báo cáo vi phạm
 - [ ] 🟡 **BON-11** — Import / Export Excel
@@ -261,7 +261,7 @@ Sau mỗi Sprint, trước khi báo hoàn thành hoặc tạo Release, phải th
 
 - [ ] 🔴 **NFR-05** — Phân trang & tối ưu truy vấn
 - [ ] 🟡 **NFR-06** — Redis Cache
-- [ ] 🔴 **NFR-07** — Background jobs
+- [x] 🔴 **NFR-07** — Background jobs
 
 ### Kiến trúc
 

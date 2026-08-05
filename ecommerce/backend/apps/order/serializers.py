@@ -71,6 +71,7 @@ class OrderStatusHistorySerializer(serializers.ModelSerializer):
 
 class ShopOrderSerializer(serializers.ModelSerializer):
     shop_name = serializers.CharField(source="shop.name")
+    shop_slug = serializers.CharField(source="shop.slug")
     items = OrderItemSerializer(many=True)
     status_history = OrderStatusHistorySerializer(many=True)
 
@@ -81,6 +82,7 @@ class ShopOrderSerializer(serializers.ModelSerializer):
             "shop_order_code",
             "shop",
             "shop_name",
+            "shop_slug",
             "fulfillment_status",
             "subtotal",
             "shop_discount",
@@ -149,3 +151,12 @@ class CancelSerializer(serializers.Serializer):
     shop_order_id = serializers.UUIDField(required=False)
     reason_code = serializers.CharField(max_length=50)
     reason_detail = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class SellerCustomerSerializer(serializers.Serializer):
+    id = serializers.IntegerField(source="order__customer__user_id")
+    email = serializers.EmailField(source="order__customer__user__email")
+    full_name = serializers.CharField(source="order__customer__user__full_name")
+    order_count = serializers.IntegerField()
+    total_spent = serializers.DecimalField(max_digits=18, decimal_places=0)
+    last_order_at = serializers.DateTimeField()

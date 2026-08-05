@@ -335,6 +335,9 @@ class Notification(TimeStampedModel):
         INVENTORY_LOW_STOCK = "inventory_low_stock", "Tồn kho thấp"
         BACK_IN_STOCK = "back_in_stock", "Có hàng trở lại"
         ORDER = "order", "Đơn hàng"
+        CHAT = "chat", "Tin nhắn"
+        REVIEW = "review", "Đánh giá"
+        PROMOTION = "promotion", "Khuyến mãi"
 
     user = models.ForeignKey(
         User,
@@ -346,6 +349,7 @@ class Notification(TimeStampedModel):
     message = models.TextField()
     metadata = models.JSONField(default=dict, blank=True)
     is_read = models.BooleanField(default=False, db_index=True)
+    read_at = models.DateTimeField(null=True, blank=True)
     is_deleted = models.BooleanField(default=False, db_index=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
 

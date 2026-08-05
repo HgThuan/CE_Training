@@ -16,10 +16,15 @@ logger = logging.getLogger(__name__)
 
 @shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def send_order_confirmation_notification(order_id: str) -> int:
-    order = Order.objects.select_related("customer__user").filter(pk=order_id).first()
+    order = (
+        Order.objects.select_related("customer__user")
+        .prefetch_related("shop_orders__shop__owner")
+        .filter(pk=order_id)
+        .first()
+    )
     if order is None:
         return 0
-    _, created = Notification.objects.get_or_create(
+    _, customer_created = Notification.objects.get_or_create(
         user=order.customer.user,
         kind=Notification.Kind.ORDER,
         metadata={"event": "order_created", "order_id": str(order.pk)},
@@ -28,7 +33,22 @@ def send_order_confirmation_notification(order_id: str) -> int:
             "message": f"Đơn {order.order_code} đã được tạo.",
         },
     )
-    return int(created)
+    created_count = int(customer_created)
+    for shop_order in order.shop_orders.all():
+        _, seller_created = Notification.objects.get_or_create(
+            user=shop_order.shop.owner,
+            kind=Notification.Kind.ORDER,
+            metadata={
+                "event": "seller_order_created",
+                "shop_order_id": str(shop_order.pk),
+            },
+            defaults={
+                "title": "Bạn có đơn hàng mới",
+                "message": f"Đơn {shop_order.shop_order_code} đang chờ xác nhận.",
+            },
+        )
+        created_count += int(seller_created)
+    return created_count
 
 
 @shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)

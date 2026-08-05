@@ -5,7 +5,13 @@ from apps.product.selectors import ProductSelector
 from .embedding_service import EmbeddingService
 
 
-@shared_task(name="ai.index_product_embedding")
+@shared_task(
+    name="ai.index_product_embedding",
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_jitter=True,
+    max_retries=3,
+)
 def index_product_embedding(product_id: str) -> dict:
     return EmbeddingService.index_product(product_id).as_dict()
 
@@ -14,7 +20,13 @@ def index_product_embedding(product_id: str) -> dict:
 index_product_embeddings = index_product_embedding
 
 
-@shared_task(name="ai.reindex_all_products")
+@shared_task(
+    name="ai.reindex_all_products",
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_jitter=True,
+    max_retries=3,
+)
 def reindex_all_products(batch_size: int = 100) -> dict:
     if not EmbeddingService.is_enabled():
         return {"status": "disabled", "enqueued": 0}
