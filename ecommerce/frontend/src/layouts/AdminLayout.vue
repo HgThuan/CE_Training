@@ -70,12 +70,13 @@ async function logout(): Promise<void> {
             <span class="hidden lg:inline">Tranh chấp</span>
           </RouterLink>
           <RouterLink
-            class="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-slate-400 hover:bg-white/10 hover:text-white"
-            active-class="!bg-white/10 !text-white"
+            class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white"
+            active-class="!bg-indigo-500 !text-white"
             to="/admin/review-reports"
             title="Báo cáo review"
           >
             <ChatBubbleBottomCenterTextIcon class="h-5 w-5" />
+            <span class="hidden lg:inline">Báo cáo review</span>
           </RouterLink>
           <RouterLink
             class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white"
@@ -94,12 +95,13 @@ async function logout(): Promise<void> {
             <span class="hidden lg:inline">Flash Sale</span>
           </RouterLink>
           <RouterLink
-            class="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-slate-400 hover:bg-white/10 hover:text-white"
-            active-class="!bg-white/10 !text-white"
+            class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white"
+            active-class="!bg-indigo-500 !text-white"
             to="/admin"
-            title="Tổng quan"
+            end
           >
-            <HomeIcon class="h-5 w-5" />
+            <HomeIcon class="h-4 w-4" />
+            <span class="hidden lg:inline">Tổng quan</span>
           </RouterLink>
           <RouterLink
             class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white"
@@ -128,34 +130,74 @@ async function logout(): Promise<void> {
           <RouterLink
             class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white"
             active-class="!bg-indigo-500 !text-white"
+            to="/admin/customers"
+          >
+            <UsersIcon class="h-4 w-4" />
+            <span class="hidden lg:inline">Khách hàng</span>
+          </RouterLink>
+          <RouterLink
+            class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white"
+            active-class="!bg-indigo-500 !text-white"
+            to="/admin/sellers"
+          >
+            <BuildingStorefrontIcon class="h-4 w-4" />
+            <span class="hidden lg:inline">Seller</span>
+          </RouterLink>
+          <RouterLink
+            class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white"
+            active-class="!bg-indigo-500 !text-white"
             to="/admin/banners"
           >
             <PhotoIcon class="h-4 w-4" />
             <span class="hidden lg:inline">Banner</span>
           </RouterLink>
           <RouterLink
-            class="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-slate-400 hover:bg-white/10 hover:text-white"
-            active-class="!bg-white/10 !text-white"
-            to="/admin/customers"
-            title="Khách hàng"
+            class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white"
+            active-class="!bg-indigo-500 !text-white"
+            to="/admin/vouchers"
           >
-            <UsersIcon class="h-5 w-5" />
+            <TicketIcon class="h-4 w-4" />
+            <span class="hidden lg:inline">Voucher</span>
           </RouterLink>
           <RouterLink
-            class="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-slate-400 hover:bg-white/10 hover:text-white"
-            active-class="!bg-white/10 !text-white"
-            to="/admin/sellers"
-            title="Seller"
+            class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white"
+            active-class="!bg-indigo-500 !text-white"
+            to="/admin/flash-sales"
           >
-            <BuildingStorefrontIcon class="h-5 w-5" />
+            <BoltIcon class="h-4 w-4" />
+            <span class="hidden lg:inline">Flash Sale</span>
+          </RouterLink>
+          <RouterLink
+            class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white"
+            active-class="!bg-indigo-500 !text-white"
+            to="/admin/operations"
+          >
+            <ChartBarSquareIcon class="h-4 w-4" />
+            <span class="hidden lg:inline">Báo cáo</span>
+          </RouterLink>
+          <RouterLink
+            class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white"
+            active-class="!bg-indigo-500 !text-white"
+            to="/admin/disputes"
+          >
+            <ScaleIcon class="h-4 w-4" />
+            <span class="hidden lg:inline">Tranh chấp</span>
+          </RouterLink>
+          <RouterLink
+            class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white"
+            active-class="!bg-indigo-500 !text-white"
+            to="/admin/review-reports"
+          >
+            <ChatBubbleBottomCenterTextIcon class="h-4 w-4" />
+            <span class="hidden lg:inline">Báo cáo review</span>
           </RouterLink>
           <button
-            class="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-slate-400 hover:bg-rose-500/20 hover:text-rose-300"
+            class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-slate-300 hover:bg-rose-500/20 hover:text-rose-300"
             type="button"
-            aria-label="Đăng xuất"
             @click="logout"
           >
-            <ArrowLeftStartOnRectangleIcon class="h-5 w-5" />
+            <ArrowLeftStartOnRectangleIcon class="h-4 w-4" />
+            <span class="hidden lg:inline">Đăng xuất</span>
           </button>
         </nav>
       </div>
