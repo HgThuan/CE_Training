@@ -5,9 +5,14 @@ import { formatCurrency } from '@/shared/lib/formatters'
 
 import { afterSalesApi } from '../api'
 import type { ReturnRequest } from '../types'
+import InputDialog from '@/shared/components/InputDialog.vue'
 
 const requests = ref<ReturnRequest[]>([])
 const error = ref('')
+
+const isDecideDialogOpen = ref(false)
+const selectedReturn = ref<{ item: ReturnRequest; action: 'APPROVE' | 'REJECT' } | null>(null)
+
 async function load(): Promise<void> {
   try {
     requests.value = (await afterSalesApi.sellerReturns()).data.data
@@ -15,12 +20,25 @@ async function load(): Promise<void> {
     error.value = 'Không thể tải yêu cầu trả hàng.'
   }
 }
-async function decide(item: ReturnRequest, action: 'APPROVE' | 'REJECT'): Promise<void> {
-  const response = window.prompt(action === 'APPROVE' ? 'Ghi chú chấp thuận' : 'Lý do từ chối')
-  if (!response) return
-  await afterSalesApi.decideReturn(item.id, action, response)
+
+function openDecideDialog(item: ReturnRequest, action: 'APPROVE' | 'REJECT') {
+  selectedReturn.value = { item, action }
+  isDecideDialogOpen.value = true
+}
+
+async function handleDecideConfirm(response: string) {
+  if (!response.trim() || !selectedReturn.value) return
+  isDecideDialogOpen.value = false
+
+  await afterSalesApi.decideReturn(
+    selectedReturn.value.item.id,
+    selectedReturn.value.action,
+    response,
+  )
+  selectedReturn.value = null
   await load()
 }
+
 onMounted(load)
 </script>
 
@@ -40,23 +58,62 @@ onMounted(load)
         <b>{{ item.status }}</b>
       </div>
       <p class="my-4">{{ item.reason_detail }}</p>
+
+      <!-- Media List from ReturnRequest (If available) -->
+      <div v-if="item.media && item.media.length > 0" class="flex gap-2 mb-4">
+        <div
+          v-for="media in item.media"
+          :key="media.id"
+          class="h-16 w-16 overflow-hidden rounded-lg border"
+        >
+          <img
+            v-if="media.media_type === 'IMAGE'"
+            :src="media.file_url"
+            class="h-full w-full object-cover"
+          />
+          <video
+            v-else-if="media.media_type === 'VIDEO'"
+            :src="media.file_url"
+            class="h-full w-full object-cover"
+          ></video>
+        </div>
+      </div>
+
       <p v-for="line in item.items" :key="line.id" class="flex justify-between border-t py-3">
-        <span>{{ line.product_name }} × {{ line.quantity }}</span
-        ><b>{{ formatCurrency(line.requested_refund_amount) }}</b>
+        <span>{{ line.product_name }} × {{ line.quantity }}</span>
+        <b>{{ formatCurrency(line.requested_refund_amount) }}</b>
       </p>
+
       <div v-if="item.status === 'REQUESTED'" class="mt-3 flex gap-2">
         <button
-          class="rounded-xl bg-emerald-600 px-4 py-2 font-bold text-white"
-          @click="decide(item, 'APPROVE')"
+          class="rounded-xl bg-emerald-600 px-4 py-2 font-bold text-white hover:bg-emerald-700"
+          @click="openDecideDialog(item, 'APPROVE')"
         >
-          Chấp thuận</button
-        ><button
-          class="rounded-xl bg-rose-600 px-4 py-2 font-bold text-white"
-          @click="decide(item, 'REJECT')"
+          Chấp thuận
+        </button>
+        <button
+          class="rounded-xl bg-rose-600 px-4 py-2 font-bold text-white hover:bg-rose-700"
+          @click="openDecideDialog(item, 'REJECT')"
         >
           Từ chối
         </button>
       </div>
     </article>
+
+    <InputDialog
+      :is-open="isDecideDialogOpen"
+      :title="selectedReturn?.action === 'APPROVE' ? 'Chấp thuận trả hàng' : 'Từ chối trả hàng'"
+      :placeholder="
+        selectedReturn?.action === 'APPROVE'
+          ? 'Nhập ghi chú chấp thuận...'
+          : 'Nhập lý do từ chối...'
+      "
+      :confirm-text="
+        selectedReturn?.action === 'APPROVE' ? 'Xác nhận chấp thuận' : 'Xác nhận từ chối'
+      "
+      :multiline="true"
+      @close="isDecideDialogOpen = false"
+      @confirm="handleDecideConfirm"
+    />
   </main>
 </template>
