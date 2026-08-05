@@ -12,6 +12,7 @@ import { computed, onMounted, ref } from 'vue'
 
 import FormMessage from '@/features/auth/components/FormMessage.vue'
 import { getErrorMessage } from '@/features/auth/errors'
+import ConfirmDialog from '@/shared/components/ConfirmDialog.vue'
 import { formatDateTime } from '@/shared/lib/formatters'
 
 import { adminBannersApi } from '../api'
@@ -24,6 +25,8 @@ const busy = ref(false)
 const draggedId = ref('')
 const message = ref('')
 const errorMessage = ref('')
+const showDeleteDialog = ref(false)
+const bannerToDelete = ref<Banner | null>(null)
 
 const positionLabels: Record<Banner['position'], string> = {
   hero: 'Đầu trang',
@@ -90,8 +93,21 @@ async function moveBanner(banner: Banner, direction: -1 | 1): Promise<void> {
   if (target) await swapBanners(banner.id, target.id)
 }
 
-async function deleteBanner(banner: Banner): Promise<void> {
-  if (!window.confirm(`Xóa banner “${banner.title || 'Không tiêu đề'}”?`)) return
+function requestDeleteBanner(banner: Banner): void {
+  bannerToDelete.value = banner
+  showDeleteDialog.value = true
+}
+
+function cancelDelete(): void {
+  showDeleteDialog.value = false
+  bannerToDelete.value = null
+}
+
+async function confirmDelete(): Promise<void> {
+  const banner = bannerToDelete.value
+  if (!banner) return
+  showDeleteDialog.value = false
+  bannerToDelete.value = null
   busy.value = true
   message.value = ''
   errorMessage.value = ''
@@ -261,7 +277,7 @@ onMounted(loadBanners)
                     type="button"
                     :disabled="busy"
                     aria-label="Xóa banner"
-                    @click="deleteBanner(banner)"
+                    @click="requestDeleteBanner(banner)"
                   >
                     <TrashIcon class="h-5 w-5" />
                   </button>
@@ -278,5 +294,16 @@ onMounted(loadBanners)
         </p>
       </section>
     </div>
+
+    <ConfirmDialog
+      :open="showDeleteDialog"
+      title="Xóa banner"
+      :message="`Bạn có chắc chắn muốn xóa banner &quot;${bannerToDelete?.title || 'Không tiêu đề'}&quot;? Thao tác này không thể hoàn tác.`"
+      confirm-text="Xóa"
+      cancel-text="Hủy"
+      variant="danger"
+      @confirm="confirmDelete"
+      @cancel="cancelDelete"
+    />
   </main>
 </template>
