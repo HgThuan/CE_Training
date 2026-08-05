@@ -3,13 +3,15 @@ import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { formatCurrency } from '@/shared/lib/formatters'
 import { afterSalesApi } from '@/features/after-sales/api'
-import type { ReturnRequest } from '@/features/after-sales/types'
+import ReviewFormDialog from '@/features/after-sales/components/ReviewFormDialog.vue'
+import type { ReturnRequest, Review } from '@/features/after-sales/types'
 import { orderApi } from '../api'
-import type { CommerceOrder } from '../types'
+import type { CommerceOrder, OrderItem } from '../types'
 const route = useRoute(),
   order = ref<CommerceOrder | null>(null),
   error = ref(''),
-  returns = ref<ReturnRequest[]>([])
+  returns = ref<ReturnRequest[]>([]),
+  reviewItem = ref<OrderItem | null>(null)
 async function load() {
   try {
     const orderId = String(route.params.orderId)
@@ -30,21 +32,9 @@ async function reorder() {
     alert('Đã thêm lại các sản phẩm còn khả dụng vào giỏ.')
   }
 }
-async function review(itemId: string) {
-  const rating = Number(prompt('Số sao (1-5)', '5'))
-  if (!rating || rating < 1 || rating > 5) return
-  const content = prompt('Chia sẻ trải nghiệm của bạn') ?? ''
-  const image = prompt('URL ảnh minh chứng (có thể bỏ trống)') ?? ''
-  try {
-    await afterSalesApi.createReview(itemId, {
-      rating,
-      content,
-      media: image ? [{ media_type: 'IMAGE', file_url: image }] : [],
-    })
-    alert('Đã gửi đánh giá.')
-  } catch {
-    error.value = 'Không thể gửi đánh giá. Sản phẩm có thể đã được đánh giá hoặc đã quá điều kiện.'
-  }
+function saveReview(review: Review): void {
+  if (reviewItem.value) reviewItem.value.review = review
+  error.value = ''
 }
 async function createReturn(shop: CommerceOrder['shop_orders'][number]) {
   if (!order.value) return
@@ -99,15 +89,21 @@ onMounted(load)
             :key="item.id"
             class="flex items-center justify-between gap-3 py-3"
           >
-            <span>{{ item.product_name }} × {{ item.quantity }}</span>
+            <div>
+              <span>{{ item.product_name }} × {{ item.quantity }}</span>
+              <p v-if="item.review" class="mt-1 text-sm text-amber-600">
+                {{ '★'.repeat(item.review.rating) }}
+                <span class="ml-1 text-slate-500">{{ item.review.status }}</span>
+              </p>
+            </div>
             <div class="flex items-center gap-3">
               <b>{{ formatCurrency(item.line_total) }}</b
               ><button
                 v-if="shop.fulfillment_status === 'COMPLETED'"
                 class="rounded-lg border border-amber-300 px-3 py-1 text-sm font-bold text-amber-700"
-                @click="review(item.id)"
+                @click="reviewItem = item"
               >
-                Đánh giá
+                {{ item.review ? 'Sửa đánh giá' : 'Đánh giá' }}
               </button>
             </div>
           </div>
@@ -164,5 +160,13 @@ onMounted(load)
         </article>
       </section></template
     >
+    <ReviewFormDialog
+      :open="reviewItem !== null"
+      :order-item-id="reviewItem?.id ?? ''"
+      :product-name="reviewItem?.product_name ?? ''"
+      :review="reviewItem?.review ?? null"
+      @close="reviewItem = null"
+      @saved="saveReview"
+    />
   </main>
 </template>

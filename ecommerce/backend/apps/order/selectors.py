@@ -14,7 +14,12 @@ def get_orders_for_customer(user, *, status=None):
     queryset = (
         Order.objects.filter(customer__user=user)
         .select_related(*ORDER_GRAPH)
-        .prefetch_related("shop_orders__shop", "shop_orders__items", "shop_orders__status_history")
+        .prefetch_related(
+            "shop_orders__shop",
+            "shop_orders__items__review__media",
+            "shop_orders__items__review__reply__seller_user",
+            "shop_orders__status_history",
+        )
     )
     if status:
         queryset = queryset.filter(shop_orders__fulfillment_status=status).distinct()
@@ -28,7 +33,9 @@ def get_shop_orders_for_seller(user, *, status=None):
         queryset = (
             ShopOrder.objects.filter(shop=shop)
             .select_related("order__customer__user", "order__shipping_address", "shop")
-            .prefetch_related("items", "status_history")
+            .prefetch_related(
+                "items__review__media", "items__review__reply__seller_user", "status_history"
+            )
         )
     if status:
         queryset = queryset.filter(fulfillment_status=status)
@@ -39,7 +46,10 @@ def get_all_orders_for_admin(
     *, status=None, seller=None, date_from=None, date_to=None, search=None
 ):
     queryset = Order.objects.select_related(*ORDER_GRAPH).prefetch_related(
-        "shop_orders__shop", "shop_orders__items", "shop_orders__status_history"
+        "shop_orders__shop",
+        "shop_orders__items__review__media",
+        "shop_orders__items__review__reply__seller_user",
+        "shop_orders__status_history",
     )
     if status:
         queryset = queryset.filter(shop_orders__fulfillment_status=status).distinct()
@@ -97,6 +107,8 @@ def get_customer_orders_for_seller(user, customer_id):
     return (
         ShopOrder.objects.filter(shop=shop, order__customer__user_id=customer_id)
         .select_related("order__customer__user", "order__shipping_address", "shop")
-        .prefetch_related("items", "status_history")
+        .prefetch_related(
+            "items__review__media", "items__review__reply__seller_user", "status_history"
+        )
         .order_by("-created_at")
     )

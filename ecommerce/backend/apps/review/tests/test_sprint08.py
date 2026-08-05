@@ -104,3 +104,65 @@ def test_review_api_rejects_customer_who_did_not_buy_item():
 
     assert response.status_code == 404
     assert not Review.objects.exists()
+
+
+def test_review_role_workflow_is_available_through_the_api():
+    customer, shop, item = completed_order_item()
+    customer_client = APIClient()
+    customer_client.force_authenticate(customer)
+
+    created = customer_client.post(
+        f"/api/v1/order-items/{item.pk}/review",
+        {"rating": 4, "content": "Sản phẩm tốt"},
+        format="json",
+    )
+
+    assert created.status_code == 201
+    review_id = created.data["data"]["id"]
+    order_detail = customer_client.get(f"/api/v1/orders/{item.shop_order.order_id}")
+    item_data = order_detail.data["data"]["shop_orders"][0]["items"][0]
+    assert item_data["review"]["id"] == review_id
+
+    updated = customer_client.patch(
+        f"/api/v1/reviews/{review_id}",
+        {"rating": 5, "content": "Cập nhật sau khi sử dụng"},
+        format="json",
+    )
+    assert updated.status_code == 200
+    assert updated.data["data"]["rating"] == 5
+
+    seller_client = APIClient()
+    seller_client.force_authenticate(shop.owner)
+    seller_list = seller_client.get("/api/v1/seller/reviews")
+    assert seller_list.status_code == 200
+    assert seller_list.data["data"][0]["id"] == review_id
+
+    replied = seller_client.post(
+        f"/api/v1/seller/reviews/{review_id}/reply",
+        {"content": "Cảm ơn bạn đã đánh giá"},
+        format="json",
+    )
+    assert replied.status_code == 200
+    assert replied.data["data"]["reply"]["content"] == "Cảm ơn bạn đã đánh giá"
+
+    reported = seller_client.post(
+        f"/api/v1/seller/reviews/{review_id}/report",
+        {"reason_code": "INAPPROPRIATE", "reason_detail": "Cần Admin kiểm tra"},
+        format="json",
+    )
+    assert reported.status_code == 201
+
+    admin = UserFactory(role=User.Role.ADMIN, is_staff=True)
+    admin_client = APIClient()
+    admin_client.force_authenticate(admin)
+    reports = admin_client.get("/api/v1/admin/review-reports")
+    assert reports.status_code == 200
+    report_id = reports.data["data"][0]["id"]
+
+    resolved = admin_client.post(
+        f"/api/v1/admin/review-reports/{report_id}/resolve",
+        {"action": "KEEP", "note": "Đánh giá hợp lệ"},
+        format="json",
+    )
+    assert resolved.status_code == 200
+    assert resolved.data["data"]["status"] == ReviewReport.Status.REJECTED

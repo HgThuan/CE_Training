@@ -28,6 +28,7 @@ export interface Review {
   media: ReviewMedia[]
   reply?: ReviewReply
   created_at: string
+  updated_at: string
 }
 
 export interface ReturnRequestItem {
@@ -90,5 +91,7 @@ export interface ReviewReport {
   reason_code: string
   reason_detail: string
   status: string
+  resolution_note: string
   created_at: string
+  updated_at: string
 }
