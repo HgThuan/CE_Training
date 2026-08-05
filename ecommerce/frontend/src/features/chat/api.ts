@@ -7,9 +7,9 @@ export const chatApi = {
   conversations: () => http.get<ApiResponse<Conversation[]>>('/conversations'),
   open: (shopSlug: string) =>
     http.post<ApiResponse<Conversation>>('/conversations', { shop_slug: shopSlug }),
-  messages: (conversationId: string) =>
+  messages: (conversationId: string, page = 1, pageSize = 30) =>
     http.get<ApiResponse<ChatMessage[]>>(`/conversations/${conversationId}/messages`, {
-      params: { page_size: 100 },
+      params: { latest: true, page, page_size: pageSize },
     }),
   send: (conversationId: string, payload: MessagePayload) =>
     http.post<ApiResponse<ChatMessage>>(`/conversations/${conversationId}/messages`, payload),

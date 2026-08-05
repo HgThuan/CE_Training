@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from rest_framework.test import APIClient
 
@@ -53,6 +55,66 @@ def test_message_is_persisted_idempotently_and_notifies_recipient():
     assert first.data["data"]["id"] == retry.data["data"]["id"]
     assert Message.objects.count() == 1
     assert Notification.objects.filter(user=shop.owner, kind=Notification.Kind.CHAT).count() == 1
+
+
+def test_message_broadcast_payload_is_channel_layer_serializable(monkeypatch):
+    customer = UserFactory(role=User.Role.CUSTOMER)
+    shop = ShopFactory()
+    conversation, _ = ConversationService.open(customer=customer, shop=shop)
+    message, _ = ConversationService.send_message(
+        conversation=conversation,
+        sender=customer,
+        message_type=Message.Type.TEXT,
+        content="Tin nhắn realtime",
+        client_message_id="broadcast-message-1",
+    )
+    sent_events = []
+
+    class RecordingChannelLayer:
+        async def group_send(self, group, event):
+            sent_events.append((group, event))
+
+    monkeypatch.setattr("apps.chat.services.get_channel_layer", lambda: RecordingChannelLayer())
+
+    ConversationService.broadcast(message.pk)
+
+    group, event = sent_events[0]
+    json.dumps(event)
+    assert group == f"conversation_{conversation.pk}"
+    assert event["message"]["conversation"] == str(conversation.pk)
+    assert event["message"]["id"] == str(message.pk)
+
+
+def test_latest_message_pages_are_returned_in_chronological_order():
+    customer = UserFactory(role=User.Role.CUSTOMER)
+    conversation, _ = ConversationService.open(customer=customer, shop=ShopFactory())
+    messages = [
+        Message.objects.create(
+            conversation=conversation,
+            sender=customer,
+            message_type=Message.Type.TEXT,
+            content=f"Tin nhắn {index}",
+        )
+        for index in range(5)
+    ]
+    client = authenticated_client(customer)
+
+    latest = client.get(
+        f"/api/v1/conversations/{conversation.pk}/messages",
+        {"latest": "true", "page": 1, "page_size": 3},
+    )
+    older = client.get(
+        f"/api/v1/conversations/{conversation.pk}/messages",
+        {"latest": "true", "page": 2, "page_size": 3},
+    )
+
+    assert latest.status_code == 200
+    assert [item["id"] for item in latest.data["data"]] == [
+        str(message.pk) for message in messages[2:]
+    ]
+    assert [item["id"] for item in older.data["data"]] == [
+        str(message.pk) for message in messages[:2]
+    ]
 
 
 def test_outsider_cannot_read_or_send_to_conversation():

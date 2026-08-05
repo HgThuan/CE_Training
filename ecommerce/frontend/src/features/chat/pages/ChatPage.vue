@@ -20,8 +20,12 @@ const content = ref('')
 const imageUrl = ref('')
 const loading = ref(true)
 const sending = ref(false)
+const loadingOlderMessages = ref(false)
+const messagePage = ref(1)
+const hasOlderMessages = ref(false)
 const errorMessage = ref('')
 const messageList = ref<HTMLElement | null>(null)
+const MESSAGE_PAGE_SIZE = 30
 const contextProductId = computed(() =>
   typeof route.query.product === 'string' ? route.query.product : '',
 )
@@ -47,10 +51,16 @@ const socket = useChatSocket(() => authStore.accessToken, appendMessage)
 
 async function selectConversation(conversation: Conversation): Promise<void> {
   activeConversation.value = conversation
+  messages.value = []
+  messagePage.value = 1
+  hasOlderMessages.value = false
   errorMessage.value = ''
   socket.connect(conversation.id)
   try {
-    messages.value = (await chatApi.messages(conversation.id)).data.data
+    const response = await chatApi.messages(conversation.id, 1, MESSAGE_PAGE_SIZE)
+    if (activeConversation.value?.id !== conversation.id) return
+    messages.value = response.data.data
+    hasOlderMessages.value = (response.data.meta?.total_pages ?? 1) > 1
     const last = messages.value.at(-1)
     await chatApi.read(conversation.id, last?.id)
     conversation.unread_count = 0
@@ -58,6 +68,34 @@ async function selectConversation(conversation: Conversation): Promise<void> {
     messageList.value?.scrollTo({ top: messageList.value.scrollHeight })
   } catch (error) {
     errorMessage.value = getErrorMessage(error)
+  }
+}
+
+async function loadOlderMessages(): Promise<void> {
+  const conversationId = activeConversation.value?.id
+  const list = messageList.value
+  if (!conversationId || !list || loadingOlderMessages.value || !hasOlderMessages.value) return
+
+  loadingOlderMessages.value = true
+  errorMessage.value = ''
+  const previousHeight = list.scrollHeight
+  const nextPage = messagePage.value + 1
+  try {
+    const response = await chatApi.messages(conversationId, nextPage, MESSAGE_PAGE_SIZE)
+    if (activeConversation.value?.id !== conversationId) return
+    const knownIds = new Set(messages.value.map((message) => message.id))
+    messages.value = [
+      ...response.data.data.filter((message) => !knownIds.has(message.id)),
+      ...messages.value,
+    ]
+    messagePage.value = nextPage
+    hasOlderMessages.value = nextPage < (response.data.meta?.total_pages ?? nextPage)
+    await nextTick()
+    list.scrollTop = list.scrollHeight - previousHeight
+  } catch (error) {
+    errorMessage.value = getErrorMessage(error)
+  } finally {
+    loadingOlderMessages.value = false
   }
 }
 
@@ -151,9 +189,11 @@ onMounted(load)
     <p v-if="loading" class="rounded-2xl bg-white p-8">Đang tải hội thoại…</p>
     <div
       v-else-if="conversations.length"
-      class="grid min-h-[620px] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm lg:grid-cols-[320px_1fr]"
+      class="grid h-[clamp(520px,72vh,720px)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm lg:grid-cols-[320px_1fr] lg:grid-rows-1"
     >
-      <aside class="border-b border-slate-200 lg:border-b-0 lg:border-r">
+      <aside
+        class="max-h-40 overflow-y-auto border-b border-slate-200 lg:max-h-none lg:border-b-0 lg:border-r"
+      >
         <button
           v-for="conversation in conversations"
           :key="conversation.id"
@@ -180,11 +220,21 @@ onMounted(load)
           >
         </button>
       </aside>
-      <section class="flex min-h-[620px] flex-col">
+      <section class="flex min-h-0 flex-col overflow-hidden">
         <header class="border-b border-slate-200 px-5 py-4">
           <h2 class="font-black">{{ activeTitle }}</h2>
         </header>
         <div ref="messageList" class="flex-1 space-y-3 overflow-y-auto bg-slate-50 p-5">
+          <div v-if="hasOlderMessages" class="flex justify-center pb-2">
+            <button
+              class="rounded-full bg-white px-4 py-2 text-xs font-bold text-indigo-700 shadow-sm ring-1 ring-slate-200 hover:bg-indigo-50 disabled:opacity-60"
+              :disabled="loadingOlderMessages"
+              type="button"
+              @click="loadOlderMessages"
+            >
+              {{ loadingOlderMessages ? 'Đang tải…' : 'Xem tin nhắn cũ hơn' }}
+            </button>
+          </div>
           <article
             v-for="message in messages"
             :key="message.id"

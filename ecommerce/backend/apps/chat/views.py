@@ -57,14 +57,20 @@ class ConversationMessageListCreateView(APIView):
     def get(self, request, conversation_id):
         conversation = _conversation_for_user(request.user, conversation_id)
         queryset = messages_for_conversation(conversation)
+        latest_first = request.query_params.get("latest", "").lower() == "true"
         after = request.query_params.get("after")
         if after:
             cursor = queryset.filter(pk=after).first()
             if cursor:
                 queryset = queryset.filter(created_at__gte=cursor.created_at).exclude(pk=cursor.pk)
+        if latest_first:
+            queryset = queryset.order_by("-created_at", "-pk")
         paginator = StandardPagination()
         page = paginator.paginate_queryset(queryset, request, view=self)
-        return paginator.get_paginated_response(MessageSerializer(page, many=True).data)
+        data = list(MessageSerializer(page, many=True).data)
+        if latest_first:
+            data.reverse()
+        return paginator.get_paginated_response(data)
 
     def post(self, request, conversation_id):
         conversation = _conversation_for_user(request.user, conversation_id)
