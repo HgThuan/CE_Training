@@ -30,7 +30,6 @@ async function reorder() {
     alert('Đã thêm lại các sản phẩm còn khả dụng vào giỏ.')
   }
 }
-<<<<<<< HEAD
 async function retryPayment() {
   if (!order.value) return
   try {
@@ -40,8 +39,6 @@ async function retryPayment() {
     error.value = 'Không thể khởi tạo lại thanh toán VNPay.'
   }
 }
-=======
->>>>>>> feature/sprint-09-chat-notifications-realtime
 async function review(itemId: string) {
   const rating = Number(prompt('Số sao (1-5)', '5'))
   if (!rating || rating < 1 || rating > 5) return
@@ -86,27 +83,18 @@ onMounted(load)
 <template>
   <main class="mx-auto max-w-5xl space-y-5 px-4 py-8">
     <p v-if="error" class="text-rose-700">{{ error }}</p>
-<<<<<<< HEAD
     <template v-if="order">
       <div class="flex items-center justify-between">
-=======
-    <template v-if="order"
-      ><div class="flex items-center justify-between">
->>>>>>> feature/sprint-09-chat-notifications-realtime
         <div>
           <p class="text-sm font-bold text-indigo-600">
             {{ order.payment_method }} · {{ order.payment_status }}
           </p>
           <h1 class="text-3xl font-black">{{ order.order_code }}</h1>
         </div>
-<<<<<<< HEAD
         <div class="flex gap-2">
           <button v-if="order.payment_method === 'VNPAY' && order.payment_status === 'PENDING'" class="rounded-xl bg-indigo-600 px-4 py-2 font-bold text-white" @click="retryPayment">Thanh toán lại</button>
           <button class="rounded-xl border px-4 py-2 font-bold" @click="reorder">Mua lại</button>
         </div>
-=======
-        <button class="rounded-xl border px-4 py-2 font-bold" @click="reorder">Mua lại</button>
->>>>>>> feature/sprint-09-chat-notifications-realtime
       </div>
       <article
         v-for="shop in order.shop_orders"
@@ -186,12 +174,7 @@ onMounted(load)
             Khiếu nại đến Admin
           </button>
         </article>
-<<<<<<< HEAD
       </section>
     </template>
-=======
-      </section></template
-    >
->>>>>>> feature/sprint-09-chat-notifications-realtime
   </main>
 </template>
