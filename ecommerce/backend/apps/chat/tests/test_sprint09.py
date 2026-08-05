@@ -85,6 +85,38 @@ def test_message_broadcast_payload_is_channel_layer_serializable(monkeypatch):
     assert event["message"]["id"] == str(message.pk)
 
 
+def test_latest_message_pages_are_returned_in_chronological_order():
+    customer = UserFactory(role=User.Role.CUSTOMER)
+    conversation, _ = ConversationService.open(customer=customer, shop=ShopFactory())
+    messages = [
+        Message.objects.create(
+            conversation=conversation,
+            sender=customer,
+            message_type=Message.Type.TEXT,
+            content=f"Tin nhắn {index}",
+        )
+        for index in range(5)
+    ]
+    client = authenticated_client(customer)
+
+    latest = client.get(
+        f"/api/v1/conversations/{conversation.pk}/messages",
+        {"latest": "true", "page": 1, "page_size": 3},
+    )
+    older = client.get(
+        f"/api/v1/conversations/{conversation.pk}/messages",
+        {"latest": "true", "page": 2, "page_size": 3},
+    )
+
+    assert latest.status_code == 200
+    assert [item["id"] for item in latest.data["data"]] == [
+        str(message.pk) for message in messages[2:]
+    ]
+    assert [item["id"] for item in older.data["data"]] == [
+        str(message.pk) for message in messages[:2]
+    ]
+
+
 def test_outsider_cannot_read_or_send_to_conversation():
     customer = UserFactory(role=User.Role.CUSTOMER)
     outsider = UserFactory(role=User.Role.CUSTOMER)
