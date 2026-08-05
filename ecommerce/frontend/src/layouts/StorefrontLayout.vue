@@ -2,6 +2,7 @@
 import {
   ArrowLeftStartOnRectangleIcon,
   Bars3Icon,
+  ClipboardDocumentListIcon,
   HeartIcon,
   ShoppingBagIcon,
   UserCircleIcon,
@@ -11,6 +12,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 
 import { homePathForRole } from '@/features/auth/routes'
+import NotificationBell from '@/features/notification/components/NotificationBell.vue'
 import SearchBar from '@/features/search/components/SearchBar.vue'
 import { useAuthStore } from '@/stores/auth'
 
@@ -90,12 +92,21 @@ async function logout(): Promise<void> {
           </RouterLink>
           <RouterLink
             v-if="authStore.user?.role === 'customer'"
+            class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-indigo-700"
+            to="/orders"
+          >
+            <ClipboardDocumentListIcon class="h-4 w-4" />
+            Đơn hàng
+          </RouterLink>
+          <RouterLink
+            v-if="authStore.user?.role === 'customer'"
             class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-rose-700"
             to="/wishlist"
           >
             <HeartIcon class="h-4 w-4" />
             Yêu thích
           </RouterLink>
+          <NotificationBell v-if="authStore.user" to="/account/notifications" />
           <RouterLink
             v-if="authStore.user"
             class="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-white hover:bg-indigo-700"
@@ -159,6 +170,14 @@ async function logout(): Promise<void> {
           </RouterLink>
           <RouterLink class="rounded-xl px-4 py-3 hover:bg-slate-100" to="/voucher-center">
             Trung tâm Voucher
+          </RouterLink>
+          <RouterLink
+            v-if="authStore.user?.role === 'customer'"
+            class="inline-flex items-center gap-2 rounded-xl px-4 py-3 hover:bg-slate-100"
+            to="/orders"
+          >
+            <ClipboardDocumentListIcon class="h-5 w-5 text-indigo-600" />
+            Đơn hàng
           </RouterLink>
           <RouterLink
             v-if="authStore.user?.role === 'customer'"
