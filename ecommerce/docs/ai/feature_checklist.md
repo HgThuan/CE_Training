@@ -57,7 +57,7 @@ Sau mỗi Sprint, trước khi báo hoàn thành hoặc tạo Release, phải th
 ### Quản lý đơn hàng
 
 - [ ] 🔴 **ADM-17** — Theo dõi đơn toàn hệ thống
-- [ ] 🟡 **ADM-18** — Xử lý tranh chấp / khiếu nại
+- [x] 🟡 **ADM-18** — Xử lý tranh chấp / khiếu nại
 
 ### Khuyến mãi
 
@@ -109,12 +109,12 @@ Sau mỗi Sprint, trước khi báo hoàn thành hoặc tạo Release, phải th
 
 ### Khách hàng
 
-- [ ] 🟡 **SEL-13** — Danh sách khách của shop
+- [x] 🟡 **SEL-13** — Danh sách khách của shop
 
 ### Đánh giá
 
-- [ ] 🔴 **SEL-14** — Trả lời review
-- [ ] 🟡 **SEL-15** — Báo cáo review vi phạm
+- [x] 🔴 **SEL-14** — Trả lời review
+- [x] 🟡 **SEL-15** — Báo cáo review vi phạm
 
 ### Chat
 
@@ -169,11 +169,11 @@ Sau mỗi Sprint, trước khi báo hoàn thành hoặc tạo Release, phải th
 
 - [ ] 🔴 **CUS-16** — Theo dõi đơn hàng
 - [ ] 🔴 **CUS-17** — Hủy đơn & mua lại
-- [ ] 🟡 **CUS-18** — Yêu cầu trả hàng / hoàn tiền
+- [x] 🟡 **CUS-18** — Yêu cầu trả hàng / hoàn tiền
 
 ### Đánh giá
 
-- [ ] 🔴 **CUS-19** — Viết đánh giá
+- [x] 🔴 **CUS-19** — Viết đánh giá
 
 ### Chat
 

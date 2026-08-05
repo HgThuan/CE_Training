@@ -66,6 +66,21 @@ export const sellerRoutes: RouteRecordRaw[] = [
         name: 'seller-orders',
         component: () => import('@/features/seller/order/SellerOrderPage.vue'),
       },
+      {
+        path: 'customers',
+        name: 'seller-customers',
+        component: () => import('@/features/after-sales/pages/SellerCustomersPage.vue'),
+      },
+      {
+        path: 'reviews',
+        name: 'seller-reviews',
+        component: () => import('@/features/after-sales/pages/SellerReviewsPage.vue'),
+      },
+      {
+        path: 'returns',
+        name: 'seller-returns',
+        component: () => import('@/features/after-sales/pages/SellerReturnsPage.vue'),
+      },
     ],
   },
 ]

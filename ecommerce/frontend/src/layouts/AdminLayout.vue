@@ -7,6 +7,8 @@ import {
   HomeIcon,
   PhotoIcon,
   RectangleStackIcon,
+  ScaleIcon,
+  ChatBubbleBottomCenterTextIcon,
   TagIcon,
   TicketIcon,
   BoltIcon,
@@ -49,6 +51,22 @@ async function logout(): Promise<void> {
           >
             <ClipboardDocumentListIcon class="h-4 w-4" />
             <span class="hidden lg:inline">Đơn hàng</span>
+          </RouterLink>
+          <RouterLink
+            class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white"
+            active-class="!bg-indigo-500 !text-white"
+            to="/admin/disputes"
+          >
+            <ScaleIcon class="h-4 w-4" />
+            <span class="hidden lg:inline">Tranh chấp</span>
+          </RouterLink>
+          <RouterLink
+            class="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-slate-400 hover:bg-white/10 hover:text-white"
+            active-class="!bg-white/10 !text-white"
+            to="/admin/review-reports"
+            title="Báo cáo review"
+          >
+            <ChatBubbleBottomCenterTextIcon class="h-5 w-5" />
           </RouterLink>
           <RouterLink
             class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white"

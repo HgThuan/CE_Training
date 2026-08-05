@@ -50,6 +50,8 @@ INSTALLED_APPS = [
     "apps.promotion.apps.PromotionConfig",
     "apps.order.apps.OrderConfig",
     "apps.payment.apps.PaymentConfig",
+    "apps.after_sales.apps.AfterSalesConfig",
+    "apps.review.apps.ReviewConfig",
 ]
 
 MIDDLEWARE = [
