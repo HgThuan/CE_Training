@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from rest_framework.test import APIClient
 
@@ -53,6 +55,34 @@ def test_message_is_persisted_idempotently_and_notifies_recipient():
     assert first.data["data"]["id"] == retry.data["data"]["id"]
     assert Message.objects.count() == 1
     assert Notification.objects.filter(user=shop.owner, kind=Notification.Kind.CHAT).count() == 1
+
+
+def test_message_broadcast_payload_is_channel_layer_serializable(monkeypatch):
+    customer = UserFactory(role=User.Role.CUSTOMER)
+    shop = ShopFactory()
+    conversation, _ = ConversationService.open(customer=customer, shop=shop)
+    message, _ = ConversationService.send_message(
+        conversation=conversation,
+        sender=customer,
+        message_type=Message.Type.TEXT,
+        content="Tin nhắn realtime",
+        client_message_id="broadcast-message-1",
+    )
+    sent_events = []
+
+    class RecordingChannelLayer:
+        async def group_send(self, group, event):
+            sent_events.append((group, event))
+
+    monkeypatch.setattr("apps.chat.services.get_channel_layer", lambda: RecordingChannelLayer())
+
+    ConversationService.broadcast(message.pk)
+
+    group, event = sent_events[0]
+    json.dumps(event)
+    assert group == f"conversation_{conversation.pk}"
+    assert event["message"]["conversation"] == str(conversation.pk)
+    assert event["message"]["id"] == str(message.pk)
 
 
 def test_outsider_cannot_read_or_send_to_conversation():
