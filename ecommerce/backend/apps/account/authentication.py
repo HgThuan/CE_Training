@@ -1,6 +1,8 @@
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
+from apps.common.logging import request_context
+
 
 class VersionedJWTAuthentication(JWTAuthentication):
     """Reject access tokens issued before a security-sensitive account change."""
@@ -13,4 +15,7 @@ class VersionedJWTAuthentication(JWTAuthentication):
                 "Phiên đăng nhập không còn hiệu lực",
                 code="session_revoked",
             )
+        context = request_context.get()
+        if context is not None:
+            request_context.set({**context, "user_id": user.pk})
         return user

@@ -61,7 +61,7 @@ const homeData: HomePageData = {
     {
       id: 'banner-1',
       title: 'Ưu đãi hôm nay',
-      image_url: 'https://inhongdang.vn/Upload/root/uu-dai-giam-gia-thang-3-2026.jpg',
+      image_url: 'https://images.example.com/banner.webp',
       target_url: '/products',
       position: 'hero',
       sort_order: 0,
