@@ -35,7 +35,19 @@ class OrderAddressSerializer(serializers.ModelSerializer):
         exclude = ("order", "updated_at")
 
 
+class OrderItemReviewSerializer(serializers.ModelSerializer):
+    from apps.review.serializers import ReviewMediaSerializer
+    media = ReviewMediaSerializer(many=True, read_only=True)
+
+    class Meta:
+        from apps.review.models import Review
+        model = Review
+        fields = ("id", "rating", "content", "media", "editable_until", "status")
+
+
 class OrderItemSerializer(serializers.ModelSerializer):
+    review = OrderItemReviewSerializer(read_only=True)
+
     class Meta:
         model = OrderItem
         fields = (
@@ -52,6 +64,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "shop_discount",
             "platform_discount",
             "line_total",
+            "review",
         )
 
 

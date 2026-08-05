@@ -6,6 +6,8 @@ export interface StatusHistory {
   created_at: string
 }
 
+import type { Review } from '@/features/after-sales/types'
+
 export interface OrderItem {
   id: string
   product_name: string
@@ -13,6 +15,7 @@ export interface OrderItem {
   sku: string
   quantity: number
   line_total: string
+  review?: Pick<Review, 'id' | 'rating' | 'content' | 'editable_until' | 'status' | 'media'>
 }
 
 export interface ShopOrder {

@@ -5,11 +5,17 @@ import { formatCurrency } from '@/shared/lib/formatters'
 import { afterSalesApi } from '@/features/after-sales/api'
 import type { ReturnRequest } from '@/features/after-sales/types'
 import { orderApi } from '../api'
-import type { CommerceOrder } from '../types'
+import type { CommerceOrder, OrderItem } from '../types'
+import ReviewDialog from '@/features/after-sales/components/ReviewDialog.vue'
+
 const route = useRoute(),
   order = ref<CommerceOrder | null>(null),
   error = ref(''),
   returns = ref<ReturnRequest[]>([])
+
+const isReviewDialogOpen = ref(false)
+const selectedOrderItem = ref<OrderItem | null>(null)
+
 async function load() {
   try {
     const orderId = String(route.params.orderId)
@@ -39,22 +45,26 @@ async function retryPayment() {
     error.value = 'Không thể khởi tạo lại thanh toán VNPay.'
   }
 }
-async function review(itemId: string) {
-  const rating = Number(prompt('Số sao (1-5)', '5'))
-  if (!rating || rating < 1 || rating > 5) return
-  const content = prompt('Chia sẻ trải nghiệm của bạn') ?? ''
-  const image = prompt('URL ảnh minh chứng (có thể bỏ trống)') ?? ''
-  try {
-    await afterSalesApi.createReview(itemId, {
-      rating,
-      content,
-      media: image ? [{ media_type: 'IMAGE', file_url: image }] : [],
-    })
-    alert('Đã gửi đánh giá.')
-  } catch {
-    error.value = 'Không thể gửi đánh giá. Sản phẩm có thể đã được đánh giá hoặc đã quá điều kiện.'
-  }
+
+function openReviewDialog(item: OrderItem) {
+  selectedOrderItem.value = item
+  isReviewDialogOpen.value = true
 }
+
+function isReviewExpired(editableUntil: string | null) {
+  if (!editableUntil) return false
+  return new Date(editableUntil) < new Date()
+}
+
+function renderStars(rating: number) {
+  return '★'.repeat(rating) + '☆'.repeat(5 - rating)
+}
+
+function formatDateShort(dateString: string) {
+  const date = new Date(dateString)
+  return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`
+}
+
 async function createReturn(shop: CommerceOrder['shop_orders'][number]) {
   if (!order.value) return
   const reason = prompt('Mô tả lý do trả hàng / hoàn tiền')
@@ -113,14 +123,35 @@ onMounted(load)
           >
             <span>{{ item.product_name }} × {{ item.quantity }}</span>
             <div class="flex items-center gap-3">
-              <b>{{ formatCurrency(item.line_total) }}</b
-              ><button
-                v-if="shop.fulfillment_status === 'COMPLETED'"
-                class="rounded-lg border border-amber-300 px-3 py-1 text-sm font-bold text-amber-700"
-                @click="review(item.id)"
-              >
-                Đánh giá
-              </button>
+              <b>{{ formatCurrency(item.line_total) }}</b>
+              <template v-if="shop.fulfillment_status === 'COMPLETED'">
+                <!-- Chưa đánh giá -->
+                <button
+                  v-if="!item.review"
+                  class="rounded-lg border border-amber-300 px-3 py-1 text-sm font-bold text-amber-700 hover:bg-amber-50"
+                  @click="openReviewDialog(item)"
+                >
+                  Đánh giá
+                </button>
+                <!-- Đã đánh giá, còn hạn sửa -->
+                <button
+                  v-else-if="!isReviewExpired(item.review.editable_until)"
+                  class="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1 text-sm font-medium text-amber-800 hover:bg-amber-100 flex items-center gap-1"
+                  @click="openReviewDialog(item)"
+                >
+                  <span class="text-amber-500 tracking-widest text-xs">{{ renderStars(item.review.rating) }}</span>
+                  <span class="mx-1">·</span>
+                  Sửa đến {{ formatDateShort(item.review.editable_until!) }}
+                </button>
+                <!-- Đã đánh giá, hết hạn sửa -->
+                <button
+                  v-else
+                  class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1 text-sm font-medium text-gray-500 cursor-not-allowed flex items-center gap-1"
+                  disabled
+                >
+                  <span class="text-gray-400 tracking-widest text-xs">{{ renderStars(item.review.rating) }}</span>
+                </button>
+              </template>
             </div>
           </div>
         </div>
@@ -176,5 +207,12 @@ onMounted(load)
         </article>
       </section>
     </template>
+    
+    <ReviewDialog 
+      :is-open="isReviewDialogOpen" 
+      :order-item="selectedOrderItem" 
+      @close="isReviewDialogOpen = false" 
+      @submitted="load" 
+    />
   </main>
 </template>
