@@ -29,7 +29,12 @@ const isExpired = computed(() => {
   return new Date(existingReview.value.editable_until) < new Date()
 })
 
+const errorMsg = ref('')
+const successMsg = ref('')
+
 watch(() => props.isOpen, (newVal) => {
+  errorMsg.value = ''
+  successMsg.value = ''
   if (newVal) {
     if (existingReview.value) {
       rating.value = existingReview.value.rating
@@ -50,17 +55,18 @@ watch(() => props.isOpen, (newVal) => {
 const handleFileSelect = (event: Event, type: 'IMAGE' | 'VIDEO') => {
   const input = event.target as HTMLInputElement
   if (!input.files?.length) return
+  errorMsg.value = ''
   
   const currentImages = mediaFiles.value.filter(m => m.type === 'IMAGE').length
   const currentVideos = mediaFiles.value.filter(m => m.type === 'VIDEO').length
   
   Array.from(input.files).forEach(file => {
     if (type === 'IMAGE' && currentImages >= 5) {
-      alert('Tối đa 5 ảnh')
+      errorMsg.value = 'Tối đa 5 ảnh'
       return
     }
     if (type === 'VIDEO' && currentVideos >= 1) {
-      alert('Tối đa 1 video')
+      errorMsg.value = 'Tối đa 1 video'
       return
     }
     
@@ -84,8 +90,11 @@ const removeMedia = (index: number) => {
 
 const submitReview = async () => {
   if (!props.orderItem) return
+  errorMsg.value = ''
+  successMsg.value = ''
+  
   if (rating.value === 0) {
-    alert('Vui lòng chọn số sao')
+    errorMsg.value = 'Vui lòng chọn số sao'
     return
   }
 
@@ -111,16 +120,19 @@ const submitReview = async () => {
 
     if (isEditMode.value && existingReview.value) {
       await afterSalesApi.updateReview(existingReview.value.id, payload)
-      alert('Cập nhật đánh giá thành công')
+      successMsg.value = 'Cập nhật đánh giá thành công'
     } else {
       await afterSalesApi.createReview(props.orderItem.id, payload)
-      alert('Đã gửi đánh giá thành công')
+      successMsg.value = 'Đã gửi đánh giá thành công'
     }
     
     emit('submitted')
-    emit('close')
+    // Tự động đóng sau 1.5s
+    setTimeout(() => {
+      emit('close')
+    }, 1500)
   } catch (error: any) {
-    alert(error.response?.data?.message || 'Có lỗi xảy ra')
+    errorMsg.value = error.response?.data?.message || 'Có lỗi xảy ra'
   } finally {
     isSubmitting.value = false
   }
@@ -153,6 +165,14 @@ const submitReview = async () => {
               <p class="text-sm font-medium text-gray-900 truncate">{{ orderItem?.product_name }}</p>
               <p class="text-xs text-gray-500 truncate">{{ orderItem?.variant_name }}</p>
             </div>
+          </div>
+
+          <!-- Messages -->
+          <div v-if="errorMsg" class="mb-4 rounded-md bg-rose-50 p-3 text-sm text-rose-700">
+            {{ errorMsg }}
+          </div>
+          <div v-if="successMsg" class="mb-4 rounded-md bg-emerald-50 p-3 text-sm text-emerald-700">
+            {{ successMsg }}
           </div>
 
           <form @submit.prevent="submitReview" class="space-y-4">
