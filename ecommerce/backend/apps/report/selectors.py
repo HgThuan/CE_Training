@@ -2,7 +2,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.db.models import Count, DecimalField, F, Sum, Value
-from django.db.models.functions import Coalesce, TruncDay
+from django.db.models.functions import Coalesce, TruncDay, TruncWeek, TruncMonth
 from django.utils import timezone
 
 from apps.account.models import CustomerProfile, Shop
@@ -33,23 +33,63 @@ def admin_summary(days=30):
     }
 
 
-def revenue_chart(days=30, shop=None):
+def revenue_chart(days=30, shop=None, period="day"):
     start, _ = date_range(days)
+    
+    # Current period data
     queryset = ShopOrder.objects.filter(
         fulfillment_status__in=REVENUE_STATUSES, completed_at__gte=start
     )
     if shop is not None:
         queryset = queryset.filter(shop=shop)
-    rows = (
-        queryset.annotate(day=TruncDay("completed_at"))
-        .values("day")
-        .annotate(revenue=revenue_expression(), orders=Count("id"))
-        .order_by("day")
+        
+    current_revenue = queryset.aggregate(v=revenue_expression())["v"]
+    
+    # Prior period data
+    prior_start, prior_end = start - timedelta(days=days), start
+    prior_qs = ShopOrder.objects.filter(
+        fulfillment_status__in=REVENUE_STATUSES, 
+        completed_at__gte=prior_start, 
+        completed_at__lt=prior_end
     )
-    return [
-        {"date": row["day"].date(), "revenue": row["revenue"], "orders": row["orders"]}
-        for row in rows
-    ]
+    if shop is not None:
+        prior_qs = prior_qs.filter(shop=shop)
+    prior_revenue = prior_qs.aggregate(v=revenue_expression())["v"]
+    
+    # Growth percentage
+    if prior_revenue > 0:
+        growth = round((current_revenue - prior_revenue) / prior_revenue * 100, 2)
+    elif current_revenue > 0:
+        growth = 100.0
+    else:
+        growth = 0.0
+
+    trunc_func = TruncDay
+    if period == "week":
+        trunc_func = TruncWeek
+    elif period == "month":
+        trunc_func = TruncMonth
+
+    rows = (
+        queryset.annotate(group=trunc_func("completed_at"))
+        .values("group")
+        .annotate(revenue=revenue_expression(), orders=Count("id"))
+        .order_by("group")
+    )
+    
+    return {
+        "current_revenue": current_revenue,
+        "prior_revenue": prior_revenue,
+        "growth": float(growth),
+        "chart": [
+            {
+                "date": row["group"].date() if hasattr(row["group"], "date") else row["group"], 
+                "revenue": row["revenue"], 
+                "orders": row["orders"]
+            }
+            for row in rows
+        ]
+    }
 
 
 def top_products(days=30, shop=None, limit=10):

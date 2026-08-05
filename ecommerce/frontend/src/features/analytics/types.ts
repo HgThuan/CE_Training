@@ -13,6 +13,13 @@ export interface ChartPoint {
   orders: number
 }
 
+export interface RevenueChartResponse {
+  current_revenue: number
+  prior_revenue: number
+  growth: number
+  chart: ChartPoint[]
+}
+
 export interface RankingRow {
   id?: number | string
   customer_id?: number
