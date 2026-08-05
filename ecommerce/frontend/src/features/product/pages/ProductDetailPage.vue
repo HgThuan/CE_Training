@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   BuildingStorefrontIcon,
+  ChatBubbleLeftRightIcon,
   CheckBadgeIcon,
   MinusIcon,
   PlusIcon,
@@ -401,31 +402,45 @@ onBeforeUnmount(() => {
 
         <section class="mt-12 grid gap-6 lg:grid-cols-[1fr_340px]">
           <ProductDetailTabs :product="product" />
-          <RouterLink
-            :to="{ name: 'public-shop', params: { slug: product.shop.slug } }"
+          <aside
             class="group rounded-3xl bg-slate-950 p-6 text-white transition hover:bg-indigo-700"
           >
-            <div class="flex items-center gap-4">
-              <img
-                v-if="product.shop.logo_url"
-                :src="product.shop.logo_url"
-                :alt="product.shop.name"
-                class="h-14 w-14 rounded-2xl bg-white object-cover"
-                loading="lazy"
-                decoding="async"
-              />
-              <span v-else class="grid h-14 w-14 place-items-center rounded-2xl bg-white/10">
-                <BuildingStorefrontIcon class="h-7 w-7" />
-              </span>
-              <div>
-                <p class="text-xs font-bold uppercase tracking-widest text-indigo-200">Nhà bán</p>
-                <h2 class="mt-1 font-black">{{ product.shop.name }}</h2>
+            <RouterLink
+              :to="{ name: 'public-shop', params: { slug: product.shop.slug } }"
+              class="block"
+            >
+              <div class="flex items-center gap-4">
+                <img
+                  v-if="product.shop.logo_url"
+                  :src="product.shop.logo_url"
+                  :alt="product.shop.name"
+                  class="h-14 w-14 rounded-2xl bg-white object-cover"
+                  loading="lazy"
+                  decoding="async"
+                />
+                <span v-else class="grid h-14 w-14 place-items-center rounded-2xl bg-white/10">
+                  <BuildingStorefrontIcon class="h-7 w-7" />
+                </span>
+                <div>
+                  <p class="text-xs font-bold uppercase tracking-widest text-indigo-200">Nhà bán</p>
+                  <h2 class="mt-1 font-black">{{ product.shop.name }}</h2>
+                </div>
               </div>
-            </div>
-            <p class="mt-6 text-sm text-slate-300 group-hover:text-white">
-              Xem gian hàng và các sản phẩm khác →
-            </p>
-          </RouterLink>
+              <p class="mt-6 text-sm text-slate-300 group-hover:text-white">
+                Xem gian hàng và các sản phẩm khác →
+              </p>
+            </RouterLink>
+            <RouterLink
+              v-if="authStore.user?.role === 'customer'"
+              class="mt-4 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-black text-slate-950"
+              :to="{
+                name: 'customer-chat',
+                query: { shop: product.shop.slug, product: product.id },
+              }"
+            >
+              <ChatBubbleLeftRightIcon class="h-5 w-5" /> Chat với shop
+            </RouterLink>
+          </aside>
         </section>
 
         <div class="mt-16 space-y-16 lg:mt-24 lg:space-y-24">

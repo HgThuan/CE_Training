@@ -3,12 +3,14 @@ import {
   ArrowLeftStartOnRectangleIcon,
   HeartIcon,
   ClipboardDocumentListIcon,
+  ChatBubbleLeftRightIcon,
   ShoppingBagIcon,
   UserCircleIcon,
 } from '@heroicons/vue/24/outline'
 import { RouterView, useRouter } from 'vue-router'
 
 import { useAuthStore } from '@/stores/auth'
+import NotificationBell from '@/features/notification/components/NotificationBell.vue'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -30,6 +32,14 @@ async function logout(): Promise<void> {
           Mercato
         </RouterLink>
         <nav class="flex items-center gap-1 text-sm font-bold">
+          <RouterLink
+            class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100"
+            to="/account/chat"
+          >
+            <ChatBubbleLeftRightIcon class="h-5 w-5" />
+            <span class="hidden sm:inline">Chat</span>
+          </RouterLink>
+          <NotificationBell to="/account/notifications" />
           <RouterLink
             class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100"
             to="/products"

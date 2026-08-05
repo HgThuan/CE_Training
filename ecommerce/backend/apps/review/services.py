@@ -5,6 +5,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Avg, Count
 from django.utils import timezone
 
+from apps.account.models import Notification
 from apps.common.exceptions import BusinessError
 from apps.order.models import OrderItem, ShopOrder
 from apps.product.models import Product
@@ -42,6 +43,13 @@ class ReviewService:
             raise BusinessError("Sản phẩm trong đơn này đã được đánh giá", http_status=409) from exc
         cls._replace_media(review, media)
         cls.refresh_product_rating(review.product_id)
+        Notification.objects.create(
+            user=review.product.shop.owner,
+            kind=Notification.Kind.REVIEW,
+            title="Gian hàng có đánh giá mới",
+            message=f"{review.product.name} vừa nhận đánh giá {review.rating} sao.",
+            metadata={"event": "review_created", "review_id": str(review.pk)},
+        )
         return review
 
     @classmethod
@@ -87,6 +95,13 @@ class ReviewService:
             raise BusinessError("Không tìm thấy đánh giá", http_status=404)
         reply, _ = ReviewReply.objects.update_or_create(
             review=review, defaults={"seller_user": seller, "content": content}
+        )
+        Notification.objects.create(
+            user=review.user,
+            kind=Notification.Kind.REVIEW,
+            title="Nhà bán đã trả lời đánh giá",
+            message=content,
+            metadata={"event": "review_replied", "review_id": str(review.pk)},
         )
         return reply
 

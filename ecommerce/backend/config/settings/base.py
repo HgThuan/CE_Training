@@ -52,6 +52,8 @@ INSTALLED_APPS = [
     "apps.payment.apps.PaymentConfig",
     "apps.after_sales.apps.AfterSalesConfig",
     "apps.review.apps.ReviewConfig",
+    "apps.chat.apps.ChatConfig",
+    "apps.notification.apps.NotificationConfig",
 ]
 
 MIDDLEWARE = [

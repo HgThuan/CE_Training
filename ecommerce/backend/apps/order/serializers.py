@@ -73,6 +73,7 @@ class OrderStatusHistorySerializer(serializers.ModelSerializer):
 
 class ShopOrderSerializer(serializers.ModelSerializer):
     shop_name = serializers.CharField(source="shop.name")
+    shop_slug = serializers.CharField(source="shop.slug")
     items = OrderItemSerializer(many=True)
     status_history = OrderStatusHistorySerializer(many=True)
 
@@ -83,6 +84,7 @@ class ShopOrderSerializer(serializers.ModelSerializer):
             "shop_order_code",
             "shop",
             "shop_name",
+            "shop_slug",
             "fulfillment_status",
             "subtotal",
             "shop_discount",
