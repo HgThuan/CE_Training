@@ -1,3 +1,5 @@
+import json
+
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.db import IntegrityError, transaction
@@ -138,6 +140,8 @@ class ConversationService:
 
     @staticmethod
     def broadcast(message_id) -> None:
+        from rest_framework.renderers import JSONRenderer
+
         from .serializers import MessageSerializer
 
         message = (
@@ -145,9 +149,10 @@ class ConversationService:
             .prefetch_related("attachments")
             .get(pk=message_id)
         )
+        payload = json.loads(JSONRenderer().render(MessageSerializer(message).data))
         async_to_sync(get_channel_layer().group_send)(
             f"conversation_{message.conversation_id}",
-            {"type": "chat.message", "message": MessageSerializer(message).data},
+            {"type": "chat.message", "message": payload},
         )
 
     @classmethod
