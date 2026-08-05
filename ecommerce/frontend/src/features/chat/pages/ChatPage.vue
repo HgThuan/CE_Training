@@ -92,9 +92,11 @@ async function sendMessage(): Promise<void> {
   sending.value = true
   errorMessage.value = ''
   try {
-    if (!socket.send(payload)) {
-      appendMessage((await chatApi.send(activeConversation.value.id, payload)).data.data)
-    }
+    // Always use REST API to send — the response contains the saved message
+    // for immediate display. The WebSocket broadcast handles delivery to
+    // the other participant in realtime.
+    const saved = (await chatApi.send(activeConversation.value.id, payload)).data.data
+    appendMessage(saved)
     content.value = ''
     imageUrl.value = ''
   } catch (error) {
@@ -113,9 +115,8 @@ async function sendContext(type: 'PRODUCT' | 'ORDER', id: string): Promise<void>
   }
   sending.value = true
   try {
-    if (!socket.send(payload)) {
-      appendMessage((await chatApi.send(activeConversation.value.id, payload)).data.data)
-    }
+    const saved = (await chatApi.send(activeConversation.value.id, payload)).data.data
+    appendMessage(saved)
   } catch (error) {
     errorMessage.value = getErrorMessage(error)
   } finally {

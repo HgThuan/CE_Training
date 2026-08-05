@@ -43,7 +43,10 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 
     async def receive_json(self, content, **kwargs):
         try:
-            await _send(self.conversation_id, self.scope["user"], content)
+            data = await _send(self.conversation_id, self.scope["user"], content)
+            # Echo saved message directly to sender for immediate UI update,
+            # regardless of whether the channel-layer group broadcast succeeds.
+            await self.send_json({"type": "message", "data": data})
         except Exception:
             await self.send_json({"type": "error", "message": "Tin nhắn không hợp lệ"})
 
