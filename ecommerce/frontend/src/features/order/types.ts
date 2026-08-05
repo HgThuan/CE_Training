@@ -1,3 +1,5 @@
+import type { Review } from '@/features/after-sales/types'
+
 export interface StatusHistory {
   id: string
   from_status: string

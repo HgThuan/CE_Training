@@ -7,6 +7,7 @@ import type { ReturnRequest } from '@/features/after-sales/types'
 import { orderApi } from '../api'
 import type { CommerceOrder, OrderItem } from '../types'
 import ReviewDialog from '@/features/after-sales/components/ReviewDialog.vue'
+import ReturnDialog from '@/features/after-sales/components/ReturnDialog.vue'
 
 const route = useRoute(),
   order = ref<CommerceOrder | null>(null),
@@ -65,24 +66,14 @@ function formatDateShort(dateString: string) {
   return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`
 }
 
-async function createReturn(shop: CommerceOrder['shop_orders'][number]) {
-  if (!order.value) return
-  const reason = prompt('Mô tả lý do trả hàng / hoàn tiền')
-  if (!reason) return
-  const image = prompt('URL ảnh chứng cứ') ?? ''
-  try {
-    await afterSalesApi.createReturn(order.value.id, {
-      shop_order_id: shop.id,
-      reason_code: 'OTHER',
-      reason_detail: reason,
-      items: shop.items.map((item) => ({ order_item_id: item.id, quantity: item.quantity })),
-      media: image ? [{ media_type: 'IMAGE', file_url: image }] : [],
-    })
-    await load()
-  } catch {
-    error.value = 'Không thể tạo yêu cầu trả hàng.'
-  }
+const isReturnDialogOpen = ref(false)
+const selectedReturnShop = ref<CommerceOrder['shop_orders'][number] | null>(null)
+
+function openReturnDialog(shop: CommerceOrder['shop_orders'][number]) {
+  selectedReturnShop.value = shop
+  isReturnDialogOpen.value = true
 }
+
 async function escalate(item: ReturnRequest) {
   if (!confirm('Chuyển khiếu nại này đến Admin?')) return
   await afterSalesApi.escalateReturn(item.id)
@@ -172,7 +163,7 @@ onMounted(load)
           ><button
             v-if="shop.fulfillment_status === 'COMPLETED'"
             class="rounded-xl bg-indigo-600 px-4 py-2 font-bold text-white"
-            @click="createReturn(shop)"
+            @click="openReturnDialog(shop)"
           >
             Trả hàng / hoàn tiền
           </button>
@@ -213,6 +204,13 @@ onMounted(load)
       :order-item="selectedOrderItem" 
       @close="isReviewDialogOpen = false" 
       @submitted="load" 
+    />
+    <ReturnDialog
+      :is-open="isReturnDialogOpen"
+      :order-id="order?.id || ''"
+      :shop-order="selectedReturnShop"
+      @close="isReturnDialogOpen = false"
+      @submitted="load"
     />
   </main>
 </template>
