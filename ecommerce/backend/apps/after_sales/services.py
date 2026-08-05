@@ -4,6 +4,7 @@ from django.db import transaction
 from django.db.models import F, Sum
 from django.utils import timezone
 
+from apps.account.models import Notification
 from apps.common.exceptions import BusinessError
 from apps.common.models import AuditLog, SiteSetting
 from apps.order.models import OrderItem, ShopOrder
@@ -163,7 +164,11 @@ class DisputeService:
     def resolve(dispute: Dispute, *, admin, decision, note, refund_amount=None, request_id=""):
         locked = (
             Dispute.objects.select_for_update()
-            .select_related("return_request__shop_order__order", "shop_order")
+            .select_related(
+                "return_request__customer",
+                "return_request__shop_order__order",
+                "shop_order__shop__owner",
+            )
             .prefetch_related("return_request__items")
             .get(pk=dispute.pk)
         )
@@ -222,5 +227,32 @@ class DisputeService:
             reason=note,
             request_id=request_id,
             diff={"decision": decision, "refund_amount": str(amount)},
+        )
+        decision_label = locked.get_decision_display()
+        message = (
+            f"Tranh chấp cho đơn {locked.shop_order.shop_order_code} đã được giải quyết: "
+            f"{decision_label}. Ghi chú của Admin: {note}"
+        )
+        notification_metadata = {
+            "event": "dispute_resolved",
+            "dispute_id": str(locked.pk),
+            "order_id": str(locked.shop_order.order_id),
+            "shop_order_id": str(locked.shop_order_id),
+            "decision": decision,
+            "refund_amount": str(amount),
+        }
+        Notification.objects.create(
+            user=locked.return_request.customer,
+            kind=Notification.Kind.ORDER,
+            title="Admin đã giải quyết tranh chấp",
+            message=message,
+            metadata=notification_metadata,
+        )
+        Notification.objects.create(
+            user=locked.shop_order.shop.owner,
+            kind=Notification.Kind.ORDER,
+            title="Admin đã giải quyết tranh chấp",
+            message=message,
+            metadata=notification_metadata,
         )
         return locked

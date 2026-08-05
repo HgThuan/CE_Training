@@ -4,7 +4,7 @@ import pytest
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.account.models import User
+from apps.account.models import Notification, User
 from apps.account.tests.factories import ShopFactory, UserFactory
 from apps.after_sales.models import Dispute, ReturnRequest
 from apps.after_sales.services import DisputeService, ReturnRequestService
@@ -124,6 +124,21 @@ def test_return_reject_escalate_and_admin_full_refund_is_audited():
     assert request.status == ReturnRequest.Status.REFUNDED
     assert Refund.objects.get(return_request=request).amount == item.line_total / item.quantity
     assert AuditLog.objects.filter(action="dispute.resolve", target_id=str(dispute.pk)).exists()
+    notifications = Notification.objects.filter(
+        kind=Notification.Kind.ORDER,
+        metadata__event="dispute_resolved",
+        metadata__dispute_id=str(dispute.pk),
+    )
+    assert set(notifications.values_list("user_id", flat=True)) == {customer.pk, shop.owner_id}
+    assert notifications.count() == 2
+    assert all(
+        notification.metadata["decision"] == Dispute.Decision.REFUND_FULL
+        and notification.metadata["order_id"] == str(order.pk)
+        and notification.metadata["shop_order_id"] == str(shop_order.pk)
+        and notification.metadata["refund_amount"] == str(item.line_total / item.quantity)
+        and "Chứng cứ khách hàng hợp lệ" in notification.message
+        for notification in notifications
+    )
 
 
 def test_admin_partial_refund_must_be_less_than_requested_total():
