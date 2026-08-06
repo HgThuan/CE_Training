@@ -6,6 +6,11 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.utils.text import slugify
 
+from apps.common.cache_utils import (
+    CATEGORY_TREE_CACHE_KEY,
+    HOME_PAGE_CACHE_KEY,
+    invalidate_cache_keys_on_commit,
+)
 from apps.common.exceptions import BusinessError
 
 from .models import Brand, Category
@@ -282,6 +287,10 @@ class CategoryService:
             Category.objects.bulk_update(
                 updated_categories,
                 fields=("parent", "sort_order", "updated_at"),
+            )
+            invalidate_cache_keys_on_commit(
+                CATEGORY_TREE_CACHE_KEY,
+                HOME_PAGE_CACHE_KEY,
             )
             return updated_categories
 

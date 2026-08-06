@@ -1,6 +1,10 @@
 from django.db import transaction
 from django.utils import timezone
 
+from apps.common.cache_utils import (
+    HOME_PAGE_CACHE_KEY,
+    invalidate_cache_keys_on_commit,
+)
 from apps.common.exceptions import BusinessError
 
 from .models import Banner
@@ -98,4 +102,5 @@ class BannerService:
             (source, target),
             fields=("sort_order", "updated_at"),
         )
+        invalidate_cache_keys_on_commit(HOME_PAGE_CACHE_KEY)
         return [source, target]

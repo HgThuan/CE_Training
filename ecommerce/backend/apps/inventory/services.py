@@ -5,6 +5,7 @@ from django.db.models import F
 from django.utils import timezone
 
 from apps.account.models import Shop, User
+from apps.common.cache_utils import invalidate_product_cache_on_commit
 from apps.common.exceptions import BusinessError
 from apps.product.models import Product, ProductVariant
 
@@ -81,17 +82,32 @@ class StockService:
     @staticmethod
     def _lock_balances(variants: list[ProductVariant]) -> dict[str, InventoryBalance]:
         ordered_variants = sorted(variants, key=lambda item: str(item.pk))
-        InventoryBalance.objects.bulk_create(
-            [
-                InventoryBalance(
-                    variant=variant,
-                    available_stock=variant.stock_quantity,
-                    reserved_stock=0,
-                )
-                for variant in ordered_variants
-            ],
-            ignore_conflicts=True,
+        existing_variant_ids = set(
+            InventoryBalance.objects.filter(variant__in=ordered_variants).values_list(
+                "variant_id",
+                flat=True,
+            )
         )
+        missing_variants = [
+            variant for variant in ordered_variants if variant.pk not in existing_variant_ids
+        ]
+        if missing_variants:
+            InventoryBalance.objects.bulk_create(
+                [
+                    InventoryBalance(
+                        variant=variant,
+                        available_stock=variant.stock_quantity,
+                        reserved_stock=0,
+                    )
+                    for variant in missing_variants
+                ],
+                ignore_conflicts=True,
+            )
+            for variant in missing_variants:
+                invalidate_product_cache_on_commit(
+                    slug=variant.product.slug,
+                    shop_slug=variant.shop.slug,
+                )
         return {
             str(balance.variant_id): balance
             for balance in InventoryBalance.objects.select_for_update()
@@ -132,6 +148,11 @@ class StockService:
                 http_status=409,
             )
         balance.refresh_from_db(fields=[field, "updated_at"])
+        if field == "available_stock":
+            invalidate_product_cache_on_commit(
+                slug=balance.variant.product.slug,
+                shop_slug=balance.variant.shop.slug,
+            )
         return getattr(balance, field)
 
     @staticmethod

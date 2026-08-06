@@ -20,6 +20,7 @@ from apps.account.models import Shop, User
 from apps.account.selectors import get_shop_for_owner
 from apps.account.services import ShopBusinessPolicy
 from apps.catalog.models import Brand, Category
+from apps.common.cache_utils import invalidate_product_cache_on_commit
 from apps.common.exceptions import BusinessError
 from apps.common.models import AuditLog
 
@@ -793,7 +794,7 @@ class MediaService:
         ordered_ids,
         seller_user,
     ) -> list[ProductMedia]:
-        locked_product, _shop = _lock_owned_product(
+        locked_product, shop = _lock_owned_product(
             seller_user=seller_user,
             product_id=product.pk,
         )
@@ -823,6 +824,10 @@ class MediaService:
             ordered_media,
             ("sort_order", "updated_at"),
         )
+        invalidate_product_cache_on_commit(
+            slug=locked_product.slug,
+            shop_slug=shop.slug,
+        )
         return ordered_media
 
     @staticmethod
@@ -833,7 +838,7 @@ class MediaService:
         media_id,
         seller_user,
     ) -> ProductMedia:
-        locked_product, _shop = _lock_owned_product(
+        locked_product, shop = _lock_owned_product(
             seller_user=seller_user,
             product_id=product.pk,
         )
@@ -859,6 +864,10 @@ class MediaService:
         if not media.is_primary:
             media.is_primary = True
             media.save(update_fields=("is_primary", "updated_at"))
+        invalidate_product_cache_on_commit(
+            slug=locked_product.slug,
+            shop_slug=shop.slug,
+        )
         return media
 
 
