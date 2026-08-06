@@ -3,23 +3,34 @@ import type { RouteRecordRaw } from 'vue-router'
 export const publicRoutes: RouteRecordRaw[] = [
   {
     path: '/',
-    name: 'home',
-    component: () => import('@/features/home/pages/HomePage.vue'),
-  },
-  {
-    path: '/shop/:slug',
-    name: 'public-shop',
-    component: () => import('@/features/shop/pages/PublicShopPage.vue'),
-  },
-  {
-    path: '/products',
-    name: 'product-list',
-    component: () => import('@/features/product/pages/ProductListPage.vue'),
-  },
-  {
-    path: '/products/:slug',
-    name: 'product-detail',
-    component: () => import('@/features/product/pages/ProductDetailPage.vue'),
+    component: () => import('@/layouts/StorefrontLayout.vue'),
+    children: [
+      {
+        path: '',
+        name: 'home',
+        component: () => import('@/features/home/pages/HomePage.vue'),
+      },
+      {
+        path: 'shop/:slug',
+        name: 'public-shop',
+        component: () => import('@/features/shop/pages/PublicShopPage.vue'),
+      },
+      {
+        path: 'products',
+        name: 'product-list',
+        component: () => import('@/features/product/pages/ProductListPage.vue'),
+      },
+      {
+        path: 'products/:slug',
+        name: 'product-detail',
+        component: () => import('@/features/product/pages/ProductDetailPage.vue'),
+      },
+      {
+        path: 'search',
+        name: 'search-results',
+        component: () => import('@/features/search/pages/SearchResultsPage.vue'),
+      },
+    ],
   },
   {
     path: '/auth/login',

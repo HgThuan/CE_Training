@@ -1,5 +1,5 @@
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework import status, viewsets
+from rest_framework import generics, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -9,7 +9,7 @@ from apps.common.exceptions import BusinessError
 from apps.common.responses import success_response
 
 from .permissions import IsShopOwner
-from .selectors import ProductSelector
+from .selectors import ProductSelector, SearchSelector
 from .serializers import (
     AdminProductListResponseSerializer,
     AdminProductListSerializer,
@@ -29,6 +29,10 @@ from .serializers import (
     PublicProductListResponseSerializer,
     PublicProductListSerializer,
     PublicProductResponseSerializer,
+    SearchFilterSerializer,
+    SearchSuggestionListResponseSerializer,
+    SearchSuggestionQuerySerializer,
+    SearchSuggestionSerializer,
     SellerProductCreateSerializer,
     SellerProductDetailSerializer,
     SellerProductFilterSerializer,
@@ -461,6 +465,55 @@ class AdminProductViewSet(viewsets.GenericViewSet):
         return success_response(
             message="Xóa sản phẩm thành công",
             data={"id": str(product.pk), "is_deleted": True},
+        )
+
+
+
+
+class SearchView(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = PublicProductListSerializer
+
+    @extend_schema(
+        operation_id="public_product_search",
+        parameters=[SearchFilterSerializer],
+        responses={200: PublicProductListResponseSerializer},
+    )
+    def get(self, request):
+        filters = SearchFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+
+        page = self.paginate_queryset(SearchSelector.search(filters.validated_data))
+        data = PublicProductListSerializer(
+            page,
+            many=True,
+            context=self.get_serializer_context(),
+        ).data
+        return self.get_paginated_response(data)
+
+
+class SearchSuggestionView(generics.GenericAPIView):
+    permission_classes = [AllowAny]
+    serializer_class = SearchSuggestionQuerySerializer
+
+    @extend_schema(
+        operation_id="public_product_search_suggestions",
+        parameters=[SearchSuggestionQuerySerializer],
+        responses={200: SearchSuggestionListResponseSerializer},
+    )
+    def get(self, request):
+        query = self.get_serializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        query_text = query.validated_data["q"]
+        limit = query.validated_data["limit"]
+        
+        suggestions = SearchSuggestionSerializer(
+            SearchSelector.suggestions(query=query_text, limit=10),
+            many=True,
+        ).data
+        return success_response(
+            message="Lấy gợi ý tìm kiếm thành công",
+            data=list(suggestions[:limit]),
         )
 
 
