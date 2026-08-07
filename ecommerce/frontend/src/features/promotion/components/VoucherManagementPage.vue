@@ -5,12 +5,15 @@ import type { Voucher, VoucherPayload, VoucherScope } from '../types'
 import { usePromotionStore } from '../store'
 import VoucherForm from './VoucherForm.vue'
 import VoucherTable from './VoucherTable.vue'
+import ConfirmDialog from '@/shared/components/ConfirmDialog.vue'
 
 const props = defineProps<{ scope: VoucherScope; title: string; description: string }>()
 const store = usePromotionStore()
 const editing = ref<Voucher | null>(null)
 const formOpen = ref(false)
 const formRef = ref<InstanceType<typeof VoucherForm> | null>(null)
+const confirmOpen = ref(false)
+const confirmTarget = ref<Voucher | null>(null)
 
 function openForm(voucher: Voucher | null = null): void {
   editing.value = voucher
@@ -26,9 +29,21 @@ async function save(payload: VoucherPayload): Promise<void> {
   }
 }
 
-async function remove(voucher: Voucher): Promise<void> {
-  if (!window.confirm(`Xóa voucher ${voucher.code}?`)) return
-  await store.deleteVoucher(props.scope, voucher.id)
+function requestRemove(voucher: Voucher): void {
+  confirmTarget.value = voucher
+  confirmOpen.value = true
+}
+
+async function handleConfirmRemove(): Promise<void> {
+  if (!confirmTarget.value) return
+  await store.deleteVoucher(props.scope, confirmTarget.value.id)
+  confirmOpen.value = false
+  confirmTarget.value = null
+}
+
+function handleCancelRemove(): void {
+  confirmOpen.value = false
+  confirmTarget.value = null
 }
 
 void store.loadVouchers(props.scope)
@@ -69,7 +84,7 @@ void store.loadVouchers(props.scope)
       class="mt-7"
       :vouchers="store.vouchers"
       @edit="openForm"
-      @remove="remove"
+      @remove="requestRemove"
     />
     <div
       v-if="formOpen"
@@ -90,5 +105,13 @@ void store.loadVouchers(props.scope)
         />
       </div>
     </div>
+    
+    <ConfirmDialog
+      :open="confirmOpen"
+      title="Xóa voucher"
+      :message="'Bạn có chắc chắn muốn xóa voucher ' + confirmTarget?.code + '?'"
+      @confirm="handleConfirmRemove"
+      @cancel="handleCancelRemove"
+    />
   </main>
 </template>
