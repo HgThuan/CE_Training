@@ -6,10 +6,14 @@ import { formatVnd } from '@/shared/lib/formatters'
 import FlashSaleForm from '../../components/FlashSaleForm.vue'
 import { usePromotionStore } from '../../store'
 import type { FlashSale, FlashSalePayload } from '../../types'
+import ConfirmDialog from '@/shared/components/ConfirmDialog.vue'
 
 const store = usePromotionStore()
 const formOpen = ref(false)
 const editing = ref<FlashSale | null>(null)
+const confirmOpen = ref(false)
+const confirmTarget = ref<FlashSale | null>(null)
+
 function open(sale: FlashSale | null = null): void {
   editing.value = sale
   formOpen.value = true
@@ -18,8 +22,19 @@ async function save(payload: FlashSalePayload): Promise<void> {
   await store.saveFlashSale(payload, editing.value?.id)
   formOpen.value = false
 }
-async function remove(sale: FlashSale): Promise<void> {
-  if (window.confirm(`Xóa ${sale.name}?`)) await store.deleteFlashSale(sale.id)
+function requestRemove(sale: FlashSale): void {
+  confirmTarget.value = sale
+  confirmOpen.value = true
+}
+async function handleConfirmRemove(): Promise<void> {
+  if (!confirmTarget.value) return
+  await store.deleteFlashSale(confirmTarget.value.id)
+  confirmOpen.value = false
+  confirmTarget.value = null
+}
+function handleCancelRemove(): void {
+  confirmOpen.value = false
+  confirmTarget.value = null
 }
 void store.loadAdminFlashSales()
 </script>
@@ -70,7 +85,7 @@ void store.loadAdminFlashSales()
           </div>
           <div>
             <button class="mr-3 font-bold text-indigo-700" @click="open(sale)">Sửa</button
-            ><button class="font-bold text-rose-700" @click="remove(sale)">Xóa</button>
+            ><button class="font-bold text-rose-700" @click="requestRemove(sale)">Xóa</button>
           </div>
         </div>
         <ul class="mt-4 divide-y rounded-2xl bg-slate-50 px-4">
@@ -104,5 +119,13 @@ void store.loadAdminFlashSales()
         />
       </div>
     </div>
+    
+    <ConfirmDialog
+      :open="confirmOpen"
+      title="Xóa Flash Sale"
+      :message="'Bạn có chắc chắn muốn xóa chương trình ' + confirmTarget?.name + '?'"
+      @confirm="handleConfirmRemove"
+      @cancel="handleCancelRemove"
+    />
   </main>
 </template>
