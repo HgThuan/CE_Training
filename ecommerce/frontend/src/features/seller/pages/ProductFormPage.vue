@@ -26,6 +26,7 @@ import type {
   VariantUpdatePayload,
 } from '@/features/product/types'
 import { useProductStore } from '@/features/product/store'
+import { showConfirm } from '@/shared/lib/dialog'
 
 import {
   generateVariantDrafts,
@@ -262,7 +263,12 @@ function printVariantBarcode(draft: VariantDraft): void {
 }
 
 async function removeExistingMedia(item: ProductMedia): Promise<void> {
-  if (!routeProductId.value || !window.confirm('Xóa media này khỏi sản phẩm?')) return
+  if (
+    !routeProductId.value ||
+    !(await showConfirm('Xóa media này khỏi sản phẩm?', { tone: 'danger' }))
+  ) {
+    return
+  }
   saving.value = true
   errorMessage.value = ''
   try {
