@@ -46,6 +46,8 @@ INSTALLED_APPS = [
     "apps.storefront.apps.StorefrontConfig",
     "apps.engagement.apps.EngagementConfig",
     "apps.ai.apps.AIConfig",
+    "apps.cart.apps.CartConfig",
+    "apps.promotion.apps.PromotionConfig",
 ]
 
 MIDDLEWARE = [

@@ -7,17 +7,32 @@ import {
   UserCircleIcon,
   XMarkIcon,
 } from '@heroicons/vue/24/outline'
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 
 import { homePathForRole } from '@/features/auth/routes'
 import SearchBar from '@/features/search/components/SearchBar.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useCartStore } from '@/features/cart/store'
+import CartToast from '@/features/cart/components/CartToast.vue'
 
 const authStore = useAuthStore()
+const cartStore = useCartStore()
 const route = useRoute()
 const router = useRouter()
 const mobileMenuOpen = ref(false)
+
+const totalItems = computed(() => cartStore.cart?.total_items || 0)
+const animateCart = ref(false)
+
+watch(totalItems, (newVal, oldVal) => {
+  if (newVal > (oldVal || 0)) {
+    animateCart.value = true
+    setTimeout(() => {
+      animateCart.value = false
+    }, 300)
+  }
+})
 
 const mobileMenuButton = ref<HTMLButtonElement | null>(null)
 watch(
@@ -33,7 +48,10 @@ function handleKeydown(event: KeyboardEvent): void {
   mobileMenuButton.value?.focus()
 }
 
-onMounted(() => window.addEventListener('keydown', handleKeydown))
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown)
+  cartStore.load()
+})
 onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown))
 
 async function logout(): Promise<void> {
@@ -74,6 +92,24 @@ async function logout(): Promise<void> {
           >
             <ShoppingBagIcon class="h-4 w-4" />
             Sản phẩm
+          </RouterLink>
+          <RouterLink
+            class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-indigo-700"
+            to="/cart"
+          >
+            <div class="relative" :class="{ 'animate-bounce': animateCart }">
+              <ShoppingBagIcon class="h-4 w-4" />
+              <span v-if="totalItems > 0" class="absolute -top-2 -right-2 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white">
+                {{ totalItems > 99 ? '99+' : totalItems }}
+              </span>
+            </div>
+            Giỏ hàng
+          </RouterLink>
+          <RouterLink
+            class="rounded-xl px-3 py-2 text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
+            to="/voucher-center"
+          >
+            Voucher
           </RouterLink>
           <RouterLink
             v-if="authStore.user?.role === 'customer'"
@@ -141,6 +177,15 @@ async function logout(): Promise<void> {
           <RouterLink class="rounded-xl px-4 py-3 hover:bg-slate-100" to="/products">
             Sản phẩm
           </RouterLink>
+          <RouterLink class="flex items-center justify-between rounded-xl px-4 py-3 hover:bg-slate-100" to="/cart">
+            <span>Giỏ hàng</span>
+            <span v-if="totalItems > 0" class="flex h-5 items-center justify-center rounded-full bg-rose-500 px-2 text-[10px] font-bold text-white">
+              {{ totalItems > 99 ? '99+' : totalItems }}
+            </span>
+          </RouterLink>
+          <RouterLink class="rounded-xl px-4 py-3 hover:bg-slate-100" to="/voucher-center">
+            Trung tâm Voucher
+          </RouterLink>
           <RouterLink
             v-if="authStore.user?.role === 'customer'"
             class="inline-flex items-center gap-2 rounded-xl px-4 py-3 hover:bg-slate-100"
@@ -177,5 +222,8 @@ async function logout(): Promise<void> {
     </header>
 
     <RouterView />
+    <div class="fixed top-20 right-4 z-[60] flex flex-col gap-2 sm:top-24 sm:right-6">
+      <CartToast />
+    </div>
   </div>
 </template>

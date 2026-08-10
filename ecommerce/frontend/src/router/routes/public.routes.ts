@@ -45,6 +45,27 @@ export const publicRoutes: RouteRecordRaw[] = [
         name: 'search-results',
         component: () => import('@/features/search/pages/SearchResultsPage.vue'),
       },
+      {
+        path: 'cart',
+        name: 'cart',
+        component: () => import('@/features/cart/views/CartPage.vue'),
+      },
+      {
+        path: 'flash-sales',
+        name: 'flash-sales',
+        component: () => import('@/features/promotion/views/customer/FlashSaleListPage.vue'),
+      },
+      {
+        path: 'voucher-center',
+        name: 'voucher-center',
+        component: () => import('@/features/promotion/views/customer/VoucherCenterPage.vue'),
+      },
+      {
+        path: 'me/vouchers',
+        name: 'my-vouchers',
+        component: () => import('@/features/promotion/views/customer/MyVouchersPage.vue'),
+        meta: { requiresAuth: true, roles: ['customer'] },
+      },
     ],
   },
   {

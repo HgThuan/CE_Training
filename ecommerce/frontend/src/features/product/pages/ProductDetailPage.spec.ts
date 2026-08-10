@@ -143,6 +143,7 @@ async function mountPage(url = '/products/product-one') {
       { path: '/products', name: 'product-list', component },
       { path: '/products/:slug', name: 'product-detail', component },
       { path: '/shops/:slug', name: 'public-shop', component },
+      { path: '/cart', name: 'cart', component },
     ],
   })
   await router.push(url)
@@ -259,6 +260,58 @@ describe('ProductDetailPage recommendations', () => {
     expect(wrapper.text()).toContain('Tương tự sản phẩm hai')
     expect(wrapper.text()).toContain('Đề xuất sản phẩm hai')
     expect(wrapper.text()).not.toContain('Kết quả cũ')
+    wrapper.unmount()
+  })
+
+  it('selects and adds an attribute-less multi-variant product to the guest cart', async () => {
+    const detail = makeDetail(PRODUCT_ONE_ID, 'Tai nghe', 'tai-nghe')
+    detail.variants.push({
+      ...detail.variants[0]!,
+      id: `${PRODUCT_ONE_ID}-silver`,
+      sku: 'TAI-NGHE-SILVER',
+      name: 'Bạc',
+      sale_price: '5290000',
+    })
+    detail.variants[0]!.name = 'Đen'
+    vi.mocked(productApi.detail).mockResolvedValue(detailResponse(detail))
+    vi.mocked(productApi.similar).mockResolvedValue(recommendationResponse([]))
+    vi.mocked(productApi.recommendations).mockResolvedValue(recommendationResponse([]))
+
+    const { wrapper } = await mountPage('/products/tai-nghe')
+    await flushPromises()
+
+    const addButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Thêm vào giỏ'))
+    expect(addButton?.attributes('disabled')).toBeUndefined()
+
+    const increaseButton = wrapper
+      .findAll('button')
+      .find((button) => button.attributes('aria-label') === 'Tăng số lượng')
+    await increaseButton?.trigger('click')
+    await addButton?.trigger('click')
+    await flushPromises()
+
+    expect(JSON.parse(localStorage.getItem('mercato_guest_cart_v1') ?? '[]')).toMatchObject([
+      { variant_id: detail.variants[0]!.id, quantity: 2 },
+    ])
+    wrapper.unmount()
+  })
+
+  it('adds the selected product and opens the cart when buying now', async () => {
+    const detail = makeDetail(PRODUCT_ONE_ID, 'Sản phẩm một', 'product-one')
+    vi.mocked(productApi.detail).mockResolvedValue(detailResponse(detail))
+    vi.mocked(productApi.similar).mockResolvedValue(recommendationResponse([]))
+    vi.mocked(productApi.recommendations).mockResolvedValue(recommendationResponse([]))
+
+    const { router, wrapper } = await mountPage()
+    await flushPromises()
+    const buyButton = wrapper.findAll('button').find((button) => button.text() === 'Mua ngay')
+    await buyButton?.trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).toBe('cart')
+    expect(JSON.parse(localStorage.getItem('mercato_guest_cart_v1') ?? '[]')).toHaveLength(1)
     wrapper.unmount()
   })
 })
