@@ -31,10 +31,13 @@ class PaymentService:
         )
         if existing is not None:
             if renew_reference or not existing.payment_code.isalnum():
-                existing.payment_code = f"PAY{uuid4().hex.upper()}"
-                existing.save(update_fields=("payment_code", "updated_at"))
-            url = cls.provider_for(existing.method).create_payment_url(order, existing.payment_code)
-            return existing, url
+                # Keep the old reference so a late VNPay callback can still be reconciled.
+                cls.expire(existing)
+            else:
+                url = cls.provider_for(existing.method).create_payment_url(
+                    order, existing.payment_code
+                )
+                return existing, url
         payment_code = f"PAY{uuid4().hex.upper()}"
         payment = Payment.objects.create(
             order=order,
@@ -211,3 +214,14 @@ class PaymentService:
                     updated_at=timezone.now(),
                 )
         return refund
+
+    @classmethod
+    def expire(cls, payment: Payment) -> Payment:
+        payment.status = Payment.Status.EXPIRED
+        payment.save(update_fields=("status", "updated_at"))
+        PaymentTransaction.objects.create(
+            payment=payment,
+            event_type="system_expire",
+            processing_status=PaymentTransaction.ProcessingStatus.PROCESSED,
+        )
+        return payment

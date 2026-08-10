@@ -46,13 +46,16 @@ def make_payment():
     VNPAY_PAYMENT_URL="https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
     VNPAY_RETURN_URL="http://localhost:8080/payment/return",
 )
-def test_payment_url_uses_vnpay_21_required_fields_and_rotates_legacy_reference():
+def test_payment_url_replaces_legacy_reference_without_overwriting_old_attempt():
     order, payment = make_payment()
 
     updated_payment, payment_url = PaymentService.create_payment_intent(order)
 
+    payment.refresh_from_db()
     updated_payment.refresh_from_db()
-    assert updated_payment.pk == payment.pk
+    assert updated_payment.pk != payment.pk
+    assert payment.payment_code == "PAY-REF-1"
+    assert payment.status == Payment.Status.EXPIRED
     assert updated_payment.payment_code.isalnum()
     params = {key: values[0] for key, values in parse_qs(urlparse(payment_url).query).items()}
     assert params["vnp_TxnRef"] == updated_payment.payment_code
@@ -98,6 +101,29 @@ def test_callback_is_idempotent_and_updates_order_once():
         ).count()
         == 1
     )
+
+
+@override_settings(VNPAY_HASH_SECRET="test-secret")
+def test_successful_callback_reconciles_an_expired_payment_attempt():
+    order, payment = make_payment()
+    payment.status = Payment.Status.EXPIRED
+    payment.save(update_fields=("status", "updated_at"))
+    payload = {
+        "vnp_TxnRef": payment.payment_code,
+        "vnp_Amount": "10000000",
+        "vnp_CurrCode": "VND",
+        "vnp_ResponseCode": "00",
+        "vnp_TransactionStatus": "00",
+        "vnp_TransactionNo": "VNP-LATE-001",
+    }
+    payload["vnp_SecureHash"] = VNPayProvider()._signature(payload)
+
+    PaymentService.handle_callback("VNPAY", payload)
+
+    order.refresh_from_db()
+    payment.refresh_from_db()
+    assert order.payment_status == Order.PaymentStatus.PAID
+    assert payment.status == Payment.Status.PAID
 
 
 @override_settings(VNPAY_HASH_SECRET="test-secret")
