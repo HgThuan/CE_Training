@@ -3,6 +3,7 @@ import { onMounted, reactive, ref } from 'vue'
 
 import FormMessage from '@/features/auth/components/FormMessage.vue'
 import { getErrorMessage } from '@/features/auth/errors'
+import { showConfirm, showPrompt } from '@/shared/lib/dialog'
 import type { PaginationMeta } from '@/shared/types/api'
 
 import { adminUsersApi } from '../api'
@@ -109,7 +110,11 @@ async function updateCustomer(): Promise<void> {
 
 async function toggleAccount(customer: AdminCustomer): Promise<void> {
   const action = customer.is_active ? 'khóa' : 'mở khóa'
-  const reason = window.prompt(`Nhập lý do ${action} tài khoản ${customer.email}:`)
+  const reason = await showPrompt(`Nhập lý do ${action} tài khoản ${customer.email}:`, {
+    title: `${customer.is_active ? 'Khóa' : 'Mở khóa'} tài khoản`,
+    required: true,
+    multiline: true,
+  })
   if (!reason?.trim()) return
   errorMessage.value = ''
   try {
@@ -125,8 +130,12 @@ async function toggleAccount(customer: AdminCustomer): Promise<void> {
 }
 
 async function resetPassword(customer: AdminCustomer): Promise<void> {
-  if (!window.confirm(`Gửi liên kết đặt lại mật khẩu cho ${customer.email}?`)) return
-  const reason = window.prompt('Ghi chú/lý do hỗ trợ:', '') ?? ''
+  if (!(await showConfirm(`Gửi liên kết đặt lại mật khẩu cho ${customer.email}?`))) return
+  const reason =
+    (await showPrompt('Ghi chú/lý do hỗ trợ:', {
+      title: 'Hỗ trợ đặt lại mật khẩu',
+      multiline: true,
+    })) ?? ''
   errorMessage.value = ''
   try {
     const response = await adminUsersApi.resetPassword(customer.id, reason)
@@ -137,7 +146,7 @@ async function resetPassword(customer: AdminCustomer): Promise<void> {
 }
 
 async function removeCustomer(customer: AdminCustomer): Promise<void> {
-  if (!window.confirm(`Xóa mềm khách hàng ${customer.email}?`)) return
+  if (!(await showConfirm(`Xóa mềm khách hàng ${customer.email}?`, { tone: 'danger' }))) return
   errorMessage.value = ''
   try {
     const response = await adminUsersApi.deleteCustomer(customer.id)

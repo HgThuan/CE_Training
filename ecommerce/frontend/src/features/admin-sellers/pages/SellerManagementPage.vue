@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 
 import FormMessage from '@/features/auth/components/FormMessage.vue'
 import { getErrorMessage } from '@/features/auth/errors'
+import { showPrompt } from '@/shared/lib/dialog'
 import type { PaginationMeta } from '@/shared/types/api'
 
 import { adminSellersApi } from '../api'
@@ -37,7 +38,11 @@ async function loadSellers(page = 1): Promise<void> {
 async function toggleShop(seller: AdminSeller): Promise<void> {
   if (!seller.shop) return
   const locking = seller.shop.status !== 'locked'
-  const reason = window.prompt(locking ? 'Lý do khóa gian hàng:' : 'Ghi chú mở khóa:')
+  const reason = await showPrompt(locking ? 'Lý do khóa gian hàng:' : 'Ghi chú mở khóa:', {
+    title: locking ? 'Khóa gian hàng' : 'Mở khóa gian hàng',
+    required: true,
+    multiline: true,
+  })
   if (!reason?.trim()) return
   try {
     const response = locking
@@ -52,7 +57,11 @@ async function toggleShop(seller: AdminSeller): Promise<void> {
 
 async function renameShop(seller: AdminSeller): Promise<void> {
   if (!seller.shop) return
-  const name = window.prompt('Tên gian hàng mới:', seller.shop.name)
+  const name = await showPrompt('Tên gian hàng mới:', {
+    title: 'Đổi tên gian hàng',
+    initialValue: seller.shop.name,
+    required: true,
+  })
   if (!name?.trim() || name.trim() === seller.shop.name) return
   try {
     message.value = (
@@ -65,7 +74,12 @@ async function renameShop(seller: AdminSeller): Promise<void> {
 }
 
 async function deleteSeller(seller: AdminSeller): Promise<void> {
-  const reason = window.prompt(`Lý do xóa mềm seller ${seller.email}:`)
+  const reason = await showPrompt(`Lý do xóa mềm seller ${seller.email}:`, {
+    title: 'Xóa seller',
+    required: true,
+    multiline: true,
+    tone: 'danger',
+  })
   if (!reason?.trim()) return
   try {
     message.value = (await adminSellersApi.deleteSeller(seller.id, reason.trim())).data.message
