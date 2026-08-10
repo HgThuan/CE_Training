@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
+import { showPrompt } from '@/shared/lib/dialog'
+
 import { afterSalesApi } from '../api'
 import type { ReviewReport } from '../types'
 
@@ -9,7 +11,11 @@ async function load(): Promise<void> {
   reports.value = (await afterSalesApi.reviewReports()).data.data
 }
 async function resolve(item: ReviewReport, action: 'HIDE' | 'KEEP'): Promise<void> {
-  const note = window.prompt('Ghi chú xử lý') ?? ''
+  const note =
+    (await showPrompt('Ghi chú xử lý', {
+      title: action === 'HIDE' ? 'Ẩn đánh giá' : 'Giữ đánh giá',
+      multiline: true,
+    })) ?? ''
   await afterSalesApi.resolveReviewReport(item.id, action, note)
   await load()
 }
