@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
+import { showConfirm } from '@/shared/lib/dialog'
+
 import type { Voucher, VoucherPayload, VoucherScope } from '../types'
 import { usePromotionStore } from '../store'
 import VoucherForm from './VoucherForm.vue'
@@ -27,7 +29,7 @@ async function save(payload: VoucherPayload): Promise<void> {
 }
 
 async function remove(voucher: Voucher): Promise<void> {
-  if (!window.confirm(`Xóa voucher ${voucher.code}?`)) return
+  if (!(await showConfirm(`Xóa voucher ${voucher.code}?`, { tone: 'danger' }))) return
   await store.deleteVoucher(props.scope, voucher.id)
 }
 

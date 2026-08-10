@@ -14,6 +14,7 @@ import type {
   SellerProductListItem,
   SellerProductFilters,
 } from '@/features/product/types'
+import { showConfirm } from '@/shared/lib/dialog'
 import { formatDateTime, formatVnd } from '@/shared/lib/formatters'
 import type { PaginationMeta } from '@/shared/types/api'
 
@@ -87,7 +88,7 @@ async function submitForReview(product: SellerProductListItem): Promise<void> {
 }
 
 async function deleteProduct(product: SellerProductListItem): Promise<void> {
-  if (!window.confirm(`Xóa mềm sản phẩm “${product.name}”?`)) return
+  if (!(await showConfirm(`Xóa mềm sản phẩm “${product.name}”?`, { tone: 'danger' }))) return
   actionId.value = product.id
   message.value = ''
   errorMessage.value = ''

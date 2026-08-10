@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
+import { showConfirm } from '@/shared/lib/dialog'
 import { formatVnd } from '@/shared/lib/formatters'
 
 import FlashSaleForm from '../../components/FlashSaleForm.vue'
@@ -19,7 +20,9 @@ async function save(payload: FlashSalePayload): Promise<void> {
   formOpen.value = false
 }
 async function remove(sale: FlashSale): Promise<void> {
-  if (window.confirm(`Xóa ${sale.name}?`)) await store.deleteFlashSale(sale.id)
+  if (await showConfirm(`Xóa ${sale.name}?`, { tone: 'danger' })) {
+    await store.deleteFlashSale(sale.id)
+  }
 }
 void store.loadAdminFlashSales()
 </script>
