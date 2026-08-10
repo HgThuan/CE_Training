@@ -1,17 +1,13 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
+import { showPrompt } from '@/shared/lib/dialog'
 import { formatCurrency } from '@/shared/lib/formatters'
 
 import { afterSalesApi } from '../api'
 import type { ReturnRequest } from '../types'
-import InputDialog from '@/shared/components/InputDialog.vue'
-
 const requests = ref<ReturnRequest[]>([])
 const error = ref('')
-
-const isDecideDialogOpen = ref(false)
-const selectedReturn = ref<{ item: ReturnRequest; action: 'APPROVE' | 'REJECT' } | null>(null)
 
 async function load(): Promise<void> {
   try {
@@ -20,22 +16,15 @@ async function load(): Promise<void> {
     error.value = 'Không thể tải yêu cầu trả hàng.'
   }
 }
-
-function openDecideDialog(item: ReturnRequest, action: 'APPROVE' | 'REJECT') {
-  selectedReturn.value = { item, action }
-  isDecideDialogOpen.value = true
-}
-
-async function handleDecideConfirm(response: string) {
-  if (!response.trim() || !selectedReturn.value) return
-  isDecideDialogOpen.value = false
-
-  await afterSalesApi.decideReturn(
-    selectedReturn.value.item.id,
-    selectedReturn.value.action,
-    response,
-  )
-  selectedReturn.value = null
+async function decide(item: ReturnRequest, action: 'APPROVE' | 'REJECT'): Promise<void> {
+  const response = await showPrompt(action === 'APPROVE' ? 'Ghi chú chấp thuận' : 'Lý do từ chối', {
+    title: action === 'APPROVE' ? 'Chấp thuận trả hàng' : 'Từ chối trả hàng',
+    required: true,
+    multiline: true,
+    tone: action === 'REJECT' ? 'danger' : 'default',
+  })
+  if (!response) return
+  await afterSalesApi.decideReturn(item.id, action, response)
   await load()
 }
 
@@ -87,33 +76,18 @@ onMounted(load)
       <div v-if="item.status === 'REQUESTED'" class="mt-3 flex gap-2">
         <button
           class="rounded-xl bg-emerald-600 px-4 py-2 font-bold text-white hover:bg-emerald-700"
-          @click="openDecideDialog(item, 'APPROVE')"
+          @click="decide(item, 'APPROVE')"
         >
           Chấp thuận
         </button>
         <button
           class="rounded-xl bg-rose-600 px-4 py-2 font-bold text-white hover:bg-rose-700"
-          @click="openDecideDialog(item, 'REJECT')"
+          @click="decide(item, 'REJECT')"
         >
           Từ chối
         </button>
       </div>
     </article>
 
-    <InputDialog
-      :is-open="isDecideDialogOpen"
-      :title="selectedReturn?.action === 'APPROVE' ? 'Chấp thuận trả hàng' : 'Từ chối trả hàng'"
-      :placeholder="
-        selectedReturn?.action === 'APPROVE'
-          ? 'Nhập ghi chú chấp thuận...'
-          : 'Nhập lý do từ chối...'
-      "
-      :confirm-text="
-        selectedReturn?.action === 'APPROVE' ? 'Xác nhận chấp thuận' : 'Xác nhận từ chối'
-      "
-      :multiline="true"
-      @close="isDecideDialogOpen = false"
-      @confirm="handleDecideConfirm"
-    />
   </main>
 </template>
