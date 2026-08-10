@@ -13,6 +13,7 @@ import { useAuthStore } from '@/stores/auth'
 import { homeApi } from '../api'
 import type { HomePageData } from '../types'
 import CategoryShowcase from './CategoryShowcase.vue'
+import FlashSaleSection from './FlashSaleSection.vue'
 import HeroBanner from './HeroBanner.vue'
 import ProductGrid from './ProductGrid.vue'
 
@@ -149,6 +150,7 @@ onBeforeUnmount(() => {
 
         <div class="mt-14 space-y-16 lg:mt-20 lg:space-y-24">
           <CategoryShowcase :categories="data.categories" />
+          <FlashSaleSection />
           <ProductRecommendationCarousel
             v-if="authStore.isAuthenticated"
             title="Gợi ý cho bạn"

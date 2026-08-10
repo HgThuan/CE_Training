@@ -20,6 +20,32 @@ const product: PublicProductListItem = {
 }
 
 describe('ProductCard', () => {
+  it('shows the effective Flash Sale price on the shared product card', () => {
+    const wrapper = mount(ProductCard, {
+      props: {
+        product: {
+          ...product,
+          min_price: '70000',
+          max_price: '70000',
+          regular_min_price: '100000',
+          regular_max_price: '100000',
+          is_flash_sale: true,
+          flash_sale_ends_at: '2026-08-03T12:00:00Z',
+        },
+      },
+      global: {
+        stubs: {
+          RouterLink: { template: '<a><slot /></a>' },
+          WishlistToggleButton: true,
+        },
+      },
+    })
+
+    expect(wrapper.text()).toContain('FLASH SALE')
+    expect(wrapper.text()).toContain('70.000')
+    expect(wrapper.text()).toContain('100.000')
+  })
+
   it('keeps the wishlist button outside the product link and preserves lazy images', async () => {
     const component = { template: '<div />' }
     const router = createRouter({

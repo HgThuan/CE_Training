@@ -40,6 +40,12 @@ const imageFailed = ref(false)
         >
           {{ product.sold_count }} đã bán
         </span>
+        <span
+          v-if="product.is_flash_sale"
+          class="absolute right-4 top-4 rounded-full bg-rose-600 px-3 py-1 text-xs font-black text-white shadow-sm"
+        >
+          FLASH SALE
+        </span>
       </div>
       <div class="flex flex-1 flex-col p-5">
         <p class="text-xs font-semibold uppercase tracking-wider text-indigo-600">
@@ -56,6 +62,12 @@ const imageFailed = ref(false)
         <div class="mt-auto pt-5">
           <p class="text-xl font-black tracking-tight text-indigo-700">
             {{ formatVnd(product.min_price) }}
+          </p>
+          <p
+            v-if="product.is_flash_sale && product.regular_min_price"
+            class="mt-0.5 text-sm text-slate-400 line-through"
+          >
+            {{ formatVnd(product.regular_min_price) }}
           </p>
           <p
             v-if="product.max_price && product.max_price !== product.min_price"

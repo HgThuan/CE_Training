@@ -1,11 +1,13 @@
 """API tests for Seller, Admin, and public product views."""
 
+from decimal import Decimal
 from io import BytesIO
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from django.urls import reverse
+from django.utils import timezone
 from PIL import Image
 from rest_framework import status
 
@@ -21,6 +23,7 @@ from apps.product.tests.factories import (
     ProductMediaFactory,
     ProductVariantFactory,
 )
+from apps.promotion.models import FlashSale, FlashSaleItem
 
 
 def image_upload(name: str = "product.jpg") -> SimpleUploadedFile:
@@ -676,7 +679,9 @@ def test_public_product_list_query_count_does_not_scale_with_rows(
         ProductMediaFactory(product=product)
         ProductVariantFactory(product=product, shop=product.shop)
 
-    with django_assert_max_num_queries(4):
+    # Count + products + images + variants + active Flash Sale items. This
+    # remains constant as rows grow.
+    with django_assert_max_num_queries(6):
         response = api_client.get(
             reverse("product:public-product-list"),
             {"page_size": 10},
@@ -725,6 +730,48 @@ def test_public_detail_returns_nested_data_and_hides_private_variant_fields(api_
     assert response.data["data"]["variants"][0]["id"] == str(variant.pk)
     assert "cost_price" not in response.data["data"]["variants"][0]
     assert "barcode" not in response.data["data"]["variants"][0]
+
+
+@pytest.mark.django_db
+def test_public_product_apis_expose_flash_sale_as_effective_price_everywhere(api_client):
+    product = ProductFactory(
+        status=Product.Status.APPROVED,
+        min_price=Decimal("90000"),
+        max_price=Decimal("90000"),
+    )
+    variant = ProductVariantFactory(
+        product=product,
+        shop=product.shop,
+        sale_price=Decimal("90000"),
+    )
+    sale = FlashSale.objects.create(
+        name="Everywhere",
+        start_time=timezone.now() - timezone.timedelta(minutes=1),
+        end_time=timezone.now() + timezone.timedelta(hours=1),
+    )
+    FlashSaleItem.objects.create(
+        flash_sale=sale,
+        variant=variant,
+        sale_price=Decimal("60000"),
+        quota=5,
+    )
+
+    listed = api_client.get(reverse("product:public-product-list"))
+    detail = api_client.get(
+        reverse("product:public-product-detail", kwargs={"slug": product.slug}),
+        {"shop_slug": product.shop.slug},
+    )
+
+    listed_product = next(item for item in listed.data["data"] if item["id"] == str(product.pk))
+    detail_product = detail.data["data"]
+    detail_variant = detail_product["variants"][0]
+    assert listed_product["min_price"] == "60000"
+    assert listed_product["regular_min_price"] == "90000"
+    assert listed_product["is_flash_sale"] is True
+    assert detail_product["min_price"] == "60000"
+    assert detail_variant["sale_price"] == "60000"
+    assert detail_variant["regular_price"] == "90000"
+    assert detail_variant["remaining_flash_quota"] == 5
 
 
 @pytest.mark.django_db

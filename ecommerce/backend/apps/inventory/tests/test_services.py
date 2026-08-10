@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 from django.contrib.auth import get_user_model
 from django.db import connection, connections
+from django.utils import timezone
 
 from apps.account.models import Notification, User
 from apps.account.tests.factories import UserFactory
@@ -18,6 +19,7 @@ from apps.inventory.models import (
 )
 from apps.inventory.services import StockAlertService, StockService
 from apps.product.models import Product
+from apps.promotion.models import FlashSale, FlashSaleItem
 
 pytestmark = pytest.mark.django_db
 
@@ -190,6 +192,17 @@ def test_reserve_release_is_idempotent(customer, balance_a):
 
 
 def test_commit_is_idempotent_and_does_not_restore_available(customer, balance_a):
+    sale = FlashSale.objects.create(
+        name="Committed sale",
+        start_time=timezone.now() - timezone.timedelta(minutes=1),
+        end_time=timezone.now() + timezone.timedelta(hours=1),
+    )
+    flash_item = FlashSaleItem.objects.create(
+        flash_sale=sale,
+        variant=balance_a.variant,
+        sale_price=1,
+        quota=5,
+    )
     StockService.reserve_stock(balance_a.variant, 3, "ORDER-002", customer)
 
     StockService.commit_stock("ORDER-002", customer)
@@ -200,6 +213,8 @@ def test_commit_is_idempotent_and_does_not_restore_available(customer, balance_a
     assert reservation.status == StockReservation.Status.COMMITTED
     assert balance_a.available_stock == 7
     assert balance_a.reserved_stock == 0
+    flash_item.refresh_from_db()
+    assert flash_item.sold_count == 3
     assert (
         StockMovement.objects.filter(
             reference_id="ORDER-002",

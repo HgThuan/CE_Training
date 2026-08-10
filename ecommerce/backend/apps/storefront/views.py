@@ -13,6 +13,7 @@ from apps.common.cache_utils import (
 from apps.common.exceptions import BusinessError
 from apps.common.responses import success_response
 from apps.product.serializers import PublicProductListSerializer
+from apps.promotion.services import FlashSaleService
 
 from .permissions import IsAdmin
 from .selectors import (
@@ -136,7 +137,8 @@ class HomePageView(APIView):
         responses={200: HomeResponseSerializer},
     )
     def get(self, request):
-        cached_data = safe_cache_get(HOME_PAGE_CACHE_KEY)
+        dynamic_prices = FlashSaleService.has_active_or_upcoming_sale()
+        cached_data = None if dynamic_prices else safe_cache_get(HOME_PAGE_CACHE_KEY)
         if cached_data is not None:
             return success_response(
                 message="Lấy nội dung trang chủ thành công",
@@ -161,11 +163,12 @@ class HomePageView(APIView):
                 context={"request": request},
             ).data,
         }
-        safe_cache_set(
-            HOME_PAGE_CACHE_KEY,
-            data,
-            timeout=HOME_PAGE_CACHE_TTL,
-        )
+        if not dynamic_prices:
+            safe_cache_set(
+                HOME_PAGE_CACHE_KEY,
+                data,
+                timeout=HOME_PAGE_CACHE_TTL,
+            )
         return success_response(
             message="Lấy nội dung trang chủ thành công",
             data=data,
