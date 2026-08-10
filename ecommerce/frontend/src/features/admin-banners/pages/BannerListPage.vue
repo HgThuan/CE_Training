@@ -12,6 +12,7 @@ import { computed, onMounted, ref } from 'vue'
 
 import FormMessage from '@/features/auth/components/FormMessage.vue'
 import { getErrorMessage } from '@/features/auth/errors'
+import { showConfirm } from '@/shared/lib/dialog'
 import { formatDateTime } from '@/shared/lib/formatters'
 
 import { adminBannersApi } from '../api'
@@ -91,7 +92,8 @@ async function moveBanner(banner: Banner, direction: -1 | 1): Promise<void> {
 }
 
 async function deleteBanner(banner: Banner): Promise<void> {
-  if (!window.confirm(`Xóa banner “${banner.title || 'Không tiêu đề'}”?`)) return
+  if (!(await showConfirm(`Xóa banner “${banner.title || 'Không tiêu đề'}”?`, { tone: 'danger' })))
+    return
   busy.value = true
   message.value = ''
   errorMessage.value = ''

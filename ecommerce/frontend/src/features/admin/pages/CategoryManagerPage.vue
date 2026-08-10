@@ -4,6 +4,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 
 import FormMessage from '@/features/auth/components/FormMessage.vue'
 import { getErrorMessage } from '@/features/auth/errors'
+import { showConfirm } from '@/shared/lib/dialog'
 import type { Category, CategoryOption, CategoryPayload } from '@/features/product/types'
 
 import { adminCatalogApi } from '../api'
@@ -114,7 +115,7 @@ async function saveCategory(): Promise<void> {
 }
 
 async function deleteCategory(category: Category): Promise<void> {
-  if (!window.confirm(`Xóa mềm danh mục “${category.name}”?`)) return
+  if (!(await showConfirm(`Xóa mềm danh mục “${category.name}”?`, { tone: 'danger' }))) return
   busy.value = true
   message.value = ''
   errorMessage.value = ''
