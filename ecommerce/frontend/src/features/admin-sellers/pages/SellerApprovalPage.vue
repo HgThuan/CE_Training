@@ -4,6 +4,7 @@ import { onMounted, ref } from 'vue'
 import FormMessage from '@/features/auth/components/FormMessage.vue'
 import { getErrorMessage } from '@/features/auth/errors'
 import type { SellerApplication, SellerDocument } from '@/features/seller/types'
+import { showConfirm, showPrompt } from '@/shared/lib/dialog'
 import type { PaginationMeta } from '@/shared/types/api'
 
 import { adminSellersApi } from '../api'
@@ -44,7 +45,7 @@ async function selectApplication(profileId: number): Promise<void> {
 }
 
 async function approve(profile: SellerApplication): Promise<void> {
-  if (!window.confirm(`Duyệt gian hàng ${profile.business_name}?`)) return
+  if (!(await showConfirm(`Duyệt gian hàng ${profile.business_name}?`))) return
   try {
     message.value = (await adminSellersApi.approveApplication(profile.id)).data.message
     selected.value = null
@@ -55,7 +56,11 @@ async function approve(profile: SellerApplication): Promise<void> {
 }
 
 async function reject(profile: SellerApplication): Promise<void> {
-  const reason = window.prompt('Nhập lý do từ chối:')
+  const reason = await showPrompt('Nhập lý do từ chối:', {
+    title: 'Từ chối hồ sơ seller',
+    required: true,
+    multiline: true,
+  })
   if (!reason?.trim()) return
   try {
     message.value = (
@@ -69,7 +74,13 @@ async function reject(profile: SellerApplication): Promise<void> {
 }
 
 async function reviewDocument(document: SellerDocument, verified: boolean): Promise<void> {
-  const reason = verified ? '' : window.prompt('Mô tả nội dung cần bổ sung:')
+  const reason = verified
+    ? ''
+    : await showPrompt('Mô tả nội dung cần bổ sung:', {
+        title: 'Yêu cầu bổ sung giấy tờ',
+        required: true,
+        multiline: true,
+      })
   if (!verified && !reason?.trim()) return
   try {
     await adminSellersApi.reviewDocument(
