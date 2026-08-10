@@ -163,7 +163,7 @@ class DisputeService:
     @transaction.atomic
     def resolve(dispute: Dispute, *, admin, decision, note, refund_amount=None, request_id=""):
         locked = (
-            Dispute.objects.select_for_update()
+            Dispute.objects.select_for_update(of=("self",))
             .select_related(
                 "return_request__customer",
                 "return_request__shop_order__order",

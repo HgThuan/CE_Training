@@ -141,6 +141,32 @@ def test_return_reject_escalate_and_admin_full_refund_is_audited():
     )
 
 
+def test_dispute_resolution_locks_only_dispute_with_nullable_return_relation(monkeypatch):
+    customer, shop, order, shop_order, item, request = make_return_request()
+    ReturnRequestService.seller_decide(
+        request, seller=shop.owner, action="REJECT", response="Không đủ chứng cứ"
+    )
+    dispute = ReturnRequestService.escalate(request, customer=customer)
+    admin = UserFactory(role=User.Role.ADMIN, is_staff=True)
+    captured = {}
+    original = Dispute.objects.select_for_update
+
+    def capture_lock_scope(*args, **kwargs):
+        captured["of"] = kwargs.get("of")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(Dispute.objects, "select_for_update", capture_lock_scope)
+
+    DisputeService.resolve(
+        dispute,
+        admin=admin,
+        decision=Dispute.Decision.REJECT,
+        note="Không đủ điều kiện hoàn tiền",
+    )
+
+    assert captured["of"] == ("self",)
+
+
 def test_admin_partial_refund_must_be_less_than_requested_total():
     customer, shop, order, shop_order, item, request = make_return_request()
     ReturnRequestService.seller_decide(
