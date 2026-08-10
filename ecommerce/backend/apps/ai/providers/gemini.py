@@ -52,10 +52,10 @@ class GeminiProvider(BaseAIProvider):
             "maxOutputTokens": max_output_tokens,
         }
         if response_mime_type:
-            generation_config["responseMimeType"] = response_mime_type
+            text_format: dict[str, Any] = {"mimeType": response_mime_type}
             if response_schema:
-                generation_config["responseSchema"] = response_schema
-
+                text_format["schema"] = response_schema
+            generation_config["responseFormat"] = {"text": text_format}
 
         payload: dict[str, Any] = {
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],

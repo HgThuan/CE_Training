@@ -5,6 +5,8 @@ import type {
   Brand,
   Category,
   CreateQuestionPayload,
+  ProductAIReviewSummary,
+  ProductAISummary,
   ProductListFilters,
   ProductQuestion,
   ProductRecommendationData,
@@ -35,6 +37,10 @@ export const productApi = {
     http.get<ApiResponse<ProductRecommendationData>>('/ai/recommendations/', {
       params: browsingHistoryParams(browsingHistory),
     }),
+  aiReviewSummary: (productId: string) =>
+    http.get<ApiResponse<ProductAIReviewSummary>>(`/ai/products/${productId}/ai-review-summary`),
+  aiSummary: (productId: string) =>
+    http.get<ApiResponse<ProductAISummary>>(`/ai/products/${productId}/ai-summary`),
   listQuestions: (productId: string, params: QuestionListParams = {}) =>
     http.get<ApiResponse<ProductQuestion[]>>(`/products/${productId}/questions/`, {
       params,

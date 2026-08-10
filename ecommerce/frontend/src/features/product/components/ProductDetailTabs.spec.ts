@@ -53,6 +53,8 @@ async function mountTabs(initialPath = '/products/dien-thoai-moi') {
       plugins: [router],
       stubs: {
         QASection: { template: '<div data-test="qa-section">Nội dung hỏi đáp</div>' },
+        ProductAISummary: true,
+        ProductAIReviewSummary: true,
       },
     },
   })

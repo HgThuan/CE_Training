@@ -187,6 +187,8 @@ class AIRequestLog(TimeStampedModel):
         EMBEDDING = "embedding", "Embedding"
         RECOMMENDATION = "recommendation", "Recommendation"
         SIMILAR_PRODUCTS = "similar_products", "Similar products"
+        REVIEW_SUMMARY = "review_summary", "Review summary"
+        PRODUCT_SUMMARY = "product_summary", "Product summary"
         OTHER = "other", "Other"
 
     class Status(models.TextChoices):

@@ -1,16 +1,69 @@
+from django.conf import settings
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
+from rest_framework.throttling import AnonRateThrottle
+from rest_framework.views import APIView
 
+from apps.common.responses import success_response
+from apps.product.selectors import ProductSelector
 from apps.product.serializers import PublicProductListSerializer
 
 from .permissions import AISearchRateThrottle
 from .search_service import AISearchService
 from .serializers import (
     AISearchResponseSerializer,
+    ProductAIReviewSummaryResponseSerializer,
+    ProductAISummaryResponseSerializer,
     SemanticSearchQuerySerializer,
     SmartSearchQuerySerializer,
 )
+from .services import AIService
+
+
+class ProductAIReviewSummaryThrottle(AnonRateThrottle):
+    scope = "ai_review_summary"
+
+    def get_rate(self):
+        rates = settings.REST_FRAMEWORK.get("DEFAULT_THROTTLE_RATES", {})
+        return rates.get(self.scope, "10/minute")
+
+
+class ProductAISummaryThrottle(AnonRateThrottle):
+    scope = "ai_product_summary"
+
+    def get_rate(self):
+        rates = settings.REST_FRAMEWORK.get("DEFAULT_THROTTLE_RATES", {})
+        return rates.get(self.scope, "10/minute")
+
+
+class ProductAIReviewSummaryView(APIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [ProductAIReviewSummaryThrottle]
+
+    @extend_schema(
+        operation_id="ai_product_review_summary",
+        responses={200: ProductAIReviewSummaryResponseSerializer},
+    )
+    def get(self, request, product_id):
+        product = get_object_or_404(ProductSelector.public_base(), pk=product_id)
+        data = AIService().summarize_product_reviews(product.pk, user=request.user)
+        return success_response(data=data)
+
+
+class ProductAISummaryView(APIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [ProductAISummaryThrottle]
+
+    @extend_schema(
+        operation_id="ai_product_summary",
+        responses={200: ProductAISummaryResponseSerializer},
+    )
+    def get(self, request, product_id):
+        product = get_object_or_404(ProductSelector.public_base(), pk=product_id)
+        data = AIService().summarize_product_details(product.pk, user=request.user)
+        return success_response(data=data)
 
 
 class BaseAISearchView(generics.GenericAPIView):

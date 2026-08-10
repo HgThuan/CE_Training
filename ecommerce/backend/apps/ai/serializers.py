@@ -123,3 +123,34 @@ class SimilarProductsQuerySerializer(serializers.Serializer):
                 {"query_params": [f"Tham số không được hỗ trợ: {', '.join(unknown)}"]}
             )
         return super().to_internal_value(data)
+
+
+class ProductAIReviewSummaryDataSerializer(serializers.Serializer):
+    summary = serializers.CharField()
+    pros = serializers.ListField(child=serializers.CharField())
+    cons = serializers.ListField(child=serializers.CharField())
+    sentiment = serializers.ChoiceField(choices=("positive", "neutral", "negative"))
+    sample_count = serializers.IntegerField(min_value=0)
+    is_ai_generated = serializers.BooleanField()
+    ai_label = serializers.CharField(allow_null=True)
+
+
+class ProductAIReviewSummaryResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    message = serializers.CharField()
+    data = ProductAIReviewSummaryDataSerializer()
+
+
+class ProductAISummaryDataSerializer(serializers.Serializer):
+    summary = serializers.CharField(allow_blank=True)
+    highlights = serializers.ListField(child=serializers.CharField())
+    target_audience = serializers.CharField(allow_blank=True)
+    key_specs = serializers.DictField(child=serializers.CharField())
+    is_ai_generated = serializers.BooleanField()
+    ai_label = serializers.CharField(allow_null=True)
+
+
+class ProductAISummaryResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    message = serializers.CharField()
+    data = ProductAISummaryDataSerializer()

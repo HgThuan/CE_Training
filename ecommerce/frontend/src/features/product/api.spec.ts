@@ -56,4 +56,12 @@ describe('product recommendation API', () => {
       params: {},
     })
   })
+
+  it('calls the AI summary endpoints without trailing slashes', () => {
+    productApi.aiReviewSummary('product-id')
+    productApi.aiSummary('product-id')
+
+    expect(http.get).toHaveBeenNthCalledWith(1, '/ai/products/product-id/ai-review-summary')
+    expect(http.get).toHaveBeenNthCalledWith(2, '/ai/products/product-id/ai-summary')
+  })
 })
