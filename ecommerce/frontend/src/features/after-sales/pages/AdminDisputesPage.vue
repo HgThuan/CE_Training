@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
+import { showPrompt } from '@/shared/lib/dialog'
 import { formatCurrency } from '@/shared/lib/formatters'
 
 import { afterSalesApi } from '../api'
@@ -19,12 +20,22 @@ async function resolve(
   item: Dispute,
   decision: 'REFUND_FULL' | 'REFUND_PARTIAL' | 'REJECT',
 ): Promise<void> {
-  const note = window.prompt('Ghi chú quyết định cuối cùng')
+  const note = await showPrompt('Ghi chú quyết định cuối cùng', {
+    title: 'Giải quyết tranh chấp',
+    required: true,
+    multiline: true,
+  })
   if (!note) return
   const payload: Record<string, unknown> = { decision, note }
   if (decision === 'REFUND_PARTIAL') {
-    const amount = Number(window.prompt('Số tiền hoàn'))
-    if (!amount) return
+    const rawAmount = await showPrompt('Số tiền hoàn', {
+      title: 'Hoàn tiền một phần',
+      required: true,
+      inputType: 'number',
+      placeholder: 'Nhập số tiền lớn hơn 0',
+    })
+    const amount = Number(rawAmount)
+    if (!Number.isFinite(amount) || amount <= 0) return
     payload.refund_amount = amount
   }
   await afterSalesApi.resolveDispute(item.id, payload)
