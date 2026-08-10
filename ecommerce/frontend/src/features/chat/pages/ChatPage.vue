@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router'
 
 import FormMessage from '@/features/auth/components/FormMessage.vue'
 import { getErrorMessage } from '@/features/auth/errors'
+import { showPrompt } from '@/shared/lib/dialog'
 import { useAuthStore } from '@/stores/auth'
 
 import { chatApi } from '../api'
@@ -123,8 +124,13 @@ async function sendContext(type: 'PRODUCT' | 'ORDER', id: string): Promise<void>
   }
 }
 
-function chooseImage(): void {
-  imageUrl.value = window.prompt('URL ảnh')?.trim() ?? ''
+async function chooseImage(): Promise<void> {
+  imageUrl.value =
+    (await showPrompt('URL ảnh', {
+      title: 'Gửi ảnh qua liên kết',
+      initialValue: imageUrl.value,
+      placeholder: 'https://example.com/image.webp',
+    })) ?? ''
 }
 
 onMounted(load)
