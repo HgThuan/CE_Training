@@ -4,6 +4,7 @@ export interface DialogOptions {
   cancelLabel?: string
   initialValue?: string
   placeholder?: string
+  inputType?: 'text' | 'number'
   multiline?: boolean
   required?: boolean
   tone?: 'default' | 'danger'
@@ -51,7 +52,7 @@ function openDialog(config: DialogConfig): Promise<string | boolean | null> {
       input = config.multiline
         ? document.createElement('textarea')
         : document.createElement('input')
-      if (input instanceof HTMLInputElement) input.type = 'text'
+      if (input instanceof HTMLInputElement) input.type = config.inputType ?? 'text'
       if (input instanceof HTMLTextAreaElement) input.rows = 4
       input.className =
         'mt-4 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-slate-950 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100'
