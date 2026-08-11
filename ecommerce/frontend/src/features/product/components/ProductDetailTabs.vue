@@ -3,6 +3,8 @@ import { nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import QASection from './QASection.vue'
+import ProductAIReviewSummary from './ProductAIReviewSummary.vue'
+import ProductAISummary from './ProductAISummary.vue'
 import { afterSalesApi } from '@/features/after-sales/api'
 import type { Review } from '@/features/after-sales/types'
 import type { PublicProductDetail } from '../types'
@@ -111,6 +113,7 @@ watch(
       aria-labelledby="product-tab-description"
       tabindex="0"
     >
+      <ProductAISummary :product-id="product.id" />
       <h2 class="text-2xl font-black">Mô tả sản phẩm</h2>
       <p class="mt-5 whitespace-pre-line leading-8 text-slate-700">
         {{ product.description || product.short_description || 'Sản phẩm chưa có mô tả.' }}
@@ -136,6 +139,7 @@ watch(
       aria-labelledby="product-tab-reviews"
       tabindex="0"
     >
+      <ProductAIReviewSummary :product-id="product.id" />
       <h2 class="text-2xl font-black">Đánh giá sản phẩm</h2>
       <p v-if="reviewError" class="mt-3 text-rose-700">{{ reviewError }}</p>
       <p v-else-if="!reviews.length" class="mt-3 text-slate-600">Sản phẩm chưa có đánh giá.</p>

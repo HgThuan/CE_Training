@@ -158,6 +158,25 @@ export interface ProductRecommendationData {
   strategy: string
 }
 
+export interface ProductAIReviewSummary {
+  summary: string
+  pros: string[]
+  cons: string[]
+  sentiment: 'positive' | 'neutral' | 'negative'
+  sample_count: number
+  is_ai_generated: boolean
+  ai_label: string | null
+}
+
+export interface ProductAISummary {
+  summary: string
+  highlights: string[]
+  target_audience: string
+  key_specs: Record<string, string>
+  is_ai_generated: boolean
+  ai_label: string | null
+}
+
 export interface PublicProductDetail {
   id: string
   name: string
