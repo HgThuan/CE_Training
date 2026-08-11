@@ -9,6 +9,7 @@ from apps.ai.recommendation_views import (
     ProductRecommendationsView,
     SimilarProductsView,
 )
+from apps.ai.views import ProductCompareView, SellerListingGenerateView
 from apps.common.views import HealthCheckView
 
 urlpatterns = [
@@ -31,6 +32,12 @@ urlpatterns = [
         "api/v1/products/<uuid:product_id>/similar/",
         SimilarProductsView.as_view(),
         name="product-similar",
+    ),
+    path("api/v1/products/compare", ProductCompareView.as_view(), name="product-compare"),
+    path(
+        "api/v1/seller/products/generate-listing",
+        SellerListingGenerateView.as_view(),
+        name="seller-product-generate-listing",
     ),
     path("api/v1/", include("apps.product.urls")),
     path("api/v1/", include("apps.inventory.urls")),

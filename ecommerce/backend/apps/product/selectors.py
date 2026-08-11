@@ -224,6 +224,15 @@ class ProductSelector:
         return ProductSelector.public_list()
 
     @staticmethod
+    def public_for_compare(product_ids) -> QuerySet[Product]:
+        """Return public products with the relations needed by comparison."""
+
+        return ProductSelector._with_relations(
+            ProductSelector.public_base(),
+            public_only=True,
+        ).filter(id__in=product_ids)
+
+    @staticmethod
     def for_seller(seller_user) -> QuerySet[Product]:
         if (
             getattr(seller_user, "role", None) != User.Role.SELLER

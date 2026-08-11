@@ -14,6 +14,10 @@ from .base import (
 
 MODEL_NAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
 RETRYABLE_HTTP_STATUSES = {408, 409, 425, 429, 500, 502, 503, 504}
+RESPONSE_MIME_TYPES = {
+    "application/json": "APPLICATION_JSON",
+    "text/plain": "TEXT_PLAIN",
+}
 
 
 class GeminiProvider(BaseAIProvider):
@@ -51,8 +55,15 @@ class GeminiProvider(BaseAIProvider):
             "temperature": temperature,
             "maxOutputTokens": max_output_tokens,
         }
+        if model.startswith("gemini-3"):
+            generation_config["thinkingConfig"] = {"thinkingLevel": "minimal"}
         if response_mime_type:
-            text_format: dict[str, Any] = {"mimeType": response_mime_type}
+            text_format: dict[str, Any] = {
+                "mimeType": RESPONSE_MIME_TYPES.get(
+                    response_mime_type.lower(),
+                    response_mime_type,
+                )
+            }
             if response_schema:
                 text_format["schema"] = response_schema
             generation_config["responseFormat"] = {"text": text_format}

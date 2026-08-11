@@ -321,7 +321,10 @@ def test_gemini_generation_uses_current_structured_output_payload():
 
     payload = post_json.call_args.args[1]
     assert payload["generationConfig"]["responseFormat"] == {
-        "text": {"mimeType": "application/json", "schema": schema}
+        "text": {"mimeType": "APPLICATION_JSON", "schema": schema}
+    }
+    assert payload["generationConfig"]["thinkingConfig"] == {
+        "thinkingLevel": "minimal"
     }
     assert "responseMimeType" not in payload["generationConfig"]
     assert result.input_tokens == 3
