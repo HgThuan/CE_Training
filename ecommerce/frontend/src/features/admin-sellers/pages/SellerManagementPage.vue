@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 
 import FormMessage from '@/features/auth/components/FormMessage.vue'
 import { getErrorMessage } from '@/features/auth/errors'
+import { promptDialog } from '@/shared/composables/useAppDialog'
 import type { PaginationMeta } from '@/shared/types/api'
 
 import { adminSellersApi } from '../api'
@@ -37,7 +38,13 @@ async function loadSellers(page = 1): Promise<void> {
 async function toggleShop(seller: AdminSeller): Promise<void> {
   if (!seller.shop) return
   const locking = seller.shop.status !== 'locked'
-  const reason = window.prompt(locking ? 'Lý do khóa gian hàng:' : 'Ghi chú mở khóa:')
+  const reason = await promptDialog({
+    title: locking ? 'Khóa gian hàng' : 'Mở khóa gian hàng',
+    inputLabel: locking ? 'Lý do khóa gian hàng' : 'Ghi chú mở khóa',
+    confirmLabel: locking ? 'Khóa gian hàng' : 'Mở khóa',
+    destructive: locking,
+    required: true,
+  })
   if (!reason?.trim()) return
   try {
     const response = locking
@@ -52,7 +59,13 @@ async function toggleShop(seller: AdminSeller): Promise<void> {
 
 async function renameShop(seller: AdminSeller): Promise<void> {
   if (!seller.shop) return
-  const name = window.prompt('Tên gian hàng mới:', seller.shop.name)
+  const name = await promptDialog({
+    title: 'Đổi tên gian hàng',
+    inputLabel: 'Tên gian hàng mới',
+    initialValue: seller.shop.name,
+    confirmLabel: 'Lưu tên',
+    required: true,
+  })
   if (!name?.trim() || name.trim() === seller.shop.name) return
   try {
     message.value = (
@@ -65,7 +78,14 @@ async function renameShop(seller: AdminSeller): Promise<void> {
 }
 
 async function deleteSeller(seller: AdminSeller): Promise<void> {
-  const reason = window.prompt(`Lý do xóa mềm seller ${seller.email}:`)
+  const reason = await promptDialog({
+    title: 'Xóa seller',
+    message: seller.email,
+    inputLabel: 'Lý do xóa mềm',
+    confirmLabel: 'Xóa seller',
+    destructive: true,
+    required: true,
+  })
   if (!reason?.trim()) return
   try {
     message.value = (await adminSellersApi.deleteSeller(seller.id, reason.trim())).data.message

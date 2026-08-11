@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AdminProductListItem } from '@/features/product/types'
+import { confirmDialog } from '@/shared/composables/useAppDialog'
 
 import { adminCatalogApi } from '../api'
 import ProductModerationPage from './ProductModerationPage.vue'
@@ -15,6 +16,10 @@ vi.mock('../api', () => ({
     unhideProduct: vi.fn(),
     deleteProduct: vi.fn(),
   },
+}))
+
+vi.mock('@/shared/composables/useAppDialog', () => ({
+  confirmDialog: vi.fn(),
 }))
 
 const product = (status: AdminProductListItem['status']): AdminProductListItem => ({
@@ -37,7 +42,7 @@ const product = (status: AdminProductListItem['status']): AdminProductListItem =
 describe('ProductModerationPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    vi.mocked(confirmDialog).mockResolvedValue(true)
     vi.mocked(adminCatalogApi.products).mockResolvedValue({
       data: {
         success: true,

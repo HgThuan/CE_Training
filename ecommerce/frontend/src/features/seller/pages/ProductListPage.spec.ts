@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { SellerProductListItem } from '@/features/product/types'
+import { confirmDialog } from '@/shared/composables/useAppDialog'
 
 import { sellerProductApi } from '../product-api'
 import ProductListPage from './ProductListPage.vue'
@@ -14,6 +15,10 @@ vi.mock('../product-api', () => ({
     restore: vi.fn(),
     delete: vi.fn(),
   },
+}))
+
+vi.mock('@/shared/composables/useAppDialog', () => ({
+  confirmDialog: vi.fn(),
 }))
 
 const hiddenProduct: SellerProductListItem = {
@@ -49,6 +54,7 @@ const suspendedProduct: SellerProductListItem = {
 describe('Seller ProductListPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(confirmDialog).mockResolvedValue(true)
     vi.mocked(sellerProductApi.list).mockResolvedValue({
       data: {
         success: true,
@@ -89,7 +95,6 @@ describe('Seller ProductListPage', () => {
     vi.mocked(sellerProductApi.restore).mockResolvedValue({
       data: { success: true, message: 'Đã mở bán lại sản phẩm', data: approvedProduct },
     } as unknown as Awaited<ReturnType<typeof sellerProductApi.restore>>)
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     const wrapper = mount(ProductListPage, {
       global: {
         stubs: {

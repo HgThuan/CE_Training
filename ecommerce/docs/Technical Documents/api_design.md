@@ -94,8 +94,7 @@ Ghi chú hiện thực Nhóm 1:
 | GET | `/admin/products/pending` | Admin | Hàng chờ duyệt sản phẩm | ADM-13 |
 | POST | `/admin/products/{id}/approve` | Admin | Duyệt sản phẩm | ADM-13 |
 | POST | `/admin/products/{id}/reject` | Admin | Từ chối kèm lý do | ADM-13 |
-| POST | `/admin/products/{id}/hide` | Admin | Ẩn sản phẩm vi phạm, bắt buộc ghi rõ lý do | ADM-14 |
-| POST | `/admin/products/{id}/unhide` | Admin | Bỏ ẩn và hiển thị lại sản phẩm | ADM-14 |
+| POST | `/admin/products/{id}/hide` | Admin | Ẩn sản phẩm vi phạm | ADM-14 |
 | DELETE | `/admin/products/{id}` | Admin | Xóa mềm sản phẩm vi phạm | ADM-14 |
 | GET | `/categories` | Public | Cây danh mục | ADM-15 |
 | GET | `/admin/categories` | Admin | Danh sách danh mục gồm cả inactive, có phân trang | ADM-15 |
@@ -152,8 +151,6 @@ Toàn bộ endpoint dưới đây tự động scope theo `shop_id` của Seller
 | PATCH | `/seller/products/{id}` | Seller | Cập nhật sản phẩm | SEL-02 |
 | DELETE | `/seller/products/{id}` | Seller | Xóa mềm | SEL-02 |
 | POST | `/seller/products/{id}/submit` | Seller | Gửi duyệt (draft → pending) | SEL-02 |
-| POST | `/seller/products/{id}/suspend` | Seller | Tạm ngưng bán (approved → suspended) | SEL-02 |
-| POST | `/seller/products/{id}/restore` | Seller | Mở bán lại (suspended → approved) | SEL-02 |
 | POST | `/seller/products/{id}/media` | Seller | Upload ảnh/video | SEL-03 |
 | DELETE | `/seller/products/{id}/media/{media_id}` | Seller | Xóa 1 media | SEL-03 |
 | POST | `/seller/products/{id}/media/reorder` | Seller | Sắp xếp lại thứ tự ảnh | SEL-03 |

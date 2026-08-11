@@ -13,6 +13,7 @@ import { onMounted, ref } from 'vue'
 import FormMessage from '@/features/auth/components/FormMessage.vue'
 import { getErrorMessage } from '@/features/auth/errors'
 import type { AdminProductListItem, ProductStatus } from '@/features/product/types'
+import { confirmDialog } from '@/shared/composables/useAppDialog'
 import { formatDateTime, formatVnd } from '@/shared/lib/formatters'
 import type { PaginationMeta } from '@/shared/types/api'
 
@@ -152,8 +153,13 @@ async function unhide(product: AdminProductListItem): Promise<void> {
 }
 
 async function deleteProduct(product: AdminProductListItem): Promise<void> {
-  if (!window.confirm(`Xóa mềm sản phẩm “${product.name}”? Thao tác này không thể hoàn tác.`))
-    return
+  const confirmed = await confirmDialog({
+    title: 'Xóa sản phẩm vi phạm',
+    message: `Xóa mềm sản phẩm “${product.name}”? Thao tác này không thể hoàn tác.`,
+    confirmLabel: 'Xóa sản phẩm',
+    destructive: true,
+  })
+  if (!confirmed) return
   actionId.value = product.id
   message.value = ''
   errorMessage.value = ''

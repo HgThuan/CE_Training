@@ -11,6 +11,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import FormMessage from '@/features/auth/components/FormMessage.vue'
 import { getErrorMessage } from '@/features/auth/errors'
 import type { Brand, BrandPayload } from '@/features/product/types'
+import { confirmDialog } from '@/shared/composables/useAppDialog'
 import { formatDateTime } from '@/shared/lib/formatters'
 
 import { adminCatalogApi } from '../api'
@@ -101,7 +102,13 @@ async function saveBrand(): Promise<void> {
 }
 
 async function deleteBrand(brand: Brand): Promise<void> {
-  if (!window.confirm(`Xóa mềm thương hiệu “${brand.name}”?`)) return
+  const confirmed = await confirmDialog({
+    title: 'Xóa thương hiệu',
+    message: `Xác nhận xóa mềm thương hiệu “${brand.name}”?`,
+    confirmLabel: 'Xóa thương hiệu',
+    destructive: true,
+  })
+  if (!confirmed) return
   busy.value = true
   message.value = ''
   errorMessage.value = ''

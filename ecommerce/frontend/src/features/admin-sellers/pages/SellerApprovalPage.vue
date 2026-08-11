@@ -4,6 +4,7 @@ import { onMounted, ref } from 'vue'
 import FormMessage from '@/features/auth/components/FormMessage.vue'
 import { getErrorMessage } from '@/features/auth/errors'
 import type { SellerApplication, SellerDocument } from '@/features/seller/types'
+import { confirmDialog, promptDialog } from '@/shared/composables/useAppDialog'
 import type { PaginationMeta } from '@/shared/types/api'
 
 import { adminSellersApi } from '../api'
@@ -44,7 +45,12 @@ async function selectApplication(profileId: number): Promise<void> {
 }
 
 async function approve(profile: SellerApplication): Promise<void> {
-  if (!window.confirm(`Duyệt gian hàng ${profile.business_name}?`)) return
+  const confirmed = await confirmDialog({
+    title: 'Duyệt gian hàng',
+    message: `Xác nhận duyệt gian hàng ${profile.business_name}?`,
+    confirmLabel: 'Duyệt gian hàng',
+  })
+  if (!confirmed) return
   try {
     message.value = (await adminSellersApi.approveApplication(profile.id)).data.message
     selected.value = null
@@ -55,7 +61,13 @@ async function approve(profile: SellerApplication): Promise<void> {
 }
 
 async function reject(profile: SellerApplication): Promise<void> {
-  const reason = window.prompt('Nhập lý do từ chối:')
+  const reason = await promptDialog({
+    title: 'Từ chối hồ sơ seller',
+    inputLabel: 'Lý do từ chối',
+    confirmLabel: 'Từ chối hồ sơ',
+    destructive: true,
+    required: true,
+  })
   if (!reason?.trim()) return
   try {
     message.value = (
@@ -69,7 +81,14 @@ async function reject(profile: SellerApplication): Promise<void> {
 }
 
 async function reviewDocument(document: SellerDocument, verified: boolean): Promise<void> {
-  const reason = verified ? '' : window.prompt('Mô tả nội dung cần bổ sung:')
+  const reason = verified
+    ? ''
+    : await promptDialog({
+        title: 'Yêu cầu bổ sung tài liệu',
+        inputLabel: 'Nội dung cần bổ sung',
+        confirmLabel: 'Gửi yêu cầu',
+        required: true,
+      })
   if (!verified && !reason?.trim()) return
   try {
     await adminSellersApi.reviewDocument(

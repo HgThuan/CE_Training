@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 
 import FormMessage from '@/features/auth/components/FormMessage.vue'
 import { getErrorMessage } from '@/features/auth/errors'
+import { confirmDialog } from '@/shared/composables/useAppDialog'
 
 import { accountApi } from '../api'
 import type { Address, AddressPayload } from '../types'
@@ -136,7 +137,13 @@ function editAddress(address: Address): void {
 }
 
 async function removeAddress(address: Address): Promise<void> {
-  if (!window.confirm(`Xóa địa chỉ của ${address.recipient_name}?`)) return
+  const confirmed = await confirmDialog({
+    title: 'Xóa địa chỉ',
+    message: `Xác nhận xóa địa chỉ của ${address.recipient_name}?`,
+    confirmLabel: 'Xóa địa chỉ',
+    destructive: true,
+  })
+  if (!confirmed) return
   errorMessage.value = ''
   try {
     const response = await accountApi.deleteAddress(address.id)

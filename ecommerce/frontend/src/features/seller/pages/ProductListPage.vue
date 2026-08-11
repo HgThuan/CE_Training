@@ -14,6 +14,7 @@ import type {
   SellerProductListItem,
   SellerProductFilters,
 } from '@/features/product/types'
+import { confirmDialog } from '@/shared/composables/useAppDialog'
 import { formatDateTime, formatVnd } from '@/shared/lib/formatters'
 import type { PaginationMeta } from '@/shared/types/api'
 
@@ -87,7 +88,13 @@ async function submitForReview(product: SellerProductListItem): Promise<void> {
 }
 
 async function suspendProduct(product: SellerProductListItem): Promise<void> {
-  if (!window.confirm(`Tạm ngưng bán sản phẩm “${product.name}”?`)) return
+  const confirmed = await confirmDialog({
+    title: 'Tạm ngưng bán',
+    message: `Sản phẩm “${product.name}” sẽ không còn hiển thị với khách hàng.`,
+    confirmLabel: 'Tạm ngưng bán',
+    destructive: true,
+  })
+  if (!confirmed) return
   actionId.value = product.id
   message.value = ''
   errorMessage.value = ''
@@ -118,7 +125,13 @@ async function restoreProduct(product: SellerProductListItem): Promise<void> {
 }
 
 async function deleteProduct(product: SellerProductListItem): Promise<void> {
-  if (!window.confirm(`Xóa mềm sản phẩm “${product.name}”?`)) return
+  const confirmed = await confirmDialog({
+    title: 'Xóa sản phẩm',
+    message: `Xác nhận xóa mềm sản phẩm “${product.name}”?`,
+    confirmLabel: 'Xóa sản phẩm',
+    destructive: true,
+  })
+  if (!confirmed) return
   actionId.value = product.id
   message.value = ''
   errorMessage.value = ''
