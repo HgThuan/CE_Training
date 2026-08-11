@@ -30,6 +30,7 @@ seller_variant_update = SellerProductViewSet.as_view({"patch": "update_variant"}
 seller_variant_lookup = SellerProductViewSet.as_view({"get": "lookup_variant"})
 
 admin_product_pending = AdminProductViewSet.as_view({"get": "list_pending"})
+admin_product_list = AdminProductViewSet.as_view({"get": "list"})
 admin_product_approve = AdminProductViewSet.as_view({"post": "approve"})
 admin_product_reject = AdminProductViewSet.as_view({"post": "reject"})
 admin_product_hide = AdminProductViewSet.as_view({"post": "hide"})
@@ -88,6 +89,11 @@ urlpatterns = [
         "seller/products/<uuid:product_id>/variants/<uuid:variant_id>/",
         seller_variant_update,
         name="seller-product-variant-update",
+    ),
+    path(
+        "admin/products/",
+        admin_product_list,
+        name="admin-product-list",
     ),
     path(
         "admin/products/pending/",

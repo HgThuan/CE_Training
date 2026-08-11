@@ -803,6 +803,15 @@ class SellerProductFilterSerializer(serializers.Serializer):
     )
 
 
+class AdminProductFilterSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=Product.Status.choices, required=False)
+    search = serializers.CharField(
+        max_length=255,
+        trim_whitespace=True,
+        required=False,
+    )
+
+
 class PublicProductFilterSerializer(serializers.Serializer):
     category = serializers.CharField(max_length=180, required=False)
     brand = serializers.CharField(max_length=180, required=False)

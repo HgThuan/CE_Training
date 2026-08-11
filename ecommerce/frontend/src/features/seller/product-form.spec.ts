@@ -69,4 +69,9 @@ describe('seller product variant matrix', () => {
     drafts[0]!.salePrice = '100001'
     expect(validateVariantDrafts(drafts)).toContain('Giá bán')
   })
+
+  it('allows a product draft without variants but requires one before submission', () => {
+    expect(validateVariantDrafts([], false)).toBeNull()
+    expect(validateVariantDrafts([], true)).toContain('ít nhất một SKU')
+  })
 })

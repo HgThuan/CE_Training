@@ -91,8 +91,13 @@ export function variantToDraft(variant: SellerProductVariant): VariantDraft {
   }
 }
 
-export function validateVariantDrafts(drafts: VariantDraft[]): string | null {
-  if (!drafts.length) return 'Vui lòng chọn thuộc tính để tạo ít nhất một SKU.'
+export function validateVariantDrafts(
+  drafts: VariantDraft[],
+  requireVariant = true,
+): string | null {
+  if (!drafts.length) {
+    return requireVariant ? 'Vui lòng chọn thuộc tính để tạo ít nhất một SKU.' : null
+  }
   const skus = new Set<string>()
   const barcodes = new Set<string>()
   for (const draft of drafts) {
