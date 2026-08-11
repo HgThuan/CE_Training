@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
+import { alertDialog, promptDialog } from '@/shared/composables/useAppDialog'
+
 import { afterSalesApi } from '../api'
 import type { Review } from '../types'
 
@@ -16,17 +18,32 @@ async function load(): Promise<void> {
 }
 
 async function reply(review: Review): Promise<void> {
-  const content = window.prompt('Phản hồi công khai', review.reply?.content ?? '')
+  const content = await promptDialog({
+    title: review.reply ? 'Sửa phản hồi' : 'Phản hồi đánh giá',
+    inputLabel: 'Phản hồi công khai',
+    initialValue: review.reply?.content ?? '',
+    confirmLabel: 'Lưu phản hồi',
+    required: true,
+  })
   if (!content) return
   await afterSalesApi.replyReview(review.id, content)
   await load()
 }
 
 async function report(review: Review): Promise<void> {
-  const reason = window.prompt('Mô tả nội dung vi phạm')
+  const reason = await promptDialog({
+    title: 'Báo cáo đánh giá',
+    inputLabel: 'Mô tả nội dung vi phạm',
+    confirmLabel: 'Gửi báo cáo',
+    destructive: true,
+    required: true,
+  })
   if (!reason) return
   await afterSalesApi.reportReview(review.id, reason)
-  window.alert('Đã chuyển báo cáo đến Admin.')
+  await alertDialog({
+    title: 'Đã gửi báo cáo',
+    message: 'Báo cáo đã được chuyển đến Admin để xử lý.',
+  })
 }
 
 onMounted(load)

@@ -55,11 +55,13 @@ function accept(): void {
             class="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
             :placeholder="state.placeholder"
             :required="state.required"
+            :type="state.inputType"
           />
         </label>
 
         <div class="mt-6 flex justify-end gap-3">
           <button
+            v-if="state.mode !== 'alert'"
             class="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50"
             type="button"
             @click="cancel"

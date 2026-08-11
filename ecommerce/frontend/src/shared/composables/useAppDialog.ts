@@ -13,10 +13,11 @@ export interface PromptDialogOptions extends ConfirmDialogOptions {
   initialValue?: string
   placeholder?: string
   required?: boolean
+  inputType?: 'text' | 'number' | 'url'
 }
 
-type DialogMode = 'confirm' | 'prompt'
-type DialogResult = boolean | string | null
+type DialogMode = 'alert' | 'confirm' | 'prompt'
+type DialogResult = boolean | string | null | undefined
 
 const state = reactive({
   open: false,
@@ -30,6 +31,7 @@ const state = reactive({
   initialValue: '',
   placeholder: '',
   required: false,
+  inputType: 'text' as 'text' | 'number' | 'url',
 })
 
 let resolveCurrent: ((result: DialogResult) => void) | null = null
@@ -43,7 +45,7 @@ function closeWith(result: DialogResult): void {
 
 function cancelPendingDialog(): void {
   if (!resolveCurrent) return
-  closeWith(state.mode === 'confirm' ? false : null)
+  closeWith(state.mode === 'prompt' ? null : state.mode === 'confirm' ? false : undefined)
 }
 
 function openDialog(mode: DialogMode, options: ConfirmDialogOptions | PromptDialogOptions): void {
@@ -60,6 +62,14 @@ function openDialog(mode: DialogMode, options: ConfirmDialogOptions | PromptDial
     initialValue: mode === 'prompt' ? ((options as PromptDialogOptions).initialValue ?? '') : '',
     placeholder: mode === 'prompt' ? ((options as PromptDialogOptions).placeholder ?? '') : '',
     required: mode === 'prompt' ? ((options as PromptDialogOptions).required ?? false) : false,
+    inputType: mode === 'prompt' ? ((options as PromptDialogOptions).inputType ?? 'text') : 'text',
+  })
+}
+
+export function alertDialog(options: ConfirmDialogOptions): Promise<void> {
+  openDialog('alert', { ...options, confirmLabel: options.confirmLabel ?? 'Đóng' })
+  return new Promise<void>((resolve) => {
+    resolveCurrent = resolve as (result: DialogResult) => void
   })
 }
 
@@ -80,8 +90,9 @@ export function promptDialog(options: PromptDialogOptions): Promise<string | nul
 export function useAppDialogHost() {
   return {
     state: readonly(state),
-    confirm: () => closeWith(true),
+    confirm: () => closeWith(state.mode === 'alert' ? undefined : true),
     submitPrompt: (value: string) => closeWith(value),
-    cancel: () => closeWith(state.mode === 'confirm' ? false : null),
+    cancel: () =>
+      closeWith(state.mode === 'prompt' ? null : state.mode === 'confirm' ? false : undefined),
   }
 }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 
+import { promptDialog } from '@/shared/composables/useAppDialog'
 import { formatCurrency } from '@/shared/lib/formatters'
 
 import { afterSalesApi } from '../api'
@@ -16,7 +17,13 @@ async function load(): Promise<void> {
   }
 }
 async function decide(item: ReturnRequest, action: 'APPROVE' | 'REJECT'): Promise<void> {
-  const response = window.prompt(action === 'APPROVE' ? 'Ghi chú chấp thuận' : 'Lý do từ chối')
+  const response = await promptDialog({
+    title: action === 'APPROVE' ? 'Chấp thuận trả hàng' : 'Từ chối trả hàng',
+    inputLabel: action === 'APPROVE' ? 'Ghi chú chấp thuận' : 'Lý do từ chối',
+    confirmLabel: action === 'APPROVE' ? 'Chấp thuận' : 'Từ chối',
+    destructive: action === 'REJECT',
+    required: true,
+  })
   if (!response) return
   await afterSalesApi.decideReturn(item.id, action, response)
   await load()

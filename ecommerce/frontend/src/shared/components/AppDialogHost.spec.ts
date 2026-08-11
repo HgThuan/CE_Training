@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
 import { nextTick } from 'vue'
 
-import { confirmDialog, promptDialog } from '@/shared/composables/useAppDialog'
+import { alertDialog, confirmDialog, promptDialog } from '@/shared/composables/useAppDialog'
 
 import AppDialogHost from './AppDialogHost.vue'
 
@@ -47,6 +47,20 @@ describe('AppDialogHost', () => {
     document.body.querySelector<HTMLButtonElement>('button[type="submit"]')?.click()
 
     await expect(result).resolves.toBe('Vi phạm chính sách')
+    wrapper.unmount()
+  })
+
+  it('renders an application alert with a single close action', async () => {
+    const wrapper = mount(AppDialogHost, { attachTo: document.body })
+    const result = alertDialog({ title: 'Hoàn tất', message: 'Đã lưu thay đổi.' })
+    await nextTick()
+
+    const buttons = document.body.querySelectorAll<HTMLButtonElement>('button')
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0]?.textContent).toContain('Đóng')
+    buttons[0]?.click()
+
+    await expect(result).resolves.toBeUndefined()
     wrapper.unmount()
   })
 })
