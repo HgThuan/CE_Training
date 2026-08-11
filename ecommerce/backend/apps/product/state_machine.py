@@ -31,6 +31,8 @@ class ProductStateMachine:
     SELLER_TRANSITIONS = {
         (Product.Status.DRAFT, Product.Status.PENDING_REVIEW),
         (Product.Status.REJECTED, Product.Status.DRAFT),
+        (Product.Status.APPROVED, Product.Status.SUSPENDED),
+        (Product.Status.SUSPENDED, Product.Status.APPROVED),
     }
     ACTIONS = {
         (Product.Status.DRAFT, Product.Status.PENDING_REVIEW): "submit_product_review",

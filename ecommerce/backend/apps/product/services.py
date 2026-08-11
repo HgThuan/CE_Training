@@ -455,6 +455,44 @@ class ProductService:
 
     @staticmethod
     @transaction.atomic
+    def suspend_product(
+        *,
+        product: Product,
+        seller_user,
+        request_id: str = "",
+    ) -> Product:
+        locked_product, _shop = _lock_owned_product(
+            seller_user=seller_user,
+            product_id=product.pk,
+        )
+        return ProductStateMachine.transition(
+            locked_product,
+            Product.Status.SUSPENDED,
+            actor=seller_user,
+            request_id=request_id,
+        )
+
+    @staticmethod
+    @transaction.atomic
+    def restore_product(
+        *,
+        product: Product,
+        seller_user,
+        request_id: str = "",
+    ) -> Product:
+        locked_product, _shop = _lock_owned_product(
+            seller_user=seller_user,
+            product_id=product.pk,
+        )
+        return ProductStateMachine.transition(
+            locked_product,
+            Product.Status.APPROVED,
+            actor=seller_user,
+            request_id=request_id,
+        )
+
+    @staticmethod
+    @transaction.atomic
     def admin_approve(
         *,
         product: Product,

@@ -60,6 +60,12 @@ def test_state_machine_defines_only_documented_transitions():
         Product.Status.DRAFT,
         Product.Status.HIDDEN,
     }
+    assert ProductStateMachine.SELLER_TRANSITIONS == {
+        (Product.Status.DRAFT, Product.Status.PENDING_REVIEW),
+        (Product.Status.REJECTED, Product.Status.DRAFT),
+        (Product.Status.APPROVED, Product.Status.SUSPENDED),
+        (Product.Status.SUSPENDED, Product.Status.APPROVED),
+    }
 
 
 @pytest.mark.django_db
@@ -171,12 +177,12 @@ def test_state_machine_supports_hide_unhide_suspend_and_restore():
     product = ProductStateMachine.transition(
         product,
         Product.Status.SUSPENDED,
-        actor=admin,
+        actor=product.shop.owner,
     )
     product = ProductStateMachine.transition(
         product,
         Product.Status.APPROVED,
-        actor=admin,
+        actor=product.shop.owner,
     )
 
     assert product.status == Product.Status.APPROVED

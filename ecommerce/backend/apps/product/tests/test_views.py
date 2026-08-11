@@ -643,6 +643,74 @@ def test_admin_can_list_search_and_filter_products_for_moderation(api_client, ad
 
 
 @pytest.mark.django_db
+def test_seller_can_suspend_and_restore_owned_approved_product(api_client, seller_shop):
+    product = ProductFactory(
+        shop=seller_shop,
+        status=Product.Status.APPROVED,
+    )
+    ProductVariantFactory(product=product, shop=seller_shop)
+    api_client.force_authenticate(seller_shop.owner)
+
+    suspended = api_client.post(
+        reverse(
+            "product:seller-product-suspend",
+            kwargs={"product_id": product.pk},
+        ),
+        format="json",
+        HTTP_X_REQUEST_ID="seller-suspend-api",
+    )
+
+    assert suspended.status_code == status.HTTP_200_OK
+    assert suspended.data["data"]["status"] == Product.Status.SUSPENDED
+    product.refresh_from_db()
+    assert product.status == Product.Status.SUSPENDED
+    assert AuditLog.objects.filter(
+        target_id=str(product.pk),
+        actor=seller_shop.owner,
+        action="suspend_product",
+        request_id="seller-suspend-api",
+    ).exists()
+
+    restored = api_client.post(
+        reverse(
+            "product:seller-product-restore",
+            kwargs={"product_id": product.pk},
+        ),
+        format="json",
+        HTTP_X_REQUEST_ID="seller-restore-api",
+    )
+
+    assert restored.status_code == status.HTTP_200_OK
+    assert restored.data["data"]["status"] == Product.Status.APPROVED
+    product.refresh_from_db()
+    assert product.status == Product.Status.APPROVED
+    assert AuditLog.objects.filter(
+        target_id=str(product.pk),
+        actor=seller_shop.owner,
+        action="restore_product",
+        request_id="seller-restore-api",
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_seller_cannot_suspend_another_shops_product(api_client, seller_shop):
+    other_product = ProductFactory(status=Product.Status.APPROVED)
+    api_client.force_authenticate(seller_shop.owner)
+
+    response = api_client.post(
+        reverse(
+            "product:seller-product-suspend",
+            kwargs={"product_id": other_product.pk},
+        ),
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    other_product.refresh_from_db()
+    assert other_product.status == Product.Status.APPROVED
+
+
+@pytest.mark.django_db
 def test_non_admin_roles_cannot_approve_reject_hide_or_delete(
     api_client,
     customer_user,

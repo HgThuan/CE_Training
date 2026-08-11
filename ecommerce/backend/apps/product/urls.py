@@ -19,6 +19,8 @@ seller_product_detail = SellerProductViewSet.as_view(
     }
 )
 seller_product_submit = SellerProductViewSet.as_view({"post": "submit"})
+seller_product_suspend = SellerProductViewSet.as_view({"post": "suspend"})
+seller_product_restore = SellerProductViewSet.as_view({"post": "restore"})
 seller_product_media_upload = SellerProductViewSet.as_view({"post": "upload_media"})
 seller_product_media_delete = SellerProductViewSet.as_view({"delete": "delete_media"})
 seller_product_media_reorder = SellerProductViewSet.as_view({"post": "reorder_media"})
@@ -60,6 +62,16 @@ urlpatterns = [
         "seller/products/<uuid:product_id>/submit/",
         seller_product_submit,
         name="seller-product-submit",
+    ),
+    path(
+        "seller/products/<uuid:product_id>/suspend/",
+        seller_product_suspend,
+        name="seller-product-suspend",
+    ),
+    path(
+        "seller/products/<uuid:product_id>/restore/",
+        seller_product_restore,
+        name="seller-product-restore",
     ),
     path(
         "seller/products/<uuid:product_id>/media/",
