@@ -5,6 +5,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import FormMessage from '@/features/auth/components/FormMessage.vue'
 import { getErrorMessage } from '@/features/auth/errors'
 import type { Category, CategoryOption, CategoryPayload } from '@/features/product/types'
+import { confirmDialog } from '@/shared/composables/useAppDialog'
 
 import { adminCatalogApi } from '../api'
 import {
@@ -114,7 +115,13 @@ async function saveCategory(): Promise<void> {
 }
 
 async function deleteCategory(category: Category): Promise<void> {
-  if (!window.confirm(`Xóa mềm danh mục “${category.name}”?`)) return
+  const confirmed = await confirmDialog({
+    title: 'Xóa danh mục',
+    message: `Xác nhận xóa mềm danh mục “${category.name}”?`,
+    confirmLabel: 'Xóa danh mục',
+    destructive: true,
+  })
+  if (!confirmed) return
   busy.value = true
   message.value = ''
   errorMessage.value = ''

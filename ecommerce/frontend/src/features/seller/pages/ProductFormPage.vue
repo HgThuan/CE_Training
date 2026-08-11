@@ -24,6 +24,7 @@ import type {
   VariantUpdatePayload,
 } from '@/features/product/types'
 import { useProductStore } from '@/features/product/store'
+import { confirmDialog } from '@/shared/composables/useAppDialog'
 
 import {
   generateVariantDrafts,
@@ -160,7 +161,14 @@ function removePendingMedia(index: number): void {
 }
 
 async function removeExistingMedia(item: ProductMedia): Promise<void> {
-  if (!routeProductId.value || !window.confirm('Xóa media này khỏi sản phẩm?')) return
+  if (!routeProductId.value) return
+  const confirmed = await confirmDialog({
+    title: 'Xóa media',
+    message: 'Xác nhận xóa media này khỏi sản phẩm?',
+    confirmLabel: 'Xóa media',
+    destructive: true,
+  })
+  if (!confirmed) return
   saving.value = true
   errorMessage.value = ''
   try {

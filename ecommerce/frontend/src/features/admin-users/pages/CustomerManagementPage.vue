@@ -3,6 +3,7 @@ import { onMounted, reactive, ref } from 'vue'
 
 import FormMessage from '@/features/auth/components/FormMessage.vue'
 import { getErrorMessage } from '@/features/auth/errors'
+import { confirmDialog, promptDialog } from '@/shared/composables/useAppDialog'
 import type { PaginationMeta } from '@/shared/types/api'
 
 import { adminUsersApi } from '../api'
@@ -109,7 +110,14 @@ async function updateCustomer(): Promise<void> {
 
 async function toggleAccount(customer: AdminCustomer): Promise<void> {
   const action = customer.is_active ? 'khóa' : 'mở khóa'
-  const reason = window.prompt(`Nhập lý do ${action} tài khoản ${customer.email}:`)
+  const reason = await promptDialog({
+    title: `${customer.is_active ? 'Khóa' : 'Mở khóa'} tài khoản`,
+    message: customer.email,
+    inputLabel: `Lý do ${action} tài khoản`,
+    confirmLabel: customer.is_active ? 'Khóa tài khoản' : 'Mở khóa',
+    destructive: customer.is_active,
+    required: true,
+  })
   if (!reason?.trim()) return
   errorMessage.value = ''
   try {
@@ -125,8 +133,18 @@ async function toggleAccount(customer: AdminCustomer): Promise<void> {
 }
 
 async function resetPassword(customer: AdminCustomer): Promise<void> {
-  if (!window.confirm(`Gửi liên kết đặt lại mật khẩu cho ${customer.email}?`)) return
-  const reason = window.prompt('Ghi chú/lý do hỗ trợ:', '') ?? ''
+  const confirmed = await confirmDialog({
+    title: 'Đặt lại mật khẩu',
+    message: `Gửi liên kết đặt lại mật khẩu cho ${customer.email}?`,
+    confirmLabel: 'Tiếp tục',
+  })
+  if (!confirmed) return
+  const reason =
+    (await promptDialog({
+      title: 'Gửi liên kết đặt lại mật khẩu',
+      inputLabel: 'Ghi chú hoặc lý do hỗ trợ',
+      confirmLabel: 'Gửi liên kết',
+    })) ?? ''
   errorMessage.value = ''
   try {
     const response = await adminUsersApi.resetPassword(customer.id, reason)
@@ -137,7 +155,13 @@ async function resetPassword(customer: AdminCustomer): Promise<void> {
 }
 
 async function removeCustomer(customer: AdminCustomer): Promise<void> {
-  if (!window.confirm(`Xóa mềm khách hàng ${customer.email}?`)) return
+  const confirmed = await confirmDialog({
+    title: 'Xóa khách hàng',
+    message: `Xác nhận xóa mềm khách hàng ${customer.email}?`,
+    confirmLabel: 'Xóa khách hàng',
+    destructive: true,
+  })
+  if (!confirmed) return
   errorMessage.value = ''
   try {
     const response = await adminUsersApi.deleteCustomer(customer.id)
