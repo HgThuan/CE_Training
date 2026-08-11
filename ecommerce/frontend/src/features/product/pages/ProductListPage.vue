@@ -2,10 +2,10 @@
 import {
   AdjustmentsHorizontalIcon,
   MagnifyingGlassIcon,
-  ScaleIcon,
   Squares2X2Icon,
   XMarkIcon,
 } from '@heroicons/vue/24/outline'
+import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -14,20 +14,15 @@ import { getErrorMessage } from '@/features/auth/errors'
 
 import ProductCard from '../components/ProductCard.vue'
 import ProductCompareTable from '../components/ProductCompareTable.vue'
-import { productApi } from '../api'
+import { useCompareStore } from '../compare-store'
 import { useProductStore } from '../store'
-import type {
-  Category,
-  CategoryOption,
-  ProductCompareData,
-  ProductListFilters,
-  ProductSort,
-  PublicProductListItem,
-} from '../types'
+import type { Category, CategoryOption, ProductListFilters, ProductSort } from '../types'
 
 const route = useRoute()
 const router = useRouter()
 const productStore = useProductStore()
+const compareStore = useCompareStore()
+const { comparison, comparing } = storeToRefs(compareStore)
 
 const filters = reactive({
   search: '',
@@ -40,15 +35,6 @@ const filters = reactive({
 })
 const mobileFiltersOpen = ref(false)
 const errorMessage = ref('')
-const compareError = ref('')
-const comparing = ref(false)
-const comparison = ref<ProductCompareData | null>(null)
-const selectedProducts = ref<PublicProductListItem[]>([])
-
-const selectedProductIds = computed(() => selectedProducts.value.map((product) => product.id))
-const canCompare = computed(
-  () => selectedProducts.value.length >= 2 && selectedProducts.value.length <= 4,
-)
 
 const categoryOptions = computed(() => {
   const options: CategoryOption[] = []
@@ -138,44 +124,6 @@ async function resetFilters(): Promise<void> {
     page: 1,
   })
   await syncAndLoad()
-}
-
-function isSelected(productId: string): boolean {
-  return selectedProductIds.value.includes(productId)
-}
-
-function toggleCompareProduct(product: PublicProductListItem): void {
-  compareError.value = ''
-  comparison.value = null
-  if (isSelected(product.id)) {
-    selectedProducts.value = selectedProducts.value.filter((item) => item.id !== product.id)
-    return
-  }
-  if (selectedProducts.value.length >= 4) {
-    compareError.value = 'Bạn chỉ có thể so sánh tối đa 4 sản phẩm.'
-    return
-  }
-  selectedProducts.value = [...selectedProducts.value, product]
-}
-
-function clearComparison(): void {
-  selectedProducts.value = []
-  comparison.value = null
-  compareError.value = ''
-}
-
-async function compareSelectedProducts(): Promise<void> {
-  if (!canCompare.value) return
-  comparing.value = true
-  comparison.value = null
-  compareError.value = ''
-  try {
-    comparison.value = (await productApi.compareProducts(selectedProductIds.value)).data.data
-  } catch (error) {
-    compareError.value = getErrorMessage(error)
-  } finally {
-    comparing.value = false
-  }
 }
 
 watch(
@@ -355,44 +303,8 @@ onMounted(async () => {
           </div>
 
           <div
-            v-if="selectedProducts.length"
-            class="mt-6 rounded-3xl bg-slate-950 p-5 text-white shadow-lg"
-          >
-            <div class="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <p class="font-black">Đã chọn {{ selectedProducts.length }}/4 sản phẩm</p>
-                <p class="mt-1 text-sm text-slate-300">
-                  {{ selectedProducts.map((product) => product.name).join(' · ') }}
-                </p>
-              </div>
-              <div class="flex items-center gap-2">
-                <button
-                  class="rounded-xl px-4 py-2.5 text-sm font-bold text-slate-300 hover:bg-white/10 hover:text-white"
-                  type="button"
-                  @click="clearComparison"
-                >
-                  Xóa lựa chọn
-                </button>
-                <button
-                  class="inline-flex items-center gap-2 rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-black text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
-                  type="button"
-                  :disabled="!canCompare || comparing"
-                  @click="compareSelectedProducts"
-                >
-                  <ScaleIcon class="h-5 w-5" />
-                  {{ comparing ? 'Đang so sánh…' : 'So sánh ngay' }}
-                </button>
-              </div>
-            </div>
-            <p v-if="selectedProducts.length === 1" class="mt-3 text-xs text-slate-400">
-              Chọn thêm ít nhất một sản phẩm để bắt đầu so sánh.
-            </p>
-          </div>
-
-          <FormMessage v-if="compareError" class="mt-6" :message="compareError" />
-
-          <div
             v-if="comparing"
+            id="product-comparison-result"
             class="mt-6 animate-pulse overflow-hidden rounded-3xl bg-white p-6 ring-1 ring-slate-200"
             aria-label="Đang tạo bảng so sánh"
           >
@@ -401,7 +313,9 @@ onMounted(async () => {
               <div v-for="index in 4" :key="index" class="h-12 rounded-xl bg-slate-100" />
             </div>
           </div>
-          <ProductCompareTable v-else-if="comparison" :comparison="comparison" />
+          <div v-else-if="comparison" id="product-comparison-result" class="scroll-mt-24">
+            <ProductCompareTable :comparison="comparison" />
+          </div>
 
           <div
             v-if="productStore.loading"
@@ -426,23 +340,11 @@ onMounted(async () => {
             v-else-if="productStore.products.length"
             class="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3"
           >
-            <div v-for="product in productStore.products" :key="product.id" class="space-y-2">
-              <button
-                class="flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40"
-                :class="
-                  isSelected(product.id)
-                    ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                    : 'border-slate-300 bg-white text-slate-700 hover:border-indigo-400 hover:text-indigo-700'
-                "
-                type="button"
-                :disabled="selectedProducts.length >= 4 && !isSelected(product.id)"
-                @click="toggleCompareProduct(product)"
-              >
-                <ScaleIcon class="h-4 w-4" />
-                {{ isSelected(product.id) ? 'Đã chọn so sánh' : 'Thêm vào so sánh' }}
-              </button>
-              <ProductCard :product="product" />
-            </div>
+            <ProductCard
+              v-for="product in productStore.products"
+              :key="product.id"
+              :product="product"
+            />
           </div>
 
           <div

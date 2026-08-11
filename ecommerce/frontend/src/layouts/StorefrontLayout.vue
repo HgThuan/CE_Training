@@ -13,6 +13,7 @@ import { RouterView, useRoute, useRouter } from 'vue-router'
 
 import { homePathForRole } from '@/features/auth/routes'
 import SearchBar from '@/features/search/components/SearchBar.vue'
+import ProductCompareBar from '@/features/product/components/ProductCompareBar.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
@@ -213,5 +214,6 @@ async function logout(): Promise<void> {
     </header>
 
     <RouterView />
+    <ProductCompareBar />
   </div>
 </template>

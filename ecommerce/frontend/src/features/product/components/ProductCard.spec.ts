@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import type { PublicProductListItem } from '../types'
+import { useCompareStore } from '../compare-store'
 import ProductCard from './ProductCard.vue'
 
 const product: PublicProductListItem = {
@@ -34,6 +35,7 @@ describe('ProductCard', () => {
         },
       },
       global: {
+        plugins: [createPinia()],
         stubs: {
           RouterLink: { template: '<a><slot /></a>' },
           WishlistToggleButton: true,
@@ -64,12 +66,59 @@ describe('ProductCard', () => {
     })
 
     expect(wrapper.find('a button').exists()).toBe(false)
-    expect(wrapper.find('article > button').exists()).toBe(true)
+    const wishlistButton = wrapper.get('button[aria-label*="yêu thích"]')
     expect(wrapper.get('img').attributes('loading')).toBe('lazy')
 
-    await wrapper.get('article > button').trigger('click')
+    await wishlistButton.trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('login')
     wrapper.unmount()
+  })
+
+  it('adds and removes the product from the shared comparison selection', async () => {
+    const pinia = createPinia()
+    const wrapper = mount(ProductCard, {
+      props: { product },
+      global: {
+        plugins: [pinia],
+        stubs: {
+          RouterLink: { template: '<a><slot /></a>' },
+          WishlistToggleButton: true,
+        },
+      },
+    })
+
+    const compareButton = wrapper.get('button[aria-label*="danh sách so sánh"]')
+    expect(compareButton.text()).toContain('Thêm vào so sánh')
+
+    await compareButton.trigger('click')
+    expect(compareButton.text()).toContain('Đã chọn')
+    expect(compareButton.attributes('aria-pressed')).toBe('true')
+
+    await compareButton.trigger('click')
+    expect(compareButton.text()).toContain('Thêm vào so sánh')
+  })
+
+  it('disables unselected cards with a tooltip after four products are selected', () => {
+    const pinia = createPinia()
+    const compareStore = useCompareStore(pinia)
+    for (let index = 1; index <= 4; index += 1) {
+      compareStore.toggle({ ...product, id: `selected-${index}`, name: `Đã chọn ${index}` })
+    }
+    const wrapper = mount(ProductCard, {
+      props: { product },
+      global: {
+        plugins: [pinia],
+        stubs: {
+          RouterLink: { template: '<a><slot /></a>' },
+          WishlistToggleButton: true,
+        },
+      },
+    })
+
+    expect(wrapper.get('[data-test="compare-control"]').attributes('title')).toBe(
+      'Tối đa 4 sản phẩm',
+    )
+    expect(wrapper.get('button[aria-label*="danh sách so sánh"]').attributes('disabled')).toBe('')
   })
 })
