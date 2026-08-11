@@ -149,7 +149,24 @@ class ProductSelector:
                 status=Product.Status.PENDING_REVIEW,
                 is_deleted=False,
             )
-        )
+        ).order_by("created_at", "id")
+
+    @staticmethod
+    def filter_for_admin(
+        queryset: QuerySet[Product],
+        params: dict,
+    ) -> QuerySet[Product]:
+        if status := params.get("status"):
+            queryset = queryset.filter(status=status)
+        if search := params.get("search"):
+            queryset = queryset.filter(
+                Q(name__icontains=search)
+                | Q(slug__icontains=search)
+                | Q(shop__name__icontains=search)
+                | Q(shop__owner__full_name__icontains=search)
+                | Q(shop__owner__email__icontains=search)
+            )
+        return queryset.order_by("-created_at", "id")
 
     @staticmethod
     def admin_all(filter_params: dict | None = None) -> QuerySet[Product]:

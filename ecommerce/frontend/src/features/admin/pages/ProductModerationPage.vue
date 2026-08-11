@@ -4,13 +4,14 @@ import {
   ClockIcon,
   EyeSlashIcon,
   MagnifyingGlassIcon,
+  TrashIcon,
   XMarkIcon,
 } from '@heroicons/vue/24/outline'
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 
 import FormMessage from '@/features/auth/components/FormMessage.vue'
 import { getErrorMessage } from '@/features/auth/errors'
-import type { AdminProductListItem } from '@/features/product/types'
+import type { AdminProductListItem, ProductStatus } from '@/features/product/types'
 import { formatDateTime, formatVnd } from '@/shared/lib/formatters'
 import type { PaginationMeta } from '@/shared/types/api'
 
@@ -21,6 +22,7 @@ const selected = ref<AdminProductListItem | null>(null)
 const rejectionTarget = ref<AdminProductListItem | null>(null)
 const rejectionReason = ref('')
 const search = ref('')
+const statusFilter = ref<ProductStatus | ''>('pending_review')
 const meta = ref<PaginationMeta>({
   page: 1,
   page_size: 20,
@@ -32,22 +34,33 @@ const actionId = ref('')
 const message = ref('')
 const errorMessage = ref('')
 
-const filteredProducts = computed(() => {
-  const query = search.value.trim().toLocaleLowerCase('vi')
-  if (!query) return products.value
-  return products.value.filter((product) =>
-    [product.name, product.shop_name, product.seller_name, product.seller_email]
-      .join(' ')
-      .toLocaleLowerCase('vi')
-      .includes(query),
-  )
-})
+const statusLabels: Record<ProductStatus, string> = {
+  draft: 'Bản nháp',
+  pending_review: 'Chờ duyệt',
+  approved: 'Đã duyệt',
+  rejected: 'Bị từ chối',
+  hidden: 'Đã ẩn',
+  suspended: 'Tạm ngưng',
+}
+const statusClasses: Record<ProductStatus, string> = {
+  draft: 'bg-slate-100 text-slate-700',
+  pending_review: 'bg-amber-100 text-amber-800',
+  approved: 'bg-emerald-100 text-emerald-800',
+  rejected: 'bg-rose-100 text-rose-800',
+  hidden: 'bg-violet-100 text-violet-800',
+  suspended: 'bg-orange-100 text-orange-800',
+}
 
 async function loadProducts(page = 1): Promise<void> {
   loading.value = true
   errorMessage.value = ''
   try {
-    const response = await adminCatalogApi.pendingProducts(page)
+    const response = await adminCatalogApi.products({
+      page,
+      page_size: meta.value.page_size,
+      status: statusFilter.value || undefined,
+      search: search.value.trim() || undefined,
+    })
     products.value = response.data.data
     if (response.data.meta) meta.value = response.data.meta
   } catch (error) {
@@ -96,6 +109,39 @@ async function reject(): Promise<void> {
   }
 }
 
+async function hide(product: AdminProductListItem): Promise<void> {
+  if (!window.confirm(`Ẩn sản phẩm vi phạm “${product.name}” khỏi trang mua sắm?`)) return
+  actionId.value = product.id
+  message.value = ''
+  errorMessage.value = ''
+  try {
+    message.value = (await adminCatalogApi.hideProduct(product.id)).data.message
+    selected.value = null
+    await loadProducts(meta.value.page)
+  } catch (error) {
+    errorMessage.value = getErrorMessage(error)
+  } finally {
+    actionId.value = ''
+  }
+}
+
+async function deleteProduct(product: AdminProductListItem): Promise<void> {
+  if (!window.confirm(`Xóa mềm sản phẩm “${product.name}”? Thao tác này không thể hoàn tác.`))
+    return
+  actionId.value = product.id
+  message.value = ''
+  errorMessage.value = ''
+  try {
+    message.value = (await adminCatalogApi.deleteProduct(product.id)).data.message
+    selected.value = null
+    await loadProducts(meta.value.page)
+  } catch (error) {
+    errorMessage.value = getErrorMessage(error)
+  } finally {
+    actionId.value = ''
+  }
+}
+
 onMounted(loadProducts)
 </script>
 
@@ -106,11 +152,11 @@ onMounted(loadProducts)
         <p class="text-sm font-bold uppercase tracking-[0.2em] text-indigo-600">ADM-13 · ADM-14</p>
         <h1 class="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Kiểm duyệt sản phẩm</h1>
         <p class="mt-3 text-slate-600">
-          Rà soát sản phẩm seller gửi và đưa ra quyết định minh bạch.
+          Duyệt, từ chối, ẩn và xóa mềm sản phẩm theo đúng vòng đời.
         </p>
       </div>
       <div class="rounded-2xl bg-amber-50 px-5 py-3 ring-1 ring-amber-200">
-        <p class="text-xs font-bold uppercase tracking-wider text-amber-700">Đang chờ</p>
+        <p class="text-xs font-bold uppercase tracking-wider text-amber-700">Kết quả</p>
         <p class="mt-1 text-2xl font-black text-amber-950">{{ meta.total_items }}</p>
       </div>
     </div>
@@ -118,21 +164,35 @@ onMounted(loadProducts)
     <FormMessage v-if="message" class="mt-6" :message="message" variant="success" />
     <FormMessage v-if="errorMessage" class="mt-6" :message="errorMessage" />
 
-    <label class="relative mt-8 block max-w-xl">
-      <span class="sr-only">Tìm trong trang hiện tại</span>
-      <MagnifyingGlassIcon
-        class="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
-      />
-      <input
-        v-model.trim="search"
-        class="w-full rounded-2xl border border-slate-300 bg-white py-3 pl-12 pr-4"
-        placeholder="Tìm theo sản phẩm, seller hoặc shop"
-      />
-    </label>
+    <form
+      class="mt-8 flex flex-wrap gap-3 rounded-2xl bg-white p-4 ring-1 ring-slate-200"
+      @submit.prevent="loadProducts(1)"
+    >
+      <label class="relative min-w-64 flex-1">
+        <span class="sr-only">Tìm sản phẩm, seller hoặc shop</span>
+        <MagnifyingGlassIcon
+          class="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
+        />
+        <input
+          v-model.trim="search"
+          class="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-12 pr-4"
+          placeholder="Tìm theo sản phẩm, seller hoặc shop"
+        />
+      </label>
+      <select
+        v-model="statusFilter"
+        class="rounded-xl border border-slate-300 bg-white px-3 py-2.5"
+        aria-label="Lọc trạng thái sản phẩm"
+      >
+        <option value="">Mọi trạng thái</option>
+        <option v-for="(label, key) in statusLabels" :key="key" :value="key">{{ label }}</option>
+      </select>
+      <button class="rounded-xl bg-slate-950 px-5 py-2.5 font-bold text-white">Lọc</button>
+    </form>
 
     <div class="mt-6 grid gap-5 lg:grid-cols-2">
       <article
-        v-for="product in filteredProducts"
+        v-for="product in products"
         :key="product.id"
         class="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-200"
       >
@@ -150,9 +210,10 @@ onMounted(loadProducts)
             <div class="flex items-start justify-between gap-3">
               <div>
                 <span
-                  class="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-800"
+                  class="inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider"
+                  :class="statusClasses[product.status]"
                 >
-                  Chờ duyệt
+                  {{ statusLabels[product.status] }}
                 </span>
                 <h2 class="mt-2 line-clamp-2 text-lg font-black">{{ product.name }}</h2>
               </div>
@@ -175,6 +236,7 @@ onMounted(loadProducts)
         </div>
         <div class="flex flex-wrap justify-end gap-2 border-t border-slate-100 bg-slate-50 p-4">
           <button
+            v-if="product.status === 'pending_review'"
             class="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-bold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
             type="button"
             :disabled="actionId === product.id"
@@ -184,6 +246,7 @@ onMounted(loadProducts)
             Từ chối
           </button>
           <button
+            v-if="product.status === 'pending_review'"
             class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
             type="button"
             :disabled="actionId === product.id"
@@ -191,6 +254,26 @@ onMounted(loadProducts)
           >
             <CheckIcon class="h-4 w-4" />
             Duyệt
+          </button>
+          <button
+            v-if="product.status === 'approved'"
+            class="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700 disabled:opacity-50"
+            type="button"
+            :disabled="actionId === product.id"
+            @click="hide(product)"
+          >
+            <EyeSlashIcon class="h-4 w-4" />
+            Ẩn vi phạm
+          </button>
+          <button
+            v-if="['draft', 'hidden'].includes(product.status)"
+            class="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-bold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+            type="button"
+            :disabled="actionId === product.id"
+            @click="deleteProduct(product)"
+          >
+            <TrashIcon class="h-4 w-4" />
+            Xóa mềm
           </button>
         </div>
       </article>
@@ -200,15 +283,15 @@ onMounted(loadProducts)
       v-if="loading"
       class="mt-6 rounded-3xl bg-white px-6 py-14 text-center text-slate-500 ring-1 ring-slate-200"
     >
-      Đang tải hàng chờ duyệt…
+      Đang tải sản phẩm…
     </div>
     <div
-      v-else-if="!filteredProducts.length"
+      v-else-if="!products.length"
       class="mt-6 rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center"
     >
       <CheckIcon class="mx-auto h-10 w-10 text-emerald-600" />
-      <h2 class="mt-4 text-xl font-black">Hàng chờ đã sạch</h2>
-      <p class="mt-2 text-slate-500">Không có sản phẩm nào phù hợp để kiểm duyệt.</p>
+      <h2 class="mt-4 text-xl font-black">Không có sản phẩm phù hợp</h2>
+      <p class="mt-2 text-slate-500">Thử đổi trạng thái hoặc từ khóa tìm kiếm.</p>
     </div>
 
     <nav v-if="meta.total_pages > 1" class="mt-7 flex justify-end gap-3 text-sm">
@@ -237,7 +320,7 @@ onMounted(loadProducts)
     <aside
       v-if="selected"
       class="fixed inset-y-0 right-0 z-50 w-full max-w-lg overflow-y-auto bg-white p-6 shadow-2xl sm:p-8"
-      aria-label="Chi tiết sản phẩm chờ duyệt"
+      aria-label="Chi tiết sản phẩm"
     >
       <div class="flex items-start justify-between gap-4">
         <div>
@@ -262,6 +345,10 @@ onMounted(loadProducts)
         class="mt-6 aspect-video w-full rounded-2xl bg-slate-100 object-cover"
       />
       <dl class="mt-6 divide-y divide-slate-100 rounded-2xl border border-slate-200 px-4">
+        <div class="grid grid-cols-[120px_1fr] gap-3 py-4">
+          <dt class="text-sm text-slate-500">Trạng thái</dt>
+          <dd class="text-sm font-bold">{{ statusLabels[selected.status] }}</dd>
+        </div>
         <div class="grid grid-cols-[120px_1fr] gap-3 py-4">
           <dt class="text-sm text-slate-500">Danh mục</dt>
           <dd class="text-sm font-bold">{{ selected.category.name }}</dd>
@@ -288,7 +375,7 @@ onMounted(loadProducts)
           <dd class="text-sm font-semibold">{{ formatDateTime(selected.created_at) }}</dd>
         </div>
       </dl>
-      <div class="mt-7 grid grid-cols-2 gap-3">
+      <div v-if="selected.status === 'pending_review'" class="mt-7 grid grid-cols-2 gap-3">
         <button
           class="rounded-xl border border-rose-200 px-5 py-3 font-bold text-rose-700"
           type="button"
@@ -305,13 +392,24 @@ onMounted(loadProducts)
         </button>
       </div>
       <button
-        class="mt-3 inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-slate-100 px-5 py-3 font-bold text-slate-400"
+        v-if="selected.status === 'approved'"
+        class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 py-3 font-bold text-white hover:bg-violet-700 disabled:opacity-50"
         type="button"
-        disabled
-        title="Chỉ sản phẩm đã duyệt mới có thể bị ẩn"
+        :disabled="actionId === selected.id"
+        @click="hide(selected)"
       >
         <EyeSlashIcon class="h-5 w-5" />
-        Ẩn vi phạm (khả dụng sau khi duyệt)
+        Ẩn sản phẩm vi phạm
+      </button>
+      <button
+        v-if="['draft', 'hidden'].includes(selected.status)"
+        class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-rose-200 px-5 py-3 font-bold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+        type="button"
+        :disabled="actionId === selected.id"
+        @click="deleteProduct(selected)"
+      >
+        <TrashIcon class="h-5 w-5" />
+        Xóa mềm sản phẩm
       </button>
     </aside>
 

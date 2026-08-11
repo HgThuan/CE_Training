@@ -201,10 +201,10 @@ function buildPayload(): SellerProductPayload {
   }
 }
 
-function validateForm(): string | null {
+function validateForm(requireVariant: boolean): string | null {
   if (!form.name.trim()) return 'Vui lòng nhập tên sản phẩm.'
   if (!form.categoryId) return 'Vui lòng chọn danh mục.'
-  return validateVariantDrafts(variantDrafts.value)
+  return validateVariantDrafts(variantDrafts.value, requireVariant)
 }
 
 function variantPayload(draft: VariantDraft): VariantUpdatePayload {
@@ -232,6 +232,7 @@ async function persistMedia(productId: string): Promise<void> {
 
 async function persistVariants(productId: string): Promise<void> {
   let drafts = variantDrafts.value
+  if (!drafts.length) return
   if (!hasServerVariants.value) {
     const allValueIds = [...new Set(drafts.flatMap((draft) => draft.attributeValueIds))]
     const generated = (await sellerProductApi.generateVariants(productId, allValueIds)).data.data
@@ -256,7 +257,7 @@ async function persistVariants(productId: string): Promise<void> {
 }
 
 async function saveProduct(submitAfterSave = false): Promise<void> {
-  const validationError = validateForm()
+  const validationError = validateForm(submitAfterSave || variantDrafts.value.length > 0)
   if (validationError) {
     errorMessage.value = validationError
     return

@@ -59,4 +59,9 @@ describe('seller product variant matrix', () => {
     }
     expect(validateVariantDrafts(drafts)).toContain('bị trùng')
   })
+
+  it('allows a product draft without variants but requires one before submission', () => {
+    expect(validateVariantDrafts([], false)).toBeNull()
+    expect(validateVariantDrafts([], true)).toContain('ít nhất một SKU')
+  })
 })

@@ -176,7 +176,9 @@ def test_customer_cannot_use_seller_api_and_seller_cannot_use_admin_api(
     assert seller_denied.status_code == status.HTTP_403_FORBIDDEN
 
     api_client.force_authenticate(seller_user)
+    admin_list_denied = api_client.get(reverse("product:admin-product-list"))
     admin_denied = api_client.get(reverse("product:admin-product-pending"))
+    assert admin_list_denied.status_code == status.HTTP_403_FORBIDDEN
     assert admin_denied.status_code == status.HTTP_403_FORBIDDEN
 
 
@@ -452,6 +454,35 @@ def test_seller_submit_and_admin_approval_rejection_hide_delete_flow(
         action="delete_product",
         request_id="delete-api",
     ).exists()
+
+
+@pytest.mark.django_db
+def test_admin_can_list_search_and_filter_products_for_moderation(api_client, admin_user):
+    approved = ProductFactory(
+        name="Áo khoác vi phạm",
+        status=Product.Status.APPROVED,
+    )
+    hidden = ProductFactory(status=Product.Status.HIDDEN)
+    pending = ProductFactory(status=Product.Status.PENDING_REVIEW)
+    ProductFactory(name="Đã xóa", status=Product.Status.HIDDEN, is_deleted=True)
+    api_client.force_authenticate(admin_user)
+
+    response = api_client.get(
+        reverse("product:admin-product-list"),
+        {"status": Product.Status.APPROVED, "search": "vi phạm"},
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["meta"]["total_items"] == 1
+    assert response.data["data"][0]["id"] == str(approved.pk)
+
+    all_products = api_client.get(reverse("product:admin-product-list"))
+    assert all_products.status_code == status.HTTP_200_OK
+    assert {item["id"] for item in all_products.data["data"]} == {
+        str(approved.pk),
+        str(hidden.pk),
+        str(pending.pk),
+    }
 
 
 @pytest.mark.django_db

@@ -575,6 +575,15 @@ class SellerProductFilterSerializer(serializers.Serializer):
     )
 
 
+class AdminProductFilterSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=Product.Status.choices, required=False)
+    search = serializers.CharField(
+        max_length=255,
+        trim_whitespace=True,
+        required=False,
+    )
+
+
 class PublicProductFilterSerializer(serializers.Serializer):
     category_id = serializers.UUIDField(required=False)
     brand_id = serializers.UUIDField(required=False)

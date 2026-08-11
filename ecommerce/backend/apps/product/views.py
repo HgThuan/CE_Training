@@ -11,6 +11,7 @@ from apps.common.responses import success_response
 from .permissions import IsShopOwner
 from .selectors import ProductSelector
 from .serializers import (
+    AdminProductFilterSerializer,
     AdminProductListResponseSerializer,
     AdminProductListSerializer,
     AdminProductRejectSerializer,
@@ -333,6 +334,27 @@ class AdminProductViewSet(viewsets.GenericViewSet):
 
     def get_queryset(self):
         return ProductSelector.admin_all({"is_deleted": False})
+
+    @extend_schema(
+        operation_id="admin_products_list",
+        parameters=[AdminProductFilterSerializer],
+        responses={200: AdminProductListResponseSerializer},
+    )
+    def list(self, request):
+        filters = AdminProductFilterSerializer(data=request.query_params)
+        filters.is_valid(raise_exception=True)
+        queryset = ProductSelector.filter_for_admin(
+            self.get_queryset(),
+            filters.validated_data,
+        )
+        page = self.paginate_queryset(queryset)
+        return self.get_paginated_response(
+            AdminProductListSerializer(
+                page,
+                many=True,
+                context=self.get_serializer_context(),
+            ).data
+        )
 
     @extend_schema(
         operation_id="admin_products_pending",

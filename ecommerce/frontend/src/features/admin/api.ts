@@ -5,10 +5,17 @@ import type {
   Category,
   CategoryPayload,
 } from '@/features/product/types'
+import type { ProductStatus } from '@/features/product/types'
 import { http } from '@/shared/lib/http'
 import type { ApiResponse } from '@/shared/types/api'
 
 export const adminCatalogApi = {
+  products: (params: {
+    page?: number
+    page_size?: number
+    status?: ProductStatus
+    search?: string
+  }) => http.get<ApiResponse<AdminProductListItem[]>>('/admin/products/', { params }),
   pendingProducts: (page = 1) =>
     http.get<ApiResponse<AdminProductListItem[]>>('/admin/products/pending/', {
       params: { page, page_size: 20 },
@@ -21,6 +28,8 @@ export const adminCatalogApi = {
     }),
   hideProduct: (productId: string) =>
     http.post<ApiResponse<AdminProductListItem>>(`/admin/products/${productId}/hide/`),
+  deleteProduct: (productId: string) =>
+    http.delete<ApiResponse<{ id: string; is_deleted: boolean }>>(`/admin/products/${productId}/`),
 
   categories: () =>
     http.get<ApiResponse<Category[]>>('/admin/categories/', {
