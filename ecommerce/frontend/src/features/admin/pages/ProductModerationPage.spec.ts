@@ -12,6 +12,7 @@ vi.mock('../api', () => ({
     approveProduct: vi.fn(),
     rejectProduct: vi.fn(),
     hideProduct: vi.fn(),
+    unhideProduct: vi.fn(),
     deleteProduct: vi.fn(),
   },
 }))
@@ -21,7 +22,7 @@ const product = (status: AdminProductListItem['status']): AdminProductListItem =
   name: `Sản phẩm ${status}`,
   slug: `san-pham-${status}`,
   status,
-  rejection_reason: null,
+  rejection_reason: status === 'hidden' ? 'Hình ảnh vi phạm chính sách' : null,
   thumbnail: null,
   min_price: '100000',
   max_price: '100000',
@@ -48,6 +49,9 @@ describe('ProductModerationPage', () => {
     vi.mocked(adminCatalogApi.hideProduct).mockResolvedValue({
       data: { success: true, message: 'Đã ẩn', data: product('hidden') },
     } as Awaited<ReturnType<typeof adminCatalogApi.hideProduct>>)
+    vi.mocked(adminCatalogApi.unhideProduct).mockResolvedValue({
+      data: { success: true, message: 'Đã bỏ ẩn', data: product('approved') },
+    } as Awaited<ReturnType<typeof adminCatalogApi.unhideProduct>>)
     vi.mocked(adminCatalogApi.deleteProduct).mockResolvedValue({
       data: {
         success: true,
@@ -79,8 +83,24 @@ describe('ProductModerationPage', () => {
       .find((button) => button.text().includes('Ẩn vi phạm'))
     expect(hideButton).toBeDefined()
     await hideButton!.trigger('click')
+    const hideForm = wrapper
+      .findAll('form')
+      .find((form) => form.text().includes('Ẩn sản phẩm vi phạm'))
+    expect(hideForm).toBeDefined()
+    await hideForm!.find('textarea').setValue('Hình ảnh vi phạm chính sách')
+    await hideForm!.trigger('submit')
     await flushPromises()
-    expect(adminCatalogApi.hideProduct).toHaveBeenCalledWith('approved-id')
+    expect(adminCatalogApi.hideProduct).toHaveBeenCalledWith(
+      'approved-id',
+      'Hình ảnh vi phạm chính sách',
+    )
+
+    expect(wrapper.text()).toContain('Lý do ẩn: Hình ảnh vi phạm chính sách')
+    const unhideButton = wrapper.findAll('button').find((button) => button.text().includes('Bỏ ẩn'))
+    expect(unhideButton).toBeDefined()
+    await unhideButton!.trigger('click')
+    await flushPromises()
+    expect(adminCatalogApi.unhideProduct).toHaveBeenCalledWith('hidden-id')
 
     const deleteButton = wrapper
       .findAll('button')

@@ -205,6 +205,12 @@ onMounted(loadProducts)
                 >
                   {{ statusLabels[product.status] }}
                 </span>
+                <p
+                  v-if="product.status === 'hidden' && product.rejection_reason"
+                  class="mt-2 max-w-xs break-words text-xs font-semibold leading-relaxed text-violet-800"
+                >
+                  Lý do ẩn: {{ product.rejection_reason }}
+                </p>
               </td>
               <td class="px-4 py-4 text-slate-600">{{ formatDateTime(product.created_at) }}</td>
               <td class="px-5 py-4">

@@ -364,7 +364,8 @@ onBeforeUnmount(() => {
         v-if="product?.rejection_reason"
         class="mt-6 rounded-2xl bg-rose-50 p-4 text-sm text-rose-900 ring-1 ring-rose-200"
       >
-        <strong>Lý do từ chối:</strong> {{ product.rejection_reason }}
+        <strong>{{ product.status === 'hidden' ? 'Lý do ẩn:' : 'Lý do từ chối:' }}</strong>
+        {{ product.rejection_reason }}
       </div>
 
       <form class="mt-8 space-y-7" @submit.prevent="saveProduct(false)">

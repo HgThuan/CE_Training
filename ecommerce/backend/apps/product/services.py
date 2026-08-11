@@ -502,12 +502,29 @@ class ProductService:
         *,
         product: Product,
         admin_user,
+        reason: str,
         request_id: str = "",
     ) -> Product:
         _assert_admin(admin_user)
         return ProductStateMachine.transition(
             product,
             Product.Status.HIDDEN,
+            actor=admin_user,
+            note=reason,
+            request_id=request_id,
+        )
+
+    @staticmethod
+    def admin_unhide(
+        *,
+        product: Product,
+        admin_user,
+        request_id: str = "",
+    ) -> Product:
+        _assert_admin(admin_user)
+        return ProductStateMachine.transition(
+            product,
+            Product.Status.APPROVED,
             actor=admin_user,
             request_id=request_id,
         )

@@ -181,6 +181,7 @@ export interface SellerProductListItem {
   name: string
   slug: string
   status: ProductStatus
+  rejection_reason: string | null
   thumbnail: string | null
   min_price: string | null
   max_price: string | null

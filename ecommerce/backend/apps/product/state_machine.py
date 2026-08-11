@@ -114,15 +114,28 @@ class ProductStateMachine:
             )
 
         normalized_note = note.strip()
-        if normalized_status == Product.Status.REJECTED and not normalized_note:
+        if (
+            normalized_status
+            in {
+                Product.Status.REJECTED,
+                Product.Status.HIDDEN,
+            }
+            and not normalized_note
+        ):
+            action_label = (
+                "từ chối" if normalized_status == Product.Status.REJECTED else "ẩn sản phẩm"
+            )
             raise BusinessError(
-                "Lý do từ chối là bắt buộc",
-                errors={"reason": ["Vui lòng nhập lý do từ chối"]},
+                f"Lý do {action_label} là bắt buộc",
+                errors={"reason": [f"Vui lòng nhập lý do {action_label}"]},
             )
 
         locked_product.status = normalized_status
         update_fields = {"status", "updated_at"}
-        if normalized_status == Product.Status.REJECTED:
+        if normalized_status in {
+            Product.Status.REJECTED,
+            Product.Status.HIDDEN,
+        }:
             locked_product.rejection_reason = normalized_note
             update_fields.add("rejection_reason")
         elif normalized_status in {
