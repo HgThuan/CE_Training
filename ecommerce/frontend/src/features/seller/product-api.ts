@@ -24,6 +24,10 @@ export const sellerProductApi = {
     http.delete<ApiResponse<{ id: string; is_deleted: boolean }>>(`/seller/products/${productId}/`),
   submit: (productId: string) =>
     http.post<ApiResponse<SellerProductDetail>>(`/seller/products/${productId}/submit/`),
+  suspend: (productId: string) =>
+    http.post<ApiResponse<SellerProductDetail>>(`/seller/products/${productId}/suspend/`),
+  restore: (productId: string) =>
+    http.post<ApiResponse<SellerProductDetail>>(`/seller/products/${productId}/restore/`),
   attributes: () =>
     http.get<ApiResponse<SellerAttribute[]>>('/seller/attributes/', {
       params: { page_size: 100 },

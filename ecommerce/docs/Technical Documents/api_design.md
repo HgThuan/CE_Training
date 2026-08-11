@@ -152,6 +152,8 @@ Toàn bộ endpoint dưới đây tự động scope theo `shop_id` của Seller
 | PATCH | `/seller/products/{id}` | Seller | Cập nhật sản phẩm | SEL-02 |
 | DELETE | `/seller/products/{id}` | Seller | Xóa mềm | SEL-02 |
 | POST | `/seller/products/{id}/submit` | Seller | Gửi duyệt (draft → pending) | SEL-02 |
+| POST | `/seller/products/{id}/suspend` | Seller | Tạm ngưng bán (approved → suspended) | SEL-02 |
+| POST | `/seller/products/{id}/restore` | Seller | Mở bán lại (suspended → approved) | SEL-02 |
 | POST | `/seller/products/{id}/media` | Seller | Upload ảnh/video | SEL-03 |
 | DELETE | `/seller/products/{id}/media/{media_id}` | Seller | Xóa 1 media | SEL-03 |
 | POST | `/seller/products/{id}/media/reorder` | Seller | Sắp xếp lại thứ tự ảnh | SEL-03 |

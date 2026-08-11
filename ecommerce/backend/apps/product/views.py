@@ -191,6 +191,46 @@ class SellerProductViewSet(viewsets.GenericViewSet):
         )
 
     @extend_schema(
+        operation_id="seller_products_suspend",
+        request=None,
+        responses={200: SellerProductResponseSerializer},
+    )
+    @action(detail=True, methods=["post"])
+    def suspend(self, request, product_id=None):
+        product = ProductService.suspend_product(
+            product=self.get_object(),
+            seller_user=request.user,
+            request_id=_request_id(request),
+        )
+        return success_response(
+            message="Đã tạm ngưng bán sản phẩm",
+            data=SellerProductDetailSerializer(
+                product,
+                context=self.get_serializer_context(),
+            ).data,
+        )
+
+    @extend_schema(
+        operation_id="seller_products_restore",
+        request=None,
+        responses={200: SellerProductResponseSerializer},
+    )
+    @action(detail=True, methods=["post"])
+    def restore(self, request, product_id=None):
+        product = ProductService.restore_product(
+            product=self.get_object(),
+            seller_user=request.user,
+            request_id=_request_id(request),
+        )
+        return success_response(
+            message="Đã mở bán lại sản phẩm",
+            data=SellerProductDetailSerializer(
+                product,
+                context=self.get_serializer_context(),
+            ).data,
+        )
+
+    @extend_schema(
         operation_id="seller_products_media_upload",
         request=MediaUploadSerializer,
         responses={201: MediaResponseSerializer},

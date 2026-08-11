@@ -86,6 +86,37 @@ async function submitForReview(product: SellerProductListItem): Promise<void> {
   }
 }
 
+async function suspendProduct(product: SellerProductListItem): Promise<void> {
+  if (!window.confirm(`Tạm ngưng bán sản phẩm “${product.name}”?`)) return
+  actionId.value = product.id
+  message.value = ''
+  errorMessage.value = ''
+  try {
+    const response = await sellerProductApi.suspend(product.id)
+    message.value = response.data.message
+    await loadProducts(meta.value.page)
+  } catch (error) {
+    errorMessage.value = getErrorMessage(error)
+  } finally {
+    actionId.value = ''
+  }
+}
+
+async function restoreProduct(product: SellerProductListItem): Promise<void> {
+  actionId.value = product.id
+  message.value = ''
+  errorMessage.value = ''
+  try {
+    const response = await sellerProductApi.restore(product.id)
+    message.value = response.data.message
+    await loadProducts(meta.value.page)
+  } catch (error) {
+    errorMessage.value = getErrorMessage(error)
+  } finally {
+    actionId.value = ''
+  }
+}
+
 async function deleteProduct(product: SellerProductListItem): Promise<void> {
   if (!window.confirm(`Xóa mềm sản phẩm “${product.name}”?`)) return
   actionId.value = product.id
@@ -231,6 +262,24 @@ onMounted(loadProducts)
                     @click="submitForReview(product)"
                   >
                     Gửi duyệt
+                  </button>
+                  <button
+                    v-if="product.status === 'approved'"
+                    class="rounded-lg bg-orange-50 px-3 py-2 text-xs font-bold text-orange-700 hover:bg-orange-100 disabled:opacity-50"
+                    type="button"
+                    :disabled="actionId === product.id"
+                    @click="suspendProduct(product)"
+                  >
+                    Tạm ngưng bán
+                  </button>
+                  <button
+                    v-if="product.status === 'suspended'"
+                    class="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                    type="button"
+                    :disabled="actionId === product.id"
+                    @click="restoreProduct(product)"
+                  >
+                    Mở bán lại
                   </button>
                   <button
                     v-if="['draft', 'hidden'].includes(product.status)"
