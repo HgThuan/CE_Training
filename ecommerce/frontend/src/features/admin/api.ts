@@ -26,8 +26,10 @@ export const adminCatalogApi = {
     http.post<ApiResponse<AdminProductListItem>>(`/admin/products/${productId}/reject/`, {
       rejection_reason: rejectionReason,
     }),
-  hideProduct: (productId: string) =>
-    http.post<ApiResponse<AdminProductListItem>>(`/admin/products/${productId}/hide/`),
+  hideProduct: (productId: string, reason: string) =>
+    http.post<ApiResponse<AdminProductListItem>>(`/admin/products/${productId}/hide/`, { reason }),
+  unhideProduct: (productId: string) =>
+    http.post<ApiResponse<AdminProductListItem>>(`/admin/products/${productId}/unhide/`),
   deleteProduct: (productId: string) =>
     http.delete<ApiResponse<{ id: string; is_deleted: boolean }>>(`/admin/products/${productId}/`),
 

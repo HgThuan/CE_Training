@@ -526,14 +526,60 @@ def test_seller_submit_and_admin_approval_rejection_hide_delete_flow(
     assert rejected.status_code == status.HTTP_200_OK
     assert rejected.data["data"]["status"] == Product.Status.REJECTED
 
+    missing_hide_reason = api_client.post(
+        reverse(
+            "product:admin-product-hide",
+            kwargs={"product_id": approved_candidate.pk},
+        ),
+        {},
+        format="json",
+    )
+    assert missing_hide_reason.status_code == status.HTTP_400_BAD_REQUEST
+
     hidden = api_client.post(
         reverse(
             "product:admin-product-hide",
             kwargs={"product_id": approved_candidate.pk},
         ),
+        {"reason": "Hình ảnh sản phẩm vi phạm chính sách"},
         format="json",
+        HTTP_X_REQUEST_ID="hide-api",
     )
     assert hidden.status_code == status.HTTP_200_OK
+    assert hidden.data["data"]["rejection_reason"] == "Hình ảnh sản phẩm vi phạm chính sách"
+
+    api_client.force_authenticate(seller_shop.owner)
+    seller_products = api_client.get(
+        reverse("product:seller-product-list"),
+        {"status": Product.Status.HIDDEN},
+    )
+    assert seller_products.status_code == status.HTTP_200_OK
+    assert seller_products.data["data"][0]["rejection_reason"] == (
+        "Hình ảnh sản phẩm vi phạm chính sách"
+    )
+
+    api_client.force_authenticate(admin_user)
+    unhidden = api_client.post(
+        reverse(
+            "product:admin-product-unhide",
+            kwargs={"product_id": approved_candidate.pk},
+        ),
+        format="json",
+        HTTP_X_REQUEST_ID="unhide-api",
+    )
+    assert unhidden.status_code == status.HTTP_200_OK
+    assert unhidden.data["data"]["status"] == Product.Status.APPROVED
+    assert unhidden.data["data"]["rejection_reason"] is None
+
+    hidden_again = api_client.post(
+        reverse(
+            "product:admin-product-hide",
+            kwargs={"product_id": approved_candidate.pk},
+        ),
+        {"reason": "Tái phạm chính sách"},
+        format="json",
+    )
+    assert hidden_again.status_code == status.HTTP_200_OK
     deleted = api_client.delete(
         reverse(
             "product:admin-product-delete",
@@ -553,6 +599,17 @@ def test_seller_submit_and_admin_approval_rejection_hide_delete_flow(
         target_id=str(approved_candidate.pk),
         action="delete_product",
         request_id="delete-api",
+    ).exists()
+    assert AuditLog.objects.filter(
+        target_id=str(approved_candidate.pk),
+        action="hide_product",
+        reason="Hình ảnh sản phẩm vi phạm chính sách",
+        request_id="hide-api",
+    ).exists()
+    assert AuditLog.objects.filter(
+        target_id=str(approved_candidate.pk),
+        action="unhide_product",
+        request_id="unhide-api",
     ).exists()
 
 
@@ -612,6 +669,14 @@ def test_non_admin_roles_cannot_approve_reject_hide_or_delete(
             "post",
             reverse(
                 "product:admin-product-hide",
+                kwargs={"product_id": product.pk},
+            ),
+            {"reason": "Không có quyền"},
+        ),
+        (
+            "post",
+            reverse(
+                "product:admin-product-unhide",
                 kwargs={"product_id": product.pk},
             ),
             {},

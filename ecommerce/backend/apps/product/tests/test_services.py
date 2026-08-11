@@ -159,12 +159,15 @@ def test_state_machine_supports_hide_unhide_suspend_and_restore():
         product,
         Product.Status.HIDDEN,
         actor=admin,
+        note="Thông tin sản phẩm vi phạm chính sách",
     )
+    assert product.rejection_reason == "Thông tin sản phẩm vi phạm chính sách"
     product = ProductStateMachine.transition(
         product,
         Product.Status.APPROVED,
         actor=admin,
     )
+    assert product.rejection_reason is None
     product = ProductStateMachine.transition(
         product,
         Product.Status.SUSPENDED,
@@ -322,9 +325,11 @@ def test_admin_approve_and_hide_set_metadata_and_audit():
     hidden = ProductService.admin_hide(
         product=approved,
         admin_user=admin,
+        reason="Hình ảnh vi phạm chính sách",
         request_id="hide-request",
     )
     assert hidden.status == Product.Status.HIDDEN
+    assert hidden.rejection_reason == "Hình ảnh vi phạm chính sách"
     assert (
         AuditLog.objects.filter(
             actor=admin,

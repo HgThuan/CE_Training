@@ -430,6 +430,7 @@ class SellerProductListSerializer(serializers.ModelSerializer):
             "name",
             "slug",
             "status",
+            "rejection_reason",
             "thumbnail",
             "min_price",
             "max_price",
@@ -511,6 +512,14 @@ class AdminProductListSerializer(serializers.ModelSerializer):
 
 class AdminProductRejectSerializer(serializers.Serializer):
     rejection_reason = serializers.CharField(
+        max_length=2000,
+        allow_blank=False,
+        trim_whitespace=True,
+    )
+
+
+class AdminProductHideSerializer(serializers.Serializer):
+    reason = serializers.CharField(
         max_length=2000,
         allow_blank=False,
         trim_whitespace=True,

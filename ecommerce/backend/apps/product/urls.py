@@ -34,6 +34,7 @@ admin_product_list = AdminProductViewSet.as_view({"get": "list"})
 admin_product_approve = AdminProductViewSet.as_view({"post": "approve"})
 admin_product_reject = AdminProductViewSet.as_view({"post": "reject"})
 admin_product_hide = AdminProductViewSet.as_view({"post": "hide"})
+admin_product_unhide = AdminProductViewSet.as_view({"post": "unhide"})
 admin_product_delete = AdminProductViewSet.as_view({"delete": "destroy"})
 
 public_product_list = PublicProductViewSet.as_view({"get": "list"})
@@ -114,6 +115,11 @@ urlpatterns = [
         "admin/products/<uuid:product_id>/hide/",
         admin_product_hide,
         name="admin-product-hide",
+    ),
+    path(
+        "admin/products/<uuid:product_id>/unhide/",
+        admin_product_unhide,
+        name="admin-product-unhide",
     ),
     path(
         "admin/products/<uuid:product_id>/",

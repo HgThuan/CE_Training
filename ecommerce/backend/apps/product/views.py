@@ -24,6 +24,7 @@ from .permissions import IsShopOwner
 from .selectors import ProductSelector, SearchSelector
 from .serializers import (
     AdminProductFilterSerializer,
+    AdminProductHideSerializer,
     AdminProductListResponseSerializer,
     AdminProductListSerializer,
     AdminProductRejectSerializer,
@@ -471,18 +472,38 @@ class AdminProductViewSet(viewsets.GenericViewSet):
 
     @extend_schema(
         operation_id="admin_products_hide",
-        request=None,
+        request=AdminProductHideSerializer,
         responses={200: AdminProductResponseSerializer},
     )
     @action(detail=True, methods=["post"])
     def hide(self, request, product_id=None):
+        serializer = AdminProductHideSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         product = ProductService.admin_hide(
+            product=self.get_object(),
+            admin_user=request.user,
+            reason=serializer.validated_data["reason"],
+            request_id=_request_id(request),
+        )
+        return success_response(
+            message="Ẩn sản phẩm thành công",
+            data=AdminProductListSerializer(product).data,
+        )
+
+    @extend_schema(
+        operation_id="admin_products_unhide",
+        request=None,
+        responses={200: AdminProductResponseSerializer},
+    )
+    @action(detail=True, methods=["post"])
+    def unhide(self, request, product_id=None):
+        product = ProductService.admin_unhide(
             product=self.get_object(),
             admin_user=request.user,
             request_id=_request_id(request),
         )
         return success_response(
-            message="Ẩn sản phẩm thành công",
+            message="Bỏ ẩn sản phẩm thành công",
             data=AdminProductListSerializer(product).data,
         )
 

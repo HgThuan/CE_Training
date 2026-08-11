@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  ArrowUturnLeftIcon,
   CheckIcon,
   ClockIcon,
   EyeSlashIcon,
@@ -21,6 +22,8 @@ const products = ref<AdminProductListItem[]>([])
 const selected = ref<AdminProductListItem | null>(null)
 const rejectionTarget = ref<AdminProductListItem | null>(null)
 const rejectionReason = ref('')
+const hideTarget = ref<AdminProductListItem | null>(null)
+const hideReason = ref('')
 const search = ref('')
 const statusFilter = ref<ProductStatus | ''>('pending_review')
 const meta = ref<PaginationMeta>({
@@ -109,13 +112,36 @@ async function reject(): Promise<void> {
   }
 }
 
-async function hide(product: AdminProductListItem): Promise<void> {
-  if (!window.confirm(`Ẩn sản phẩm vi phạm “${product.name}” khỏi trang mua sắm?`)) return
+function openHide(product: AdminProductListItem): void {
+  hideTarget.value = product
+  hideReason.value = ''
+}
+
+async function hide(): Promise<void> {
+  if (!hideTarget.value || !hideReason.value.trim()) return
+  actionId.value = hideTarget.value.id
+  message.value = ''
+  errorMessage.value = ''
+  try {
+    message.value = (
+      await adminCatalogApi.hideProduct(hideTarget.value.id, hideReason.value.trim())
+    ).data.message
+    hideTarget.value = null
+    selected.value = null
+    await loadProducts(meta.value.page)
+  } catch (error) {
+    errorMessage.value = getErrorMessage(error)
+  } finally {
+    actionId.value = ''
+  }
+}
+
+async function unhide(product: AdminProductListItem): Promise<void> {
   actionId.value = product.id
   message.value = ''
   errorMessage.value = ''
   try {
-    message.value = (await adminCatalogApi.hideProduct(product.id)).data.message
+    message.value = (await adminCatalogApi.unhideProduct(product.id)).data.message
     selected.value = null
     await loadProducts(meta.value.page)
   } catch (error) {
@@ -232,6 +258,12 @@ onMounted(loadProducts)
               </span>
             </p>
             <p class="mt-2 truncate text-xs text-slate-500">{{ product.shop_name }}</p>
+            <p
+              v-if="product.status === 'hidden' && product.rejection_reason"
+              class="mt-2 line-clamp-2 text-xs font-semibold text-violet-800"
+            >
+              Lý do ẩn: {{ product.rejection_reason }}
+            </p>
           </div>
         </div>
         <div class="flex flex-wrap justify-end gap-2 border-t border-slate-100 bg-slate-50 p-4">
@@ -260,10 +292,20 @@ onMounted(loadProducts)
             class="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700 disabled:opacity-50"
             type="button"
             :disabled="actionId === product.id"
-            @click="hide(product)"
+            @click="openHide(product)"
           >
             <EyeSlashIcon class="h-4 w-4" />
             Ẩn vi phạm
+          </button>
+          <button
+            v-if="product.status === 'hidden'"
+            class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+            type="button"
+            :disabled="actionId === product.id"
+            @click="unhide(product)"
+          >
+            <ArrowUturnLeftIcon class="h-4 w-4" />
+            Bỏ ẩn
           </button>
           <button
             v-if="['draft', 'hidden'].includes(product.status)"
@@ -349,6 +391,15 @@ onMounted(loadProducts)
           <dt class="text-sm text-slate-500">Trạng thái</dt>
           <dd class="text-sm font-bold">{{ statusLabels[selected.status] }}</dd>
         </div>
+        <div
+          v-if="selected.status === 'hidden' && selected.rejection_reason"
+          class="grid grid-cols-[120px_1fr] gap-3 py-4"
+        >
+          <dt class="text-sm text-slate-500">Lý do ẩn</dt>
+          <dd class="break-words text-sm font-semibold text-violet-900">
+            {{ selected.rejection_reason }}
+          </dd>
+        </div>
         <div class="grid grid-cols-[120px_1fr] gap-3 py-4">
           <dt class="text-sm text-slate-500">Danh mục</dt>
           <dd class="text-sm font-bold">{{ selected.category.name }}</dd>
@@ -396,10 +447,20 @@ onMounted(loadProducts)
         class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 py-3 font-bold text-white hover:bg-violet-700 disabled:opacity-50"
         type="button"
         :disabled="actionId === selected.id"
-        @click="hide(selected)"
+        @click="openHide(selected)"
       >
         <EyeSlashIcon class="h-5 w-5" />
         Ẩn sản phẩm vi phạm
+      </button>
+      <button
+        v-if="selected.status === 'hidden'"
+        class="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+        type="button"
+        :disabled="actionId === selected.id"
+        @click="unhide(selected)"
+      >
+        <ArrowUturnLeftIcon class="h-5 w-5" />
+        Bỏ ẩn và hiển thị lại
       </button>
       <button
         v-if="['draft', 'hidden'].includes(selected.status)"
@@ -412,6 +473,49 @@ onMounted(loadProducts)
         Xóa mềm sản phẩm
       </button>
     </aside>
+
+    <div
+      v-if="hideTarget"
+      class="fixed inset-0 z-[60] grid place-items-center bg-slate-950/55 p-4 backdrop-blur-sm"
+      @click.self="hideTarget = null"
+    >
+      <form
+        class="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl sm:p-8"
+        @submit.prevent="hide"
+      >
+        <h2 class="text-2xl font-black">Ẩn sản phẩm vi phạm</h2>
+        <p class="mt-2 text-sm text-slate-600">
+          Sản phẩm “{{ hideTarget.name }}” sẽ ngừng xuất hiện trên trang mua sắm. Seller sẽ nhìn
+          thấy lý do bên dưới.
+        </p>
+        <label class="mt-6 block">
+          <span class="text-sm font-bold">Lý do ẩn <span class="text-rose-600">*</span></span>
+          <textarea
+            v-model.trim="hideReason"
+            class="mt-2 min-h-32 w-full rounded-xl border border-slate-300 px-3 py-3"
+            maxlength="2000"
+            placeholder="Nêu rõ nội dung vi phạm và cách seller có thể khắc phục"
+            required
+            autofocus
+          />
+        </label>
+        <div class="mt-6 flex justify-end gap-3">
+          <button
+            class="rounded-xl border border-slate-300 px-5 py-2.5 font-bold"
+            type="button"
+            @click="hideTarget = null"
+          >
+            Hủy
+          </button>
+          <button
+            class="rounded-xl bg-violet-600 px-5 py-2.5 font-bold text-white disabled:opacity-50"
+            :disabled="!hideReason.trim() || Boolean(actionId)"
+          >
+            Xác nhận ẩn
+          </button>
+        </div>
+      </form>
+    </div>
 
     <div
       v-if="rejectionTarget"
