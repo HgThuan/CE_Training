@@ -7,6 +7,7 @@ import type { ReturnRequest } from '@/features/after-sales/types'
 import { orderApi } from '../api'
 import type { CommerceOrder, OrderItem } from '../types'
 import ReviewDialog from '@/features/after-sales/components/ReviewDialog.vue'
+import ReturnDialog from '@/features/after-sales/components/ReturnDialog.vue'
 
 const route = useRoute(),
   order = ref<CommerceOrder | null>(null),
@@ -125,7 +126,6 @@ onMounted(load)
             <div class="flex items-center gap-3">
               <b>{{ formatCurrency(item.line_total) }}</b>
               <template v-if="shop.fulfillment_status === 'COMPLETED'">
-                <!-- Chưa đánh giá -->
                 <button
                   v-if="!item.review"
                   class="rounded-lg border border-amber-300 px-3 py-1 text-sm font-bold text-amber-700 hover:bg-amber-50"
@@ -213,6 +213,13 @@ onMounted(load)
       :order-item="selectedOrderItem" 
       @close="isReviewDialogOpen = false" 
       @submitted="load" 
+    />
+    <ReturnDialog
+      :is-open="isReturnDialogOpen"
+      :order-id="order?.id || ''"
+      :shop-order="selectedReturnShop"
+      @close="isReturnDialogOpen = false"
+      @submitted="load"
     />
   </main>
 </template>
