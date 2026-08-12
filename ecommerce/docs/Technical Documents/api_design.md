@@ -337,15 +337,17 @@ Toàn bộ endpoint dưới đây được xử lý bởi `AIService` (xem `ARCH
 }
 ```
 
-**Response (thành công — 1 giỏ có 2 shop → 2 order):**
+**Response (thành công — 1 checkout aggregate có 2 shop order):**
 ```json
 {
     "success": true,
     "message": "Đặt hàng thành công",
     "data": {
+        "id": "aggregate-order-uuid",
+        "order_code": "ORD-20260721-0001",
         "orders": [
-            { "order_id": 1001, "order_code": "ORD-20260721-0001", "shop_id": 1, "total_amount": 1250000 },
-            { "order_id": 1002, "order_code": "ORD-20260721-0002", "shop_id": 2, "total_amount": 480000 }
+            { "order_id": "shop-order-uuid-1", "order_code": "SORD-20260721-0001", "shop_id": 1, "total_amount": 1250000 },
+            { "order_id": "shop-order-uuid-2", "order_code": "SORD-20260721-0002", "shop_id": 2, "total_amount": 480000 }
         ],
         "payment_redirect_url": "https://sandbox.vnpayment.vn/..."
     }
@@ -383,7 +385,7 @@ Toàn bộ endpoint dưới đây được xử lý bởi `AIService` (xem `ARCH
 
 ## 13. Ghi chú thiết kế quan trọng
 
-- **Checkout tách đơn theo shop** (BR-CART-02) → `POST /checkout/confirm` trả về **mảng** order, không phải 1 order duy nhất.
+- **Checkout tạo một `Order` tổng và tách fulfillment theo shop** (BR-CART-02) → `POST /checkout/confirm` trả aggregate cùng mảng `orders` tương ứng các `ShopOrder`; Payment gắn với aggregate.
 - **Payment callback** (`/payment/callback/{gateway}`) là endpoint duy nhất được phép public nhưng không dùng JWT — xác thực bằng chữ ký của cổng thanh toán; phải idempotent (BR-PAY-01).
 - **Mọi endpoint dưới `/seller/*`** tự động scope theo shop của Seller đang đăng nhập ở tầng Service/Repository — không có và không được thêm tham số `shop_id` trên URL hay body (BR-SHOP-04).
 - **Mọi endpoint dưới `/admin/*`** yêu cầu role Admin; hành động thay đổi trạng thái (lock, approve, resolve...) đều ghi Audit Log (BR-SEC-02).

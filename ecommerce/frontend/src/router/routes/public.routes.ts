@@ -45,7 +45,19 @@ export const publicRoutes: RouteRecordRaw[] = [
         name: 'search-results',
         component: () => import('@/features/search/pages/SearchResultsPage.vue'),
       },
+      {
+        path: 'checkout',
+        name: 'checkout',
+        component: () => import('@/features/checkout/CheckoutPage.vue'),
+        meta: { requiresAuth: true, roles: ['customer'] },
+      },
     ],
+  },
+  {
+    path: '/payment/return',
+    name: 'payment-return',
+    component: () => import('@/features/payment/PaymentReturnPage.vue'),
+    meta: { requiresAuth: true, roles: ['customer'] },
   },
   {
     path: '/auth/login',

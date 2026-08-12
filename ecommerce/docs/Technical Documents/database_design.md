@@ -1065,6 +1065,8 @@ Order — một lần checkout và thanh toán tổng
 | `shipping_total` | `numeric(18,0)` | Không | Default 0 | Tổng phí ship. |
 | `grand_total` | `numeric(18,0)` | Không | Check >= 0 | Tổng phải thanh toán. |
 | `payment_status` | `varchar(30)` | Không | Index, check | `PENDING`, `PAID`, `FAILED`, `EXPIRED`, `REFUND_PENDING`, `REFUNDED`. |
+| `payment_method` | `varchar(20)` | Không | Check | `COD` hoặc `VNPAY`; chọn một lần cho toàn checkout. |
+| `idempotency_key` | `varchar(120)` | Không | Unique | Chống double-submit checkout; khác key của payment attempt. |
 | `checkout_note` | `text` | Có |  | Ghi chú chung. |
 | `placed_at` | `timestamptz` | Không | Index | Thời điểm đặt. |
 | `expires_at` | `timestamptz` | Có | Index | Hạn thanh toán — TBD. |
@@ -1118,6 +1120,7 @@ Snapshot địa chỉ giao hàng tại thời điểm checkout; không FK trở 
 | `confirmed_at` | `timestamptz` | Có |  |  |
 | `delivered_at` | `timestamptz` | Có |  |  |
 | `completed_at` | `timestamptz` | Có |  |  |
+| `cod_collected_at` | `timestamptz` | Có |  | Set khi shop order COD chuyển `DELIVERED`; không đổi `orders.payment_status`. |
 | `created_at` | `timestamptz` | Không | Index |  |
 | `updated_at` | `timestamptz` | Không |  |  |
 
@@ -1178,6 +1181,19 @@ Mỗi chuyển trạng thái hợp lệ phải tạo một dòng lịch sử tro
 | `stock_restored_at` | `timestamptz` | Có | Dùng bảo đảm hoàn tồn một lần |
 | `voucher_released_at` | `timestamptz` | Có |  |
 | `created_at` | `timestamptz` | Không |  |
+
+### 11.8. `shipping_fee_rules`
+
+Sprint 7 dùng quy tắc phí cố định theo shop, không tích hợp hãng vận chuyển (BON-01 ngoài phạm vi).
+
+| Cột | Kiểu | Null | Ràng buộc / mô tả |
+|---|---|---:|---|
+| `id` | `uuid` | Không | PK |
+| `shop_id` | `uuid` | Không | One-to-one FK `shops` |
+| `flat_fee` | `numeric(18,0)` | Không | Default 30.000, check >= 0 |
+| `free_shipping_threshold` | `numeric(18,0)` | Có | Check >= 0; miễn phí khi subtotal shop đạt ngưỡng |
+| `created_at` | `timestamptz` | Không |  |
+| `updated_at` | `timestamptz` | Không |  |
 
 Hủy toàn order hay từng shop order là **TBD**; schema hỗ trợ từng `shop_order`.
 
@@ -1863,7 +1879,7 @@ APPROVED ↔ SUSPENDED
 ```text
 PENDING_CONFIRMATION → CONFIRMED → PACKING → SHIPPING → DELIVERED → COMPLETED
 PENDING_CONFIRMATION → CANCELLED
-CONFIRMED → CANCELLED        (tùy policy)
+CONFIRMED → CANCELLED
 SHIPPING → DELIVERY_FAILED
 DELIVERED → RETURN_REQUESTED → RETURNED / RETURN_REJECTED
 ```
@@ -2219,14 +2235,14 @@ Kiểm tra N+1 bằng query count và dùng `EXPLAIN ANALYZE` cho query chính.
 | DB-02 | Một seller chỉ có một shop hay hỗ trợ nhiều shop/staff | `seller_profiles`, `shops`, có thể thêm `shop_members` | TBD |
 | DB-03 | Một kho/shop hay nhiều kho | `inventory_balances` | Sprint 4 chốt một balance/variant; multi-warehouse deferred |
 | DB-04 | Counter tổng hay reservation chi tiết | `inventory_balances`, `stock_reservations` | Chốt triển khai cả hai, cập nhật cùng transaction |
-| DB-05 | Thời gian hết hạn order chưa thanh toán | `orders.expires_at`, Celery job | TBD |
-| DB-06 | Voucher sàn và shop có cộng dồn không | `vouchers.stackable`, checkout allocation | TBD |
-| DB-07 | Hủy toàn order hay từng shop order | cancellation/stock/voucher/refund | TBD |
+| DB-05 | Thời gian hết hạn order chưa thanh toán | `orders.expires_at`, Celery job | Chốt 15 phút, cấu hình tại service/task |
+| DB-06 | Voucher sàn và shop có cộng dồn không | `vouchers.stackable`, checkout allocation | Chốt tối đa 1 platform + 1 shop cho mỗi ShopOrder |
+| DB-07 | Hủy toàn order hay từng shop order | cancellation/stock/voucher/refund | Chốt hủy từng `ShopOrder` |
 | DB-08 | Product sửa sau duyệt có phải duyệt lại | product status/version/audit | TBD |
-| DB-09 | Payment provider sandbox | provider fields và callback mapping | TBD |
+| DB-09 | Payment provider sandbox | provider fields và callback mapping | Chốt VNPay sandbox + COD |
 | DB-10 | Embedding model và dimension | `product_embeddings.embedding` | TBD |
 | DB-11 | Lưu prompt/response AI bao lâu | AI log retention/privacy | TBD |
-| DB-12 | Chính sách shipping fee và provider | shipping tables/snapshot | TBD |
+| DB-12 | Chính sách shipping fee và provider | `shipping_fee_rules`, snapshot ở `shop_orders` | Chốt flat fee/shop + ngưỡng freeship; không carrier |
 | DB-13 | Có dùng Django Groups thay custom role tables | identity schema | TBD |
 | DB-14 | Có cần partition log/transaction tables | vận hành và migration | TBD sau benchmark |
 

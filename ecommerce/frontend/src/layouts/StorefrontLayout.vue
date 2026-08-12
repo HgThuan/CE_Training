@@ -3,6 +3,7 @@ import {
   ArrowLeftStartOnRectangleIcon,
   Bars3Icon,
   HeartIcon,
+  ClipboardDocumentListIcon,
   ShoppingBagIcon,
   UserCircleIcon,
   XMarkIcon,
@@ -84,6 +85,14 @@ async function logout(): Promise<void> {
             Yêu thích
           </RouterLink>
           <RouterLink
+            v-if="authStore.user?.role === 'customer'"
+            class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"
+            to="/account/orders"
+          >
+            <ClipboardDocumentListIcon class="h-4 w-4" />
+            Đơn hàng
+          </RouterLink>
+          <RouterLink
             v-if="authStore.user"
             class="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-white hover:bg-indigo-700"
             :to="homePathForRole(authStore.user.role)"
@@ -148,6 +157,14 @@ async function logout(): Promise<void> {
           >
             <HeartIcon class="h-5 w-5 text-rose-500" />
             Yêu thích
+          </RouterLink>
+          <RouterLink
+            v-if="authStore.user?.role === 'customer'"
+            class="inline-flex items-center gap-2 rounded-xl px-4 py-3 hover:bg-slate-100"
+            to="/account/orders"
+          >
+            <ClipboardDocumentListIcon class="h-5 w-5 text-indigo-500" />
+            Đơn hàng của tôi
           </RouterLink>
           <RouterLink
             v-if="authStore.user"

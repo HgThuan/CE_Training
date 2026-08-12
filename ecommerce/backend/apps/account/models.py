@@ -334,6 +334,7 @@ class Notification(TimeStampedModel):
         SHOP_STATUS = "shop_status", "Trạng thái gian hàng"
         INVENTORY_LOW_STOCK = "inventory_low_stock", "Tồn kho thấp"
         BACK_IN_STOCK = "back_in_stock", "Có hàng trở lại"
+        ORDER = "order", "Đơn hàng"
 
     user = models.ForeignKey(
         User,

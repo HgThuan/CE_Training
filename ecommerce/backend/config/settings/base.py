@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "apps.engagement.apps.EngagementConfig",
     "apps.ai.apps.AIConfig",
     "apps.order.apps.OrderConfig",
+    "apps.payment.apps.PaymentConfig",
 ]
 
 MIDDLEWARE = [
