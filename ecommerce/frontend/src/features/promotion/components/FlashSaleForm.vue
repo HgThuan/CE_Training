@@ -12,7 +12,7 @@ function localDate(value: string): string {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
 }
 const form = reactive({
-  name: '',
+  name: `Flash Sale ${new Date().toLocaleDateString('vi-VN')}`,
   start_time: localDate(new Date().toISOString()),
   end_time: localDate(new Date(Date.now() + 3600000).toISOString()),
   is_active: true,
@@ -34,7 +34,7 @@ watch(
 )
 function submit(): void {
   error.value = ''
-  if (!form.name.trim()) error.value = 'Tên Flash Sale là bắt buộc'
+  if (!form.name.trim() || form.name.trim().length < 5) error.value = 'Tên chương trình quá ngắn hoặc không hợp lệ'
   else if (new Date(form.start_time) >= new Date(form.end_time))
     error.value = 'Thời điểm kết thúc phải sau thời điểm bắt đầu'
   else if (!form.items.length) error.value = 'Cần ít nhất một sản phẩm'
