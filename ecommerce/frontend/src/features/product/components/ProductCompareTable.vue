@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
 import { SparklesIcon } from '@heroicons/vue/24/solid'
 
 import type { ProductCompareData } from '../types'
@@ -7,7 +8,40 @@ defineProps<{ comparison: ProductCompareData }>()
 </script>
 
 <template>
-  <section class="mt-6 overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-200">
+  <section
+    v-if="!comparison.is_comparable"
+    class="mt-6 rounded-2xl bg-amber-50 p-5 ring-1 ring-amber-200 sm:p-6"
+    role="status"
+    aria-live="polite"
+  >
+    <div class="flex items-start gap-4">
+      <span
+        class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-800"
+      >
+        <ExclamationTriangleIcon class="h-6 w-6" aria-hidden="true" />
+      </span>
+      <div class="min-w-0">
+        <h2 class="text-lg font-black text-amber-950">Không thể so sánh nhóm sản phẩm này</h2>
+        <p class="mt-1 max-w-3xl text-sm leading-6 text-amber-900">
+          {{ comparison.compatibility_message }}
+        </p>
+        <ul class="mt-4 flex flex-wrap gap-2" aria-label="Các sản phẩm không tương thích">
+          <li
+            v-for="product in comparison.products"
+            :key="product.id"
+            class="max-w-full truncate rounded-lg bg-white px-3 py-2 text-sm font-bold text-amber-950 ring-1 ring-amber-200"
+          >
+            {{ product.name }}
+          </li>
+        </ul>
+        <p class="mt-4 text-sm font-semibold text-amber-950">
+          Bỏ sản phẩm không cùng nhóm ở thanh phía dưới, sau đó chọn một sản phẩm tương tự để thử
+          lại.
+        </p>
+      </div>
+    </div>
+  </section>
+  <section v-else class="mt-6 overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-200">
     <div class="flex flex-wrap items-start justify-between gap-3 px-5 py-5 sm:px-6">
       <div>
         <h2 class="text-xl font-black text-slate-950">Bảng so sánh</h2>

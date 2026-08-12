@@ -65,6 +65,8 @@ describe('product comparison store', () => {
           ],
           rows: [],
           recommendations: [],
+          is_comparable: true,
+          compatibility_message: null,
           is_ai_generated: false,
           ai_label: null,
         },

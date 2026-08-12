@@ -192,6 +192,8 @@ export interface ProductCompareData {
   products: Array<{ id: string; name: string }>
   rows: ProductCompareRow[]
   recommendations: ProductCompareRecommendation[]
+  is_comparable: boolean
+  compatibility_message: string | null
   is_ai_generated: boolean
   ai_label: string | null
 }

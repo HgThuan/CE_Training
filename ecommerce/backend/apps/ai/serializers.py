@@ -187,6 +187,8 @@ class ProductCompareDataSerializer(serializers.Serializer):
     products = ProductCompareProductSerializer(many=True)
     rows = ProductCompareRowSerializer(many=True)
     recommendations = ProductCompareRecommendationSerializer(many=True)
+    is_comparable = serializers.BooleanField()
+    compatibility_message = serializers.CharField(allow_null=True)
     is_ai_generated = serializers.BooleanField()
     ai_label = serializers.CharField(allow_null=True)
 
