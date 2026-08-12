@@ -17,6 +17,7 @@ from django.db.models import Avg, Count, Max
 from django.utils import timezone
 from django.utils.html import strip_tags
 
+from apps.catalog.models import Category
 from apps.common.cache_utils import build_cache_key, safe_cache_get, safe_cache_set
 from apps.common.exceptions import BusinessError
 from apps.product.models import Product
@@ -660,7 +661,29 @@ class AIService:
 
         products.sort(key=lambda product: str(product.pk))
         structured = [self._product_compare_payload(product) for product in products]
-        content_hash = self._hash_json(structured)
+        category_groups = self._comparison_category_groups(products)
+        if len(category_groups) > 1:
+            category_names = ", ".join(group["name"] for group in category_groups)
+            return {
+                "products": [
+                    {"id": str(product.pk), "name": product.name}
+                    for product in products
+                ],
+                "rows": [],
+                "recommendations": [],
+                "is_comparable": False,
+                "compatibility_message": (
+                    "Các sản phẩm thuộc những nhóm khác nhau "
+                    f"({category_names}) nên không có cùng bộ tiêu chí để so sánh. "
+                    "Hãy chọn các sản phẩm trong cùng một nhóm danh mục."
+                ),
+                "is_ai_generated": False,
+                "ai_label": None,
+            }
+
+        content_hash = self._hash_json(
+            {"contract_version": 2, "products": structured}
+        )
         entity_id = uuid.uuid5(
             uuid.NAMESPACE_OID,
             ",".join(str(product.pk) for product in products),
@@ -1132,6 +1155,37 @@ class AIService:
             "variants": variants,
         }
 
+    @staticmethod
+    def _comparison_category_groups(products: list[Product]) -> list[dict[str, str]]:
+        """Group products by their top-level catalog category."""
+
+        categories = {product.category_id: product.category for product in products}
+        pending_parent_ids = {
+            category.parent_id
+            for category in categories.values()
+            if category.parent_id is not None
+        }
+        while pending_parent_ids:
+            parents = Category.objects.in_bulk(pending_parent_ids)
+            categories.update(parents)
+            pending_parent_ids = {
+                category.parent_id
+                for category in parents.values()
+                if category.parent_id is not None
+                and category.parent_id not in categories
+            }
+
+        groups: dict[str, str] = {}
+        for product in products:
+            category = categories[product.category_id]
+            while category.parent_id is not None:
+                category = categories[category.parent_id]
+            groups[str(category.pk)] = category.name
+        return [
+            {"id": category_id, "name": groups[category_id]}
+            for category_id in sorted(groups)
+        ]
+
     @classmethod
     def _normalize_product_compare(
         cls,
@@ -1183,6 +1237,8 @@ class AIService:
             ],
             "rows": rows,
             "recommendations": recommendations,
+            "is_comparable": True,
+            "compatibility_message": None,
             "is_ai_generated": True,
             "ai_label": "Tạo bởi AI",
         }
@@ -1233,6 +1289,8 @@ class AIService:
             ],
             "rows": rows[:30],
             "recommendations": [],
+            "is_comparable": True,
+            "compatibility_message": None,
             "is_ai_generated": False,
             "ai_label": None,
         }

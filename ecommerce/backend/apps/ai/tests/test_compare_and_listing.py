@@ -14,6 +14,7 @@ from apps.account.tests.factories import UserFactory
 from apps.ai.models import AIContentCache, AIRequestLog
 from apps.ai.providers import AIProviderError, BaseAIProvider, ProviderResponse
 from apps.ai.services import AIService
+from apps.catalog.tests.factories import CategoryFactory
 from apps.common.exceptions import BusinessError
 from apps.product.models import Product
 from apps.product.tests.factories import ProductFactory
@@ -39,9 +40,11 @@ def provider_mock(*responses: dict) -> Mock:
 
 
 def approved_products(count: int) -> list[Product]:
+    category = CategoryFactory()
     return [
         ProductFactory(
             status=Product.Status.APPROVED,
+            category=category,
             name=f"Sản phẩm {index}",
             min_price=100_000 + index,
             max_price=150_000 + index,
@@ -75,6 +78,8 @@ def test_compare_products_supports_two_to_four_public_products(product_count):
     assert len(data["products"]) == product_count
     assert len(data["rows"][0]["values"]) == product_count
     assert data["recommendations"][0]["product_index"] == 0
+    assert data["is_comparable"] is True
+    assert data["compatibility_message"] is None
     assert data["is_ai_generated"] is True
     assert data["ai_label"] == "Tạo bởi AI"
     assert AIRequestLog.objects.get().feature == AIRequestLog.Feature.PRODUCT_COMPARE
@@ -98,6 +103,46 @@ def test_compare_products_rejects_missing_or_hidden_product():
         AIService().compare_products([public.pk, hidden.pk])
 
     assert error.value.http_status == 404
+
+
+def test_compare_products_returns_explanation_for_unrelated_category_groups():
+    electronics = CategoryFactory(name="Điện tử")
+    fashion = CategoryFactory(name="Thời trang")
+    phone = ProductFactory(status=Product.Status.APPROVED, category=electronics)
+    shirt = ProductFactory(status=Product.Status.APPROVED, category=fashion)
+    provider = provider_mock(compare_response(2))
+
+    data = AIService(provider=provider).compare_products([phone.pk, shirt.pk])
+
+    assert data["is_comparable"] is False
+    assert data["rows"] == []
+    assert data["recommendations"] == []
+    assert data["is_ai_generated"] is False
+    assert data["ai_label"] is None
+    assert "Điện tử" in data["compatibility_message"]
+    assert "Thời trang" in data["compatibility_message"]
+    provider.generate_text.assert_not_called()
+    assert AIRequestLog.objects.count() == 0
+    assert AIContentCache.objects.count() == 0
+
+
+@override_settings(AI_FEATURES_ENABLED=True, AI_MAX_RETRIES=0)
+def test_compare_products_allows_sibling_categories_under_same_root():
+    electronics = CategoryFactory(name="Điện tử")
+    phones = CategoryFactory(name="Điện thoại", parent=electronics)
+    tablets = CategoryFactory(name="Máy tính bảng", parent=electronics)
+    products = [
+        ProductFactory(status=Product.Status.APPROVED, category=phones),
+        ProductFactory(status=Product.Status.APPROVED, category=tablets),
+    ]
+    provider = provider_mock(compare_response(2))
+
+    data = AIService(provider=provider).compare_products(
+        [product.pk for product in products]
+    )
+
+    assert data["is_comparable"] is True
+    provider.generate_text.assert_called_once()
 
 
 @override_settings(AI_FEATURES_ENABLED=True, AI_MAX_RETRIES=0)
@@ -128,6 +173,7 @@ def test_compare_products_uses_rule_based_fallback_when_provider_fails():
 
     assert data["rows"]
     assert data["recommendations"] == []
+    assert data["is_comparable"] is True
     assert data["is_ai_generated"] is False
     assert data["ai_label"] is None
 
@@ -223,6 +269,7 @@ def test_compare_endpoint_has_its_own_throttle():
     rest_framework = {**settings.REST_FRAMEWORK, "DEFAULT_THROTTLE_RATES": rates}
     payload = {
         "products": [], "rows": [], "recommendations": [],
+        "is_comparable": True, "compatibility_message": None,
         "is_ai_generated": False, "ai_label": None,
     }
     request_body = {"product_ids": [str(uuid.uuid4()), str(uuid.uuid4())]}
