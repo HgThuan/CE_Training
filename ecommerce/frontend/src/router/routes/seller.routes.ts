@@ -18,6 +18,11 @@ export const sellerRoutes: RouteRecordRaw[] = [
         component: () => import('@/features/seller/pages/ShopProfilePage.vue'),
       },
       {
+        path: 'profile',
+        name: 'seller-profile',
+        component: () => import('@/features/auth/pages/ProfilePage.vue'),
+      },
+      {
         path: 'products',
         name: 'seller-products',
         component: () => import('@/features/seller/pages/ProductListPage.vue'),

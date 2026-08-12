@@ -161,7 +161,7 @@ async function logout(): Promise<void> {
               <BuildingStorefrontIcon class="h-5 w-5" stroke-width="2" /> Hồ sơ gian hàng
             </RouterLink>
             <RouterLink
-              to="/account/profile"
+              to="/seller/profile"
               class="group flex items-center gap-3 rounded-2xl px-4 py-2.5 text-sm font-medium transition-all duration-300 hover:bg-white/5 hover:text-white hover:translate-x-1"
               active-class="!bg-indigo-600/10 !text-indigo-400 font-bold"
             >
