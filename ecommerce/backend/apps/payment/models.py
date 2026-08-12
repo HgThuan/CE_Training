@@ -83,8 +83,13 @@ class Refund(TimeStampedModel):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     payment = models.ForeignKey(Payment, on_delete=models.PROTECT, related_name="refunds")
-    # ReturnRequest is introduced in Sprint 08; keep the nullable reference without a premature FK.
-    return_request_id = models.UUIDField(null=True, blank=True)
+    return_request = models.ForeignKey(
+        "after_sales.ReturnRequest",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="refunds",
+    )
     shop_order = models.ForeignKey(
         "order.ShopOrder", on_delete=models.PROTECT, null=True, blank=True, related_name="refunds"
     )
