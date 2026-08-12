@@ -8,6 +8,7 @@ from .views import (
     AdminCustomerDetailView,
     AdminCustomerListCreateView,
     AdminResetPasswordView,
+    AdminRoleUserListView,
     AdminSellerApplicationApproveView,
     AdminSellerApplicationDetailView,
     AdminSellerApplicationListView,
@@ -75,6 +76,11 @@ urlpatterns = [
         "users/me/change-password/",
         ChangePasswordView.as_view(),
         name="change-password",
+    ),
+    path(
+        "admin/users/",
+        AdminRoleUserListView.as_view(),
+        name="admin-role-user-list",
     ),
     path(
         "admin/users/<int:user_id>/assign-role/",

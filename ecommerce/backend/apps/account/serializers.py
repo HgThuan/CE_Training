@@ -361,6 +361,20 @@ class AssignRoleSerializer(serializers.Serializer):
     role = serializers.ChoiceField(choices=User.Role.choices)
 
 
+class AdminRoleUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "email",
+            "full_name",
+            "phone",
+            "role",
+            "is_active",
+        )
+        read_only_fields = fields
+
+
 class SellerApplicationSubmitSerializer(serializers.Serializer):
     business_name = serializers.CharField(max_length=255)
     business_address = serializers.CharField(max_length=500)
@@ -547,6 +561,13 @@ class AdminCustomerListResponseSerializer(serializers.Serializer):
     success = serializers.BooleanField()
     message = serializers.CharField()
     data = AdminCustomerListSerializer(many=True)
+    meta = PaginationMetaSerializer()
+
+
+class AdminRoleUserListResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    message = serializers.CharField()
+    data = AdminRoleUserSerializer(many=True)
     meta = PaginationMetaSerializer()
 
 

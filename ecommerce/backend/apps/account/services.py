@@ -235,6 +235,18 @@ class AccountService:
     @staticmethod
     @transaction.atomic
     def assign_role(*, actor, target_user_id: int, role: str, request_id: str = ""):
+        active_admin_ids: list[int] = []
+        if role != User.Role.ADMIN:
+            active_admin_ids = list(
+                User.objects.select_for_update()
+                .filter(
+                    role=User.Role.ADMIN,
+                    is_active=True,
+                    is_deleted=False,
+                )
+                .order_by("pk")
+                .values_list("pk", flat=True)
+            )
         target = User.objects.select_for_update().filter(pk=target_user_id).first()
         if target is None:
             raise BusinessError("Không tìm thấy người dùng", http_status=404)
@@ -252,6 +264,15 @@ class AccountService:
         old_role = target.role
         if old_role == role:
             return target
+        if (
+            old_role == User.Role.ADMIN
+            and target.pk in active_admin_ids
+            and len(active_admin_ids) == 1
+        ):
+            raise BusinessError(
+                "Không thể hạ quyền Quản trị viên cuối cùng",
+                errors={"role": ["Hãy cấp quyền Quản trị viên cho tài khoản khác trước"]},
+            )
         target.role = role
         target.is_staff = role == User.Role.ADMIN
         target.save(update_fields=["role", "is_staff", "updated_at"])

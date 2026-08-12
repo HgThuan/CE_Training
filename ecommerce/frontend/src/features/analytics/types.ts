@@ -47,6 +47,8 @@ export interface AuditEntry {
   action: string
   target_type: string
   target_id: string
+  reason?: string
+  diff?: Record<string, unknown>
   request_id: string
   created_at: string
 }

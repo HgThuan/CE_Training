@@ -23,7 +23,10 @@ def days_from(request):
 
 def cached(request, namespace, producer):
     period = request.query_params.get("period", "day")
-    key = build_cache_key(namespace, {"days": days_from(request), "period": period, "user": request.user.pk})
+    key = build_cache_key(
+        namespace,
+        {"days": days_from(request), "period": period, "user": request.user.pk},
+    )
     value = cache.get(key)
     if value is None:
         value = producer()
@@ -159,7 +162,7 @@ class AuditLogView(APIView):
 
     def get(self, request):
         queryset = AuditLog.objects.select_related("actor")
-        for field in ("action", "target_type", "request_id"):
+        for field in ("action", "target_type", "target_id", "request_id"):
             if value := request.query_params.get(field):
                 queryset = queryset.filter(**{field: value})
         data = [

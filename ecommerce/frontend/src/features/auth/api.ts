@@ -9,6 +9,7 @@ import type {
   ProfilePayload,
   RegisterPayload,
   ResetPasswordPayload,
+  RoleAssignableUser,
   UserRole,
 } from './types'
 
@@ -37,6 +38,13 @@ export const authApi = {
   },
   changePassword: (payload: ChangePasswordPayload) =>
     http.post<ApiResponse<null>>('/users/me/change-password/', payload),
+  roleUsers: (params: {
+    search?: string
+    role?: UserRole
+    is_active?: boolean
+    page?: number
+    page_size?: number
+  }) => http.get<ApiResponse<RoleAssignableUser[]>>('/admin/users/', { params }),
   assignRole: (userId: number, role: UserRole) =>
     http.post<ApiResponse<AuthenticatedUser>>(`/admin/users/${userId}/assign-role/`, { role }),
 }

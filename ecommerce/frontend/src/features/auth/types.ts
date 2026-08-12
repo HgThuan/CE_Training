@@ -30,6 +30,15 @@ export interface AuthenticatedUser {
   updated_at: string
 }
 
+export interface RoleAssignableUser {
+  id: number
+  email: string
+  full_name: string
+  phone: string
+  role: UserRole
+  is_active: boolean
+}
+
 export interface AuthTokenData {
   access: string
   access_expires_in: number

@@ -39,6 +39,8 @@ from .serializers import (
     AdminCustomerResponseSerializer,
     AdminCustomerUpdateSerializer,
     AdminResetPasswordSerializer,
+    AdminRoleUserListResponseSerializer,
+    AdminRoleUserSerializer,
     AdminSellerListResponseSerializer,
     AdminSellerResponseSerializer,
     AdminSellerSerializer,
@@ -392,6 +394,29 @@ class AssignRoleView(APIView):
             message="Cập nhật vai trò thành công",
             data=UserSerializer(user).data,
         )
+
+
+class AdminRoleUserListView(generics.GenericAPIView):
+    permission_classes = [IsAdmin]
+    serializer_class = AdminRoleUserSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ("role", "is_active")
+    search_fields = ("email", "full_name", "phone")
+    ordering_fields = ("created_at", "email", "full_name", "role")
+    ordering = ("email",)
+
+    def get_queryset(self):
+        return User.objects.filter(is_deleted=False)
+
+    @extend_schema(
+        operation_id="admin_role_users_list",
+        responses={200: AdminRoleUserListResponseSerializer},
+    )
+    def get(self, request):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        serializer = self.get_serializer(page, many=True)
+        return self.get_paginated_response(serializer.data)
 
 
 class AddressListCreateView(APIView):

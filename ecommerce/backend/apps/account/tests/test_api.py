@@ -13,7 +13,7 @@ from django.utils.http import urlsafe_base64_encode
 from PIL import Image
 from rest_framework_simplejwt.tokens import AccessToken
 
-from apps.account.models import Address, CustomerProfile, SellerProfile, User
+from apps.account.models import Address, AdminProfile, CustomerProfile, SellerProfile, User
 from apps.account.services import AccountService
 from apps.account.tokens import AuthTokenService, EmailVerificationTokenService
 from apps.common.models import AuditLog
@@ -450,6 +450,92 @@ def test_only_admin_can_assign_role_and_action_is_audited(api_client, customer, 
     assert SellerProfile.objects.filter(user=target).exists()
     assert AuditLog.objects.filter(actor=admin_user, target_id=target.pk).exists()
     assert revoked.status_code == 401
+
+
+@pytest.mark.django_db
+def test_admin_cannot_assign_their_own_role(api_client, admin_user):
+    api_client.force_authenticate(admin_user)
+    response = api_client.post(
+        reverse("account:assign-role", kwargs={"user_id": admin_user.pk}),
+        {"role": User.Role.CUSTOMER},
+        format="json",
+    )
+
+    admin_user.refresh_from_db()
+    assert response.status_code == 400
+    assert admin_user.role == User.Role.ADMIN
+
+
+@pytest.mark.django_db
+def test_cannot_demote_the_last_active_admin(api_client, admin_user):
+    inactive_actor = User.objects.create_user(
+        email="inactive-admin@example.com",
+        password="StrongPass!234",
+        role=User.Role.ADMIN,
+        is_staff=True,
+        is_active=False,
+        is_email_verified=True,
+    )
+    AdminProfile.objects.create(user=inactive_actor)
+    api_client.force_authenticate(inactive_actor)
+
+    response = api_client.post(
+        reverse("account:assign-role", kwargs={"user_id": admin_user.pk}),
+        {"role": User.Role.CUSTOMER},
+        format="json",
+    )
+
+    admin_user.refresh_from_db()
+    assert response.status_code == 400
+    assert response.data["message"] == "Không thể hạ quyền Quản trị viên cuối cùng"
+    assert admin_user.role == User.Role.ADMIN
+
+
+@pytest.mark.django_db
+def test_admin_can_search_users_for_role_assignment(api_client, customer, admin_user):
+    matching_user = User.objects.create_user(
+        email="role-target@example.com",
+        password="StrongPass!234",
+        full_name="Nguyễn Role Target",
+        is_email_verified=True,
+    )
+    CustomerProfile.objects.create(user=matching_user)
+    deleted_user = User.objects.create_user(
+        email="deleted-role-target@example.com",
+        password="StrongPass!234",
+        is_deleted=True,
+    )
+    CustomerProfile.objects.create(user=deleted_user)
+
+    api_client.force_authenticate(customer)
+    denied = api_client.get(reverse("account:admin-role-user-list"))
+    assert denied.status_code == 403
+
+    api_client.force_authenticate(admin_user)
+    response = api_client.get(
+        reverse("account:admin-role-user-list"),
+        {"search": "Role Target", "role": User.Role.CUSTOMER},
+    )
+
+    assert response.status_code == 200
+    assert response.data["meta"]["total_items"] == 1
+    assert response.data["data"] == [
+        {
+            "id": matching_user.pk,
+            "email": "role-target@example.com",
+            "full_name": "Nguyễn Role Target",
+            "phone": "",
+            "role": User.Role.CUSTOMER,
+            "is_active": True,
+        }
+    ]
+
+    filtered_out = api_client.get(
+        reverse("account:admin-role-user-list"),
+        {"search": "Role Target", "role": User.Role.SELLER},
+    )
+    assert filtered_out.status_code == 200
+    assert filtered_out.data["data"] == []
 
 
 @pytest.mark.django_db
