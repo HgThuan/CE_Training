@@ -2,11 +2,14 @@
 import {
   ArrowLeftStartOnRectangleIcon,
   BuildingStorefrontIcon,
+  ClipboardDocumentListIcon,
   CubeIcon,
   HomeIcon,
   PhotoIcon,
   RectangleStackIcon,
   TagIcon,
+  TicketIcon,
+  BoltIcon,
   UsersIcon,
 } from '@heroicons/vue/24/outline'
 import { RouterView, useRouter } from 'vue-router'
@@ -39,6 +42,30 @@ async function logout(): Promise<void> {
           class="flex items-center gap-1 overflow-x-auto text-sm font-bold"
           aria-label="Admin navigation"
         >
+          <RouterLink
+            class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white"
+            active-class="!bg-indigo-500 !text-white"
+            to="/admin/orders"
+          >
+            <ClipboardDocumentListIcon class="h-4 w-4" />
+            <span class="hidden lg:inline">Đơn hàng</span>
+          </RouterLink>
+          <RouterLink
+            class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white"
+            active-class="!bg-indigo-500 !text-white"
+            to="/admin/vouchers"
+          >
+            <TicketIcon class="h-4 w-4" />
+            <span class="hidden lg:inline">Voucher</span>
+          </RouterLink>
+          <RouterLink
+            class="inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-slate-300 hover:bg-white/10 hover:text-white"
+            active-class="!bg-indigo-500 !text-white"
+            to="/admin/flash-sales"
+          >
+            <BoltIcon class="h-4 w-4" />
+            <span class="hidden lg:inline">Flash Sale</span>
+          </RouterLink>
           <RouterLink
             class="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-slate-400 hover:bg-white/10 hover:text-white"
             active-class="!bg-white/10 !text-white"

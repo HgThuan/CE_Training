@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><title>Phiếu giao {{ shop_order.shop_order_code }}</title>
+<style>body{font:14px Arial;margin:32px;color:#111}table{width:100%;border-collapse:collapse}th,td{border:1px solid #bbb;padding:8px}.code{font:700 22px monospace}@media print{button{display:none}}</style></head>
+<body><button onclick="window.print()">In phiếu</button><h1>Phiếu đóng gói / giao hàng</h1>
+<p class="code">{{ shop_order.shop_order_code }}</p><p>Shop: {{ shop_order.shop.name }}</p>
+<p>Người nhận: {{ shop_order.order.shipping_address.recipient_name }} — {{ shop_order.order.shipping_address.recipient_phone }}</p>
+<p>Địa chỉ: {{ shop_order.order.shipping_address.address_line }}, {{ shop_order.order.shipping_address.ward_name }}, {{ shop_order.order.shipping_address.district_name }}, {{ shop_order.order.shipping_address.province_name }}</p>
+<table><thead><tr><th>SKU</th><th>Sản phẩm</th><th>SL</th><th>Thành tiền</th></tr></thead><tbody>
+{% for item in shop_order.items.all %}<tr><td>{{ item.sku }}</td><td>{{ item.product_name }} {{ item.variant_name }}</td><td>{{ item.quantity }}</td><td>{{ item.line_total }}</td></tr>{% endfor %}
+</tbody></table><h2>Tổng thu: {{ shop_order.total_amount }} VND</h2></body></html>
