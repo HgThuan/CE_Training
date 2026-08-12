@@ -121,26 +121,26 @@ async function logout(): Promise<void> {
     </Transition>
 
     <aside
-      class="fixed inset-y-0 left-0 z-50 flex w-[280px] -translate-x-full flex-col bg-slate-950 text-slate-300 shadow-xl transition-transform duration-300 ease-out lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shadow-none"
+      class="fixed inset-y-0 left-0 z-50 flex w-[280px] -translate-x-full flex-col border-r border-slate-200 bg-white text-slate-700 shadow-xl transition-transform duration-300 ease-out lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:shadow-none"
       :class="{ 'translate-x-0': mobileMenuOpen }"
       aria-label="Điều hướng Seller Center"
     >
-      <div class="flex h-20 shrink-0 items-center gap-3 border-b border-white/10 px-5">
+      <div class="flex h-20 shrink-0 items-center gap-3 border-b border-slate-100 px-5">
         <span
-          class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-sm font-black text-white shadow-md shadow-slate-950/40"
+          class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-sm font-black text-white shadow-md shadow-indigo-200"
           aria-hidden="true"
         >
           M
         </span>
         <div class="min-w-0 flex-1">
-          <p class="truncate text-base font-black tracking-tight text-white">Mercato</p>
-          <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-indigo-300">
+          <p class="truncate text-base font-black tracking-tight text-slate-900">Mercato</p>
+          <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-indigo-600">
             Seller Center
           </p>
         </div>
         <button
           type="button"
-          class="flex h-11 w-11 items-center justify-center rounded-xl text-slate-300 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 lg:hidden"
+          class="flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 lg:hidden"
           aria-label="Đóng menu"
           @click="mobileMenuOpen = false"
         >
@@ -152,7 +152,7 @@ async function logout(): Promise<void> {
         <section v-for="group in navigation" :key="group.label || 'overview'">
           <p
             v-if="group.label"
-            class="mb-1.5 px-3 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500"
+            class="mb-1.5 px-3 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400"
           >
             {{ group.label }}
           </p>
@@ -163,11 +163,11 @@ async function logout(): Promise<void> {
               :to="item.to"
               :exact-active-class="item.exact ? 'seller-nav-active' : undefined"
               :active-class="item.exact ? undefined : 'seller-nav-active'"
-              class="group flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-300 transition-colors hover:bg-white/8 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+              class="group flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             >
               <component
                 :is="item.icon"
-                class="h-5 w-5 shrink-0 text-slate-500 transition-colors group-hover:text-slate-200"
+                class="h-5 w-5 shrink-0 text-slate-400 transition-colors group-hover:text-slate-700"
                 aria-hidden="true"
               />
               <span>{{ item.label }}</span>
@@ -176,32 +176,32 @@ async function logout(): Promise<void> {
         </section>
       </nav>
 
-      <div class="shrink-0 border-t border-white/10 p-3">
+      <div class="shrink-0 border-t border-slate-100 p-3">
         <RouterLink
           to="/seller/profile"
-          class="mb-2 flex items-center gap-3 rounded-xl bg-white/5 p-3 transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+          class="mb-2 flex items-center gap-3 rounded-xl bg-slate-50 p-3 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
         >
           <img
             v-if="authStore.user?.avatar_url"
             :src="authStore.user.avatar_url"
             :alt="`Ảnh đại diện của ${sellerName}`"
-            class="h-9 w-9 rounded-full object-cover ring-2 ring-slate-700"
+            class="h-9 w-9 rounded-full object-cover ring-2 ring-white"
           />
           <span
             v-else
-            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-sm font-black text-indigo-200"
+            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-black text-indigo-700"
             aria-hidden="true"
           >
             {{ sellerInitial }}
           </span>
           <span class="min-w-0">
-            <span class="block truncate text-sm font-bold text-white">{{ sellerName }}</span>
-            <span class="block truncate text-xs text-slate-400">{{ authStore.user?.email }}</span>
+            <span class="block truncate text-sm font-bold text-slate-800">{{ sellerName }}</span>
+            <span class="block truncate text-xs text-slate-500">{{ authStore.user?.email }}</span>
           </span>
         </RouterLink>
         <button
           type="button"
-          class="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-300 transition-colors hover:bg-rose-500/10 hover:text-rose-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 disabled:cursor-wait disabled:opacity-60"
+          class="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 disabled:cursor-wait disabled:opacity-60"
           :disabled="loggingOut"
           @click="logout"
         >
@@ -240,16 +240,16 @@ async function logout(): Promise<void> {
 
 <style scoped>
 .seller-nav-active {
-  background: rgb(67 56 202 / 0.3);
-  color: white;
+  background: rgb(238 242 255);
+  color: rgb(67 56 202);
 }
 
 .seller-nav-active :deep(svg) {
-  color: rgb(165 180 252);
+  color: rgb(79 70 229);
 }
 
 .seller-scrollbar {
-  scrollbar-color: rgb(71 85 105) transparent;
+  scrollbar-color: rgb(203 213 225) transparent;
   scrollbar-width: thin;
 }
 </style>
