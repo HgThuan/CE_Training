@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from apps.review.serializers import ReviewSerializer
+
 from .models import Order, OrderAddress, OrderItem, OrderStatusHistory, ShopOrder
 
 
@@ -11,8 +13,6 @@ class CheckoutSerializer(serializers.Serializer):
         child=serializers.UUIDField(), required=False, allow_empty=False
     )
     checkout_note = serializers.CharField(required=False, allow_blank=True, default="")
-    shop_notes = serializers.JSONField(required=False, default=dict)
-    shipping_methods = serializers.JSONField(required=False, default=dict)
 
     def validate_payment_method(self, value):
         normalized = value.strip().upper()
@@ -36,6 +36,8 @@ class OrderAddressSerializer(serializers.ModelSerializer):
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
+    review = ReviewSerializer(read_only=True, allow_null=True)
+
     class Meta:
         model = OrderItem
         fields = (
@@ -52,6 +54,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "shop_discount",
             "platform_discount",
             "line_total",
+            "review",
         )
 
 
@@ -151,3 +154,12 @@ class CancelSerializer(serializers.Serializer):
     shop_order_id = serializers.UUIDField(required=False)
     reason_code = serializers.CharField(max_length=50)
     reason_detail = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class SellerCustomerSerializer(serializers.Serializer):
+    id = serializers.IntegerField(source="order__customer__user_id")
+    email = serializers.EmailField(source="order__customer__user__email")
+    full_name = serializers.CharField(source="order__customer__user__full_name")
+    order_count = serializers.IntegerField()
+    total_spent = serializers.DecimalField(max_digits=18, decimal_places=0)
+    last_order_at = serializers.DateTimeField()

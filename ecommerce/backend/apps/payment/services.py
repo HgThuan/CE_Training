@@ -25,20 +25,14 @@ class PaymentService:
         return provider()
 
     @classmethod
-    def create_payment_intent(cls, order, *, renew_reference: bool = False) -> tuple[Payment, str]:
+    def create_payment_intent(cls, order) -> tuple[Payment, str]:
         existing = (
             order.payments.filter(status=Payment.Status.PENDING).order_by("-created_at").first()
         )
         if existing is not None:
-            if renew_reference or not existing.payment_code.isalnum():
-                # Keep the old reference so a late VNPay callback can still be reconciled.
-                cls.expire(existing)
-            else:
-                url = cls.provider_for(existing.method).create_payment_url(
-                    order, existing.payment_code
-                )
-                return existing, url
-        payment_code = f"PAY{uuid4().hex.upper()}"
+            url = cls.provider_for(existing.method).create_payment_url(order, existing.payment_code)
+            return existing, url
+        payment_code = f"PAY-{uuid4().hex.upper()}"
         payment = Payment.objects.create(
             order=order,
             payment_code=payment_code,
@@ -155,33 +149,69 @@ class PaymentService:
     @classmethod
     @transaction.atomic
     def refund(cls, shop_order, reason: str, *, process_provider=True) -> Refund:
+        return cls.refund_amount(
+            shop_order,
+            amount=shop_order.total_amount,
+            reason=reason,
+            idempotency_key=f"cancel:{shop_order.pk}",
+            process_provider=process_provider,
+        )
+
+    @classmethod
+    @transaction.atomic
+    def refund_amount(
+        cls,
+        shop_order,
+        *,
+        amount,
+        reason: str,
+        idempotency_key: str,
+        return_request=None,
+        process_provider=True,
+    ) -> Refund:
         payment = (
             Payment.objects.select_for_update()
             .filter(order=shop_order.order, status=Payment.Status.PAID)
             .order_by("-paid_at")
             .first()
         )
+        if payment is None and shop_order.order.payment_method == Order.PaymentMethod.COD:
+            payment, _ = Payment.objects.get_or_create(
+                idempotency_key=f"cod-settlement:{shop_order.order_id}",
+                defaults={
+                    "order": shop_order.order,
+                    "payment_code": f"COD-{shop_order.order.order_code}",
+                    "method": Order.PaymentMethod.COD,
+                    "provider": Order.PaymentMethod.COD,
+                    "amount": shop_order.order.grand_total,
+                    "currency": shop_order.order.currency,
+                    "status": Payment.Status.PAID,
+                    "paid_at": shop_order.completed_at or timezone.now(),
+                },
+            )
         if payment is None:
             raise BusinessError(
                 "Không tìm thấy payment đã thanh toán để hoàn tiền", http_status=409
             )
-        key = f"cancel:{shop_order.pk}"
         refunded_or_pending = (
             Refund.objects.filter(payment=payment)
-            .exclude(idempotency_key=key)
+            .exclude(idempotency_key=idempotency_key)
             .exclude(status=Refund.Status.FAILED)
             .aggregate(total=Sum("amount"))["total"]
             or 0
         )
-        if refunded_or_pending + shop_order.total_amount > payment.amount:
+        if amount <= 0:
+            raise BusinessError("Số tiền hoàn phải lớn hơn 0")
+        if refunded_or_pending + amount > payment.amount:
             raise BusinessError("Tổng tiền hoàn vượt quá payment gốc", http_status=409)
         refund, created = Refund.objects.get_or_create(
-            idempotency_key=key,
+            idempotency_key=idempotency_key,
             defaults={
                 "payment": payment,
                 "shop_order": shop_order,
+                "return_request": return_request,
                 "refund_code": f"RF-{uuid4().hex.upper()}",
-                "amount": shop_order.total_amount,
+                "amount": amount,
                 "reason": reason,
             },
         )
@@ -213,15 +243,9 @@ class PaymentService:
                     payment_status=Order.PaymentStatus.REFUNDED,
                     updated_at=timezone.now(),
                 )
+            else:
+                Order.objects.filter(pk=refund.payment.order_id).update(
+                    payment_status=Order.PaymentStatus.PAID,
+                    updated_at=timezone.now(),
+                )
         return refund
-
-    @classmethod
-    def expire(cls, payment: Payment) -> Payment:
-        payment.status = Payment.Status.EXPIRED
-        payment.save(update_fields=("status", "updated_at"))
-        PaymentTransaction.objects.create(
-            payment=payment,
-            event_type="system_expire",
-            processing_status=PaymentTransaction.ProcessingStatus.PROCESSED,
-        )
-        return payment
