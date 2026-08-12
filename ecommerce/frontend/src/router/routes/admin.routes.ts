@@ -62,16 +62,6 @@ export const adminRoutes: RouteRecordRaw[] = [
         component: () => import('@/features/admin-banners/pages/BannerFormPage.vue'),
       },
       {
-        path: 'vouchers',
-        name: 'admin-vouchers',
-        component: () => import('@/features/promotion/views/admin/VoucherAdminList.vue'),
-      },
-      {
-        path: 'flash-sales',
-        name: 'admin-flash-sales',
-        component: () => import('@/features/promotion/views/admin/FlashSaleAdminList.vue'),
-      },
-      {
         path: 'orders',
         name: 'admin-orders',
         component: () => import('@/features/admin/order/AdminOrderPage.vue'),
