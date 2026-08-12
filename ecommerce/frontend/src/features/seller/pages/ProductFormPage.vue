@@ -2,19 +2,24 @@
 import {
   ArrowLeftIcon,
   ArrowUpTrayIcon,
+  CheckCircleIcon,
   ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   ChevronUpIcon,
+  ExclamationTriangleIcon,
   FilmIcon,
+  MagnifyingGlassIcon,
   PhotoIcon,
   PlusIcon,
   PrinterIcon,
   SparklesIcon,
   TrashIcon,
+  XMarkIcon,
 } from '@heroicons/vue/24/outline'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import FormMessage from '@/features/auth/components/FormMessage.vue'
 import { getErrorMessage } from '@/features/auth/errors'
 import type {
   Category,
@@ -82,6 +87,11 @@ const listingKeywords = ref('')
 const listingSuggestion = ref<SellerListingSuggestion | null>(null)
 const listingLoading = ref(false)
 const listingError = ref('')
+const attributeSearch = ref('')
+const activeAttributeId = ref('')
+const selectedAttributesOnly = ref(false)
+const variantPage = ref(1)
+const variantsPerPage = 20
 
 const editable = computed(
   () => !product.value || ['draft', 'rejected'].includes(product.value.status),
@@ -101,6 +111,42 @@ const categoryOptions = computed(() => {
   return options
 })
 const totalMedia = computed(() => existingMedia.value.length + pendingMedia.value.length)
+const feedback = computed(() => {
+  if (errorMessage.value) {
+    return { message: errorMessage.value, variant: 'error' as const }
+  }
+  if (message.value) return { message: message.value, variant: 'success' as const }
+  return null
+})
+const filteredAttributes = computed(() => {
+  const query = attributeSearch.value.trim().toLocaleLowerCase('vi-VN')
+  return attributes.value.filter((attribute) => {
+    if (selectedAttributesOnly.value && !selectedValueIds[attribute.id]?.length) return false
+    if (!query) return true
+    return [attribute.name, attribute.code, ...attribute.values.map((value) => value.value)]
+      .join(' ')
+      .toLocaleLowerCase('vi-VN')
+      .includes(query)
+  })
+})
+const activeAttribute = computed(() => {
+  return (
+    filteredAttributes.value.find((attribute) => attribute.id === activeAttributeId.value) ??
+    filteredAttributes.value[0] ??
+    null
+  )
+})
+const selectedAttributeCount = computed(
+  () => attributes.value.filter((attribute) => selectedValueIds[attribute.id]?.length).length,
+)
+const variantTotalPages = computed(() =>
+  Math.max(1, Math.ceil(variantDrafts.value.length / variantsPerPage)),
+)
+const visibleVariantDrafts = computed(() => {
+  const safePage = Math.min(variantPage.value, variantTotalPages.value)
+  const start = (safePage - 1) * variantsPerPage
+  return variantDrafts.value.slice(start, start + variantsPerPage)
+})
 
 function hydrateProduct(data: SellerProductDetail): void {
   product.value = data
@@ -125,6 +171,7 @@ function rebuildVariantMatrix(): void {
     selectedValueIds,
     variantDrafts.value,
   )
+  variantPage.value = 1
 }
 
 function isSelected(attributeId: string, valueId: string): boolean {
@@ -137,6 +184,28 @@ function toggleAttributeValue(attributeId: string, valueId: string): void {
     ? values.filter((id) => id !== valueId)
     : [...values, valueId]
   rebuildVariantMatrix()
+}
+
+function selectedValueCount(attributeId: string): number {
+  return selectedValueIds[attributeId]?.length ?? 0
+}
+
+function selectAttribute(attributeId: string): void {
+  activeAttributeId.value = attributeId
+}
+
+function clearAttributeValues(attributeId: string): void {
+  selectedValueIds[attributeId] = []
+  rebuildVariantMatrix()
+}
+
+function dismissFeedback(): void {
+  errorMessage.value = ''
+  message.value = ''
+}
+
+function changeVariantPage(page: number): void {
+  variantPage.value = Math.min(Math.max(page, 1), variantTotalPages.value)
 }
 
 function parseAttributeValues(): SellerAttributePayload['values'] {
@@ -173,6 +242,9 @@ async function createAttribute(): Promise<void> {
     ).data.data
     attributes.value.push(created)
     selectedValueIds[created.id] = created.values.map((value) => value.id)
+    activeAttributeId.value = created.id
+    attributeSearch.value = ''
+    selectedAttributesOnly.value = false
     rebuildVariantMatrix()
     Object.assign(newAttribute, { name: '', displayType: 'text', valuesText: '' })
     message.value = `Đã tạo thuộc tính “${created.name}” và chọn toàn bộ giá trị.`
@@ -464,8 +536,13 @@ onMounted(async () => {
       sellerProductApi.attributes(),
     ])
     attributes.value = attributeResponse.data.data
+    activeAttributeId.value = attributes.value[0]?.id ?? ''
     if (routeProductId.value) {
       hydrateProduct((await sellerProductApi.detail(routeProductId.value)).data.data)
+      const firstSelected = attributes.value.find(
+        (attribute) => selectedValueIds[attribute.id]?.length,
+      )
+      if (firstSelected) activeAttributeId.value = firstSelected.id
     }
   } catch (error) {
     errorMessage.value = getErrorMessage(error)
@@ -482,6 +559,53 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:py-10">
+    <Transition
+      enter-active-class="transition duration-200 ease-out"
+      enter-from-class="translate-y-2 opacity-0 sm:translate-x-3 sm:translate-y-0"
+      leave-active-class="transition duration-150 ease-in"
+      leave-to-class="translate-y-2 opacity-0 sm:translate-x-3 sm:translate-y-0"
+    >
+      <div
+        v-if="feedback"
+        class="fixed inset-x-4 top-4 z-[70] sm:left-auto sm:right-6 sm:top-6 sm:w-full sm:max-w-md"
+        role="alert"
+        aria-live="assertive"
+      >
+        <div
+          class="flex items-start gap-3 rounded-2xl border bg-white p-4 shadow-xl"
+          :class="feedback.variant === 'success' ? 'border-emerald-200' : 'border-rose-200'"
+        >
+          <CheckCircleIcon
+            v-if="feedback.variant === 'success'"
+            class="mt-0.5 h-5 w-5 shrink-0 text-emerald-600"
+            aria-hidden="true"
+          />
+          <ExclamationTriangleIcon
+            v-else
+            class="mt-0.5 h-5 w-5 shrink-0 text-rose-600"
+            aria-hidden="true"
+          />
+          <div class="min-w-0 flex-1">
+            <p
+              class="text-sm font-black"
+              :class="feedback.variant === 'success' ? 'text-emerald-900' : 'text-rose-900'"
+            >
+              {{ feedback.variant === 'success' ? 'Đã hoàn tất' : 'Cần kiểm tra lại' }}
+            </p>
+            <p class="mt-1 text-sm leading-6 text-slate-700">{{ feedback.message }}</p>
+          </div>
+          <button
+            type="button"
+            class="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            aria-label="Đóng thông báo"
+            @click="dismissFeedback"
+          >
+            <XMarkIcon class="h-5 w-5" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+    </Transition>
+
     <RouterLink
       class="inline-flex items-center gap-2 text-sm font-bold text-slate-600 hover:text-indigo-700"
       to="/seller/products"
@@ -491,10 +615,7 @@ onBeforeUnmount(() => {
     </RouterLink>
     <div class="mt-5 flex flex-wrap items-start justify-between gap-4">
       <div>
-        <p class="text-sm font-bold uppercase tracking-[0.2em] text-indigo-600">
-          SEL-02 · SEL-03 · SEL-04 · SEL-05
-        </p>
-        <h1 class="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
+        <h1 class="text-3xl font-black tracking-tight sm:text-4xl">
           {{ isEditing ? 'Chỉnh sửa sản phẩm' : 'Tạo sản phẩm mới' }}
         </h1>
         <p class="mt-3 text-slate-600">
@@ -509,8 +630,6 @@ onBeforeUnmount(() => {
       </span>
     </div>
 
-    <FormMessage v-if="message" class="mt-6" :message="message" variant="success" />
-    <FormMessage v-if="errorMessage" class="mt-6" :message="errorMessage" />
     <p v-if="loading" class="mt-10 rounded-2xl bg-white p-8 ring-1 ring-slate-200">
       Đang tải form…
     </p>
@@ -530,7 +649,7 @@ onBeforeUnmount(() => {
         {{ product.rejection_reason }}
       </div>
 
-      <form class="mt-8 space-y-7" @submit.prevent="saveProduct(false)">
+      <form class="mt-8 space-y-7" novalidate @submit.prevent="saveProduct(false)">
         <section class="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-7">
           <div class="flex items-center gap-3">
             <span
@@ -877,40 +996,122 @@ onBeforeUnmount(() => {
               </button>
             </div>
           </div>
-          <div v-if="!hasServerVariants" class="mt-6 grid gap-5 md:grid-cols-2">
-            <fieldset
-              v-for="attribute in attributes"
-              :key="attribute.id"
-              class="rounded-2xl border border-slate-200 p-4"
-              :disabled="!editable"
-            >
-              <legend class="px-2 text-sm font-black">{{ attribute.name }}</legend>
-              <div class="mt-1 flex flex-wrap gap-2">
-                <label
-                  v-for="value in attribute.values"
-                  :key="value.id"
-                  class="inline-flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition"
-                  :class="
-                    isSelected(attribute.id, value.id)
-                      ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                      : 'border-slate-300 hover:border-slate-500'
-                  "
-                >
+          <div
+            v-if="!hasServerVariants"
+            class="mt-6 overflow-hidden rounded-2xl border border-slate-200"
+          >
+            <div class="border-b border-slate-200 bg-slate-50 p-4">
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 class="font-black text-slate-900">Chọn thuộc tính áp dụng</h3>
+                  <p class="mt-1 text-sm text-slate-600">
+                    {{ selectedAttributeCount }} thuộc tính · {{ variantDrafts.length }} tổ hợp SKU
+                  </p>
+                </div>
+                <label class="relative block sm:w-72">
+                  <span class="sr-only">Tìm thuộc tính hoặc giá trị</span>
+                  <MagnifyingGlassIcon
+                    class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
+                    aria-hidden="true"
+                  />
                   <input
-                    class="sr-only"
-                    type="checkbox"
-                    :checked="isSelected(attribute.id, value.id)"
-                    @change="toggleAttributeValue(attribute.id, value.id)"
+                    v-model="attributeSearch"
+                    class="h-11 w-full rounded-xl border border-slate-300 bg-white py-2 pl-10 pr-3 text-sm focus:border-indigo-600 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+                    placeholder="Tìm màu, kích thước…"
+                    type="search"
                   />
-                  <span
-                    v-if="value.color_code"
-                    class="h-4 w-4 rounded-full border border-black/10"
-                    :style="{ backgroundColor: value.color_code }"
-                  />
-                  {{ value.display_value || value.value }}
                 </label>
               </div>
-            </fieldset>
+              <label
+                class="mt-3 inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm font-bold text-slate-700"
+              >
+                <input
+                  v-model="selectedAttributesOnly"
+                  type="checkbox"
+                  class="h-4 w-4 accent-indigo-600"
+                />
+                Chỉ hiện thuộc tính đã chọn
+              </label>
+            </div>
+
+            <div class="grid min-h-72 md:grid-cols-[280px_minmax(0,1fr)]">
+              <div
+                class="max-h-96 overflow-y-auto border-b border-slate-200 p-2 md:border-b-0 md:border-r"
+              >
+                <button
+                  v-for="attribute in filteredAttributes"
+                  :key="attribute.id"
+                  type="button"
+                  class="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                  :class="
+                    activeAttribute?.id === attribute.id
+                      ? 'bg-indigo-50 font-black text-indigo-700'
+                      : 'font-semibold text-slate-700 hover:bg-slate-50'
+                  "
+                  @click="selectAttribute(attribute.id)"
+                >
+                  <span class="truncate">{{ attribute.name }}</span>
+                  <span
+                    v-if="selectedValueCount(attribute.id)"
+                    class="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-black text-indigo-700"
+                  >
+                    {{ selectedValueCount(attribute.id) }}
+                  </span>
+                </button>
+                <p
+                  v-if="!filteredAttributes.length"
+                  class="px-3 py-10 text-center text-sm text-slate-500"
+                >
+                  Không tìm thấy thuộc tính phù hợp.
+                </p>
+              </div>
+
+              <fieldset v-if="activeAttribute" class="min-w-0 p-5" :disabled="!editable">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <legend class="text-base font-black text-slate-900">
+                      {{ activeAttribute.name }}
+                    </legend>
+                    <p class="mt-1 text-sm text-slate-500">
+                      Chọn các giá trị cần dùng để sinh tổ hợp SKU.
+                    </p>
+                  </div>
+                  <button
+                    v-if="selectedValueCount(activeAttribute.id)"
+                    type="button"
+                    class="min-h-10 rounded-xl px-3 text-sm font-bold text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    @click="clearAttributeValues(activeAttribute.id)"
+                  >
+                    Bỏ chọn tất cả
+                  </button>
+                </div>
+                <div class="mt-5 flex max-h-64 flex-wrap content-start gap-2 overflow-y-auto pr-1">
+                  <label
+                    v-for="value in activeAttribute.values"
+                    :key="value.id"
+                    class="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition-colors focus-within:ring-2 focus-within:ring-indigo-500"
+                    :class="
+                      isSelected(activeAttribute.id, value.id)
+                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                        : 'border-slate-300 text-slate-700 hover:border-slate-500'
+                    "
+                  >
+                    <input
+                      class="sr-only"
+                      type="checkbox"
+                      :checked="isSelected(activeAttribute.id, value.id)"
+                      @change="toggleAttributeValue(activeAttribute.id, value.id)"
+                    />
+                    <span
+                      v-if="value.color_code"
+                      class="h-4 w-4 rounded-full border border-black/10"
+                      :style="{ backgroundColor: value.color_code }"
+                    />
+                    {{ value.display_value || value.value }}
+                  </label>
+                </div>
+              </fieldset>
+            </div>
           </div>
 
           <div
@@ -933,7 +1134,7 @@ onBeforeUnmount(() => {
                 </tr>
               </thead>
               <tbody class="divide-y divide-slate-100">
-                <tr v-for="draft in variantDrafts" :key="draft.key">
+                <tr v-for="draft in visibleVariantDrafts" :key="draft.key">
                   <td class="px-4 py-3 font-bold">{{ draft.label }}</td>
                   <td class="p-2">
                     <label
@@ -1045,6 +1246,35 @@ onBeforeUnmount(() => {
                 </tr>
               </tbody>
             </table>
+            <div
+              v-if="variantTotalPages > 1"
+              class="sticky left-0 flex min-w-full items-center justify-between gap-4 border-t border-slate-200 bg-white px-4 py-3"
+            >
+              <p class="text-sm text-slate-600">
+                Trang {{ variantPage }} / {{ variantTotalPages }} · {{ variantDrafts.length }} biến
+                thể
+              </p>
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  class="grid h-10 w-10 place-items-center rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                  :disabled="variantPage <= 1"
+                  aria-label="Trang biến thể trước"
+                  @click="changeVariantPage(variantPage - 1)"
+                >
+                  <ChevronLeftIcon class="h-5 w-5" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  class="grid h-10 w-10 place-items-center rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                  :disabled="variantPage >= variantTotalPages"
+                  aria-label="Trang biến thể sau"
+                  @click="changeVariantPage(variantPage + 1)"
+                >
+                  <ChevronRightIcon class="h-5 w-5" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
           </div>
           <div
             v-else
