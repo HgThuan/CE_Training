@@ -1,26 +1,53 @@
 <script setup lang="ts">
-import { PhotoIcon, StarIcon } from '@heroicons/vue/24/outline'
-import { ref } from 'vue'
+import { CheckIcon, PhotoIcon, ScaleIcon, StarIcon } from '@heroicons/vue/24/outline'
+import { computed, ref } from 'vue'
 
 import { formatVnd } from '@/shared/lib/formatters'
 import WishlistToggleButton from '@/features/wishlist/components/WishlistToggleButton.vue'
 
 import type { PublicProductListItem } from '../types'
+import { useCompareStore } from '../compare-store'
 
-defineProps<{ product: PublicProductListItem }>()
+const props = defineProps<{ product: PublicProductListItem }>()
 
 const imageFailed = ref(false)
+const compareStore = useCompareStore()
+const selectedForCompare = computed(() => compareStore.isSelected(props.product.id))
+const compareDisabled = computed(() => compareStore.isFull && !selectedForCompare.value)
 </script>
 
 <template>
-  <article class="relative h-full">
+  <article class="relative flex h-full flex-col gap-2">
+    <div data-test="compare-control" :title="compareDisabled ? 'Tối đa 4 sản phẩm' : undefined">
+      <button
+        class="flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50"
+        :class="
+          selectedForCompare
+            ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+            : 'border-slate-300 bg-white text-slate-700 hover:border-indigo-400 hover:text-indigo-700'
+        "
+        type="button"
+        :disabled="compareDisabled"
+        :aria-pressed="selectedForCompare"
+        :aria-label="
+          selectedForCompare
+            ? `Bỏ ${product.name} khỏi danh sách so sánh`
+            : `Thêm ${product.name} vào danh sách so sánh`
+        "
+        @click="compareStore.toggle(product)"
+      >
+        <CheckIcon v-if="selectedForCompare" class="h-4 w-4" />
+        <ScaleIcon v-else class="h-4 w-4" />
+        {{ selectedForCompare ? 'Đã chọn ✓' : 'Thêm vào so sánh' }}
+      </button>
+    </div>
     <RouterLink
       :to="{
         name: 'product-detail',
         params: { slug: product.slug },
         query: { shop: product.shop_slug },
       }"
-      class="group flex h-full flex-col overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-200 transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/70 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-600"
+      class="group flex flex-1 flex-col overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-200 transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/70 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-600"
     >
       <div class="relative aspect-[4/3] overflow-hidden bg-slate-100">
         <img

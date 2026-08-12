@@ -64,4 +64,12 @@ describe('product recommendation API', () => {
     expect(http.get).toHaveBeenNthCalledWith(1, '/ai/products/product-id/ai-review-summary')
     expect(http.get).toHaveBeenNthCalledWith(2, '/ai/products/product-id/ai-summary')
   })
+
+  it('posts selected product IDs to the comparison endpoint', () => {
+    productApi.compareProducts(['product-1', 'product-2'])
+
+    expect(http.post).toHaveBeenCalledWith('/products/compare', {
+      product_ids: ['product-1', 'product-2'],
+    })
+  })
 })

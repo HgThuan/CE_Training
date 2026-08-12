@@ -7,6 +7,7 @@ import type {
   CreateQuestionPayload,
   ProductAIReviewSummary,
   ProductAISummary,
+  ProductCompareData,
   ProductListFilters,
   ProductQuestion,
   ProductRecommendationData,
@@ -41,6 +42,10 @@ export const productApi = {
     http.get<ApiResponse<ProductAIReviewSummary>>(`/ai/products/${productId}/ai-review-summary`),
   aiSummary: (productId: string) =>
     http.get<ApiResponse<ProductAISummary>>(`/ai/products/${productId}/ai-summary`),
+  compareProducts: (productIds: string[]) =>
+    http.post<ApiResponse<ProductCompareData>>('/products/compare', {
+      product_ids: productIds,
+    }),
   listQuestions: (productId: string, params: QuestionListParams = {}) =>
     http.get<ApiResponse<ProductQuestion[]>>(`/products/${productId}/questions/`, {
       params,

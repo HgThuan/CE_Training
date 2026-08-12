@@ -154,3 +154,74 @@ class ProductAISummaryResponseSerializer(serializers.Serializer):
     success = serializers.BooleanField()
     message = serializers.CharField()
     data = ProductAISummaryDataSerializer()
+
+
+class ProductCompareRequestSerializer(serializers.Serializer):
+    product_ids = serializers.ListField(
+        child=serializers.UUIDField(), min_length=2, max_length=4
+    )
+
+    def validate_product_ids(self, value):
+        if len(set(value)) != len(value):
+            raise serializers.ValidationError("Mỗi sản phẩm chỉ được chọn một lần")
+        return value
+
+
+class ProductCompareProductSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+
+
+class ProductCompareRowSerializer(serializers.Serializer):
+    label = serializers.CharField()
+    values = serializers.ListField(child=serializers.CharField())
+
+
+class ProductCompareRecommendationSerializer(serializers.Serializer):
+    need = serializers.CharField()
+    product_index = serializers.IntegerField(min_value=0, max_value=3)
+    reason = serializers.CharField()
+
+
+class ProductCompareDataSerializer(serializers.Serializer):
+    products = ProductCompareProductSerializer(many=True)
+    rows = ProductCompareRowSerializer(many=True)
+    recommendations = ProductCompareRecommendationSerializer(many=True)
+    is_ai_generated = serializers.BooleanField()
+    ai_label = serializers.CharField(allow_null=True)
+
+
+class ProductCompareResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    message = serializers.CharField()
+    data = ProductCompareDataSerializer()
+
+
+class SellerListingRequestSerializer(serializers.Serializer):
+    name = serializers.CharField(
+        max_length=200,
+        trim_whitespace=False,
+        required=False,
+        allow_blank=True,
+        default="",
+    )
+    keywords = serializers.ListField(
+        child=serializers.CharField(max_length=50, trim_whitespace=False),
+        max_length=10,
+        required=False,
+        default=list,
+    )
+
+
+class SellerListingDataSerializer(serializers.Serializer):
+    title = serializers.CharField()
+    description = serializers.CharField()
+    meta_description = serializers.CharField()
+    is_ai_generated = serializers.BooleanField()
+    ai_label = serializers.CharField()
+
+
+class SellerListingResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    message = serializers.CharField()
+    data = SellerListingDataSerializer()

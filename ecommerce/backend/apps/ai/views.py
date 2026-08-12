@@ -3,9 +3,10 @@ from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
-from rest_framework.throttling import AnonRateThrottle
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
+from apps.account.permissions import IsSeller
 from apps.common.responses import success_response
 from apps.product.selectors import ProductSelector
 from apps.product.serializers import PublicProductListSerializer
@@ -16,6 +17,10 @@ from .serializers import (
     AISearchResponseSerializer,
     ProductAIReviewSummaryResponseSerializer,
     ProductAISummaryResponseSerializer,
+    ProductCompareRequestSerializer,
+    ProductCompareResponseSerializer,
+    SellerListingRequestSerializer,
+    SellerListingResponseSerializer,
     SemanticSearchQuerySerializer,
     SmartSearchQuerySerializer,
 )
@@ -32,6 +37,22 @@ class ProductAIReviewSummaryThrottle(AnonRateThrottle):
 
 class ProductAISummaryThrottle(AnonRateThrottle):
     scope = "ai_product_summary"
+
+    def get_rate(self):
+        rates = settings.REST_FRAMEWORK.get("DEFAULT_THROTTLE_RATES", {})
+        return rates.get(self.scope, "10/minute")
+
+
+class ProductCompareThrottle(AnonRateThrottle):
+    scope = "ai_product_compare"
+
+    def get_rate(self):
+        rates = settings.REST_FRAMEWORK.get("DEFAULT_THROTTLE_RATES", {})
+        return rates.get(self.scope, "10/minute")
+
+
+class SellerListingThrottle(UserRateThrottle):
+    scope = "ai_seller_listing"
 
     def get_rate(self):
         rates = settings.REST_FRAMEWORK.get("DEFAULT_THROTTLE_RATES", {})
@@ -63,6 +84,44 @@ class ProductAISummaryView(APIView):
     def get(self, request, product_id):
         product = get_object_or_404(ProductSelector.public_base(), pk=product_id)
         data = AIService().summarize_product_details(product.pk, user=request.user)
+        return success_response(data=data)
+
+
+class ProductCompareView(APIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [ProductCompareThrottle]
+
+    @extend_schema(
+        operation_id="ai_product_compare",
+        request=ProductCompareRequestSerializer,
+        responses={200: ProductCompareResponseSerializer},
+    )
+    def post(self, request):
+        serializer = ProductCompareRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = AIService().compare_products(
+            serializer.validated_data["product_ids"], user=request.user
+        )
+        return success_response(data=data)
+
+
+class SellerListingGenerateView(APIView):
+    permission_classes = [IsSeller]
+    throttle_classes = [SellerListingThrottle]
+
+    @extend_schema(
+        operation_id="ai_seller_product_listing",
+        request=SellerListingRequestSerializer,
+        responses={200: SellerListingResponseSerializer},
+    )
+    def post(self, request):
+        serializer = SellerListingRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = AIService().generate_product_listing(
+            name=serializer.validated_data["name"],
+            keywords=serializer.validated_data["keywords"],
+            user=request.user,
+        )
         return success_response(data=data)
 
 

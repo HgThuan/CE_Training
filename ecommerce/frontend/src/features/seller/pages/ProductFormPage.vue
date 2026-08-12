@@ -8,6 +8,7 @@ import {
   PhotoIcon,
   PlusIcon,
   PrinterIcon,
+  SparklesIcon,
   TrashIcon,
 } from '@heroicons/vue/24/outline'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
@@ -23,6 +24,7 @@ import type {
   SellerAttributePayload,
   SellerProductDetail,
   SellerProductPayload,
+  SellerListingSuggestion,
   VariantUpdatePayload,
 } from '@/features/product/types'
 import { useProductStore } from '@/features/product/store'
@@ -75,6 +77,11 @@ const newAttribute = reactive({
   valuesText: '',
 })
 const creatingAttribute = ref(false)
+const listingPanelOpen = ref(false)
+const listingKeywords = ref('')
+const listingSuggestion = ref<SellerListingSuggestion | null>(null)
+const listingLoading = ref(false)
+const listingError = ref('')
 
 const editable = computed(
   () => !product.value || ['draft', 'rejected'].includes(product.value.status),
@@ -311,6 +318,32 @@ function buildPayload(): SellerProductPayload {
   }
 }
 
+async function generateListing(): Promise<void> {
+  if (!form.name.trim()) {
+    listingError.value = 'Hãy nhập tên sản phẩm trước khi tạo mô tả.'
+    return
+  }
+  const keywords = listingKeywords.value
+    .split(',')
+    .map((keyword) => keyword.trim())
+    .filter(Boolean)
+    .slice(0, 10)
+  listingLoading.value = true
+  listingError.value = ''
+  try {
+    const suggestion = (await sellerProductApi.generateListing(form.name.trim(), keywords)).data
+      .data
+    listingSuggestion.value = suggestion
+    form.name = suggestion.title
+    form.shortDescription = suggestion.meta_description
+    form.description = suggestion.description
+  } catch (error) {
+    listingError.value = getErrorMessage(error)
+  } finally {
+    listingLoading.value = false
+  }
+}
+
 function validateForm(requireVariant: boolean): string | null {
   if (!form.name.trim()) return 'Vui lòng nhập tên sản phẩm.'
   if (!form.categoryId) return 'Vui lòng chọn danh mục.'
@@ -522,6 +555,64 @@ onBeforeUnmount(() => {
                 required
               />
             </label>
+            <div class="sm:col-span-2">
+              <button
+                class="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-black text-indigo-700 transition hover:border-indigo-400 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
+                type="button"
+                :disabled="!editable"
+                @click="listingPanelOpen = !listingPanelOpen"
+              >
+                <SparklesIcon class="h-5 w-5" />
+                Tạo mô tả bằng AI
+              </button>
+              <div
+                v-if="listingPanelOpen"
+                class="mt-3 rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4"
+              >
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p class="font-black text-indigo-950">Gợi ý nội dung sản phẩm</p>
+                    <p class="mt-1 text-sm text-indigo-800">
+                      Nhập tối đa 10 từ khóa, cách nhau bằng dấu phẩy. Nội dung được điền vào form
+                      để bạn xem lại trước khi lưu.
+                    </p>
+                  </div>
+                  <span
+                    v-if="listingSuggestion?.is_ai_generated"
+                    class="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-indigo-700 ring-1 ring-indigo-200"
+                  >
+                    ✨ {{ listingSuggestion.ai_label }}
+                  </span>
+                </div>
+                <div class="mt-4 flex flex-col gap-3 sm:flex-row">
+                  <input
+                    v-model="listingKeywords"
+                    class="min-w-0 flex-1 rounded-xl border border-indigo-200 bg-white px-3 py-2.5 focus:border-indigo-600 focus:outline-none focus:ring-4 focus:ring-indigo-100"
+                    maxlength="500"
+                    placeholder="Ví dụ: cotton, thoáng mát, công sở"
+                    :disabled="listingLoading"
+                    @keydown.enter.prevent="generateListing"
+                  />
+                  <button
+                    class="rounded-xl bg-indigo-600 px-5 py-2.5 font-black text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    type="button"
+                    :disabled="listingLoading || !form.name.trim()"
+                    @click="generateListing"
+                  >
+                    {{
+                      listingLoading
+                        ? 'Đang tạo…'
+                        : listingSuggestion
+                          ? 'Tạo lại nội dung'
+                          : 'Tạo nội dung'
+                    }}
+                  </button>
+                </div>
+                <p v-if="listingError" class="mt-3 text-sm font-semibold text-rose-700">
+                  {{ listingError }} Bạn có thể tiếp tục nhập mô tả thủ công.
+                </p>
+              </div>
+            </div>
             <label>
               <span class="text-sm font-bold">Danh mục <span class="text-rose-600">*</span></span>
               <select

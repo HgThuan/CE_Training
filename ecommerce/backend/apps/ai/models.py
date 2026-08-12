@@ -189,6 +189,8 @@ class AIRequestLog(TimeStampedModel):
         SIMILAR_PRODUCTS = "similar_products", "Similar products"
         REVIEW_SUMMARY = "review_summary", "Review summary"
         PRODUCT_SUMMARY = "product_summary", "Product summary"
+        PRODUCT_COMPARE = "product_compare", "Product compare"
+        SELLER_LISTING = "seller_listing", "Seller listing generation"
         OTHER = "other", "Other"
 
     class Status(models.TextChoices):
@@ -322,7 +324,7 @@ class AIContentCache(TimeStampedModel):
         return bool(self.expires_at and self.expires_at <= timezone.now())
 
     def save(self, *args: Any, **kwargs: Any) -> None:
-        self.result = sanitize_ai_payload(self.result)
+        self.result = sanitize_ai_payload(self.result, max_depth=6)
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:

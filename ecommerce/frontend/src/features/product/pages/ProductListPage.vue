@@ -5,6 +5,7 @@ import {
   Squares2X2Icon,
   XMarkIcon,
 } from '@heroicons/vue/24/outline'
+import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -12,12 +13,16 @@ import FormMessage from '@/features/auth/components/FormMessage.vue'
 import { getErrorMessage } from '@/features/auth/errors'
 
 import ProductCard from '../components/ProductCard.vue'
+import ProductCompareTable from '../components/ProductCompareTable.vue'
+import { useCompareStore } from '../compare-store'
 import { useProductStore } from '../store'
 import type { Category, CategoryOption, ProductListFilters, ProductSort } from '../types'
 
 const route = useRoute()
 const router = useRouter()
 const productStore = useProductStore()
+const compareStore = useCompareStore()
+const { comparison, comparing } = storeToRefs(compareStore)
 
 const filters = reactive({
   search: '',
@@ -60,7 +65,9 @@ function hydrateFilters() {
   filters.brandId = typeof route.query.brand === 'string' ? route.query.brand : ''
   filters.minPrice = typeof route.query.min_price === 'string' ? route.query.min_price : ''
   filters.maxPrice = typeof route.query.max_price === 'string' ? route.query.max_price : ''
-  filters.sort = (typeof route.query.sort === 'string' ? route.query.sort : '-created_at') as ProductSort
+  filters.sort = (
+    typeof route.query.sort === 'string' ? route.query.sort : '-created_at'
+  ) as ProductSort
   filters.page = Math.max(Number(route.query.page) || 1, 1)
 }
 
@@ -293,6 +300,21 @@ onMounted(async () => {
                 <option value="-rating">Đánh giá tốt</option>
               </select>
             </label>
+          </div>
+
+          <div
+            v-if="comparing"
+            id="product-comparison-result"
+            class="mt-6 animate-pulse overflow-hidden rounded-3xl bg-white p-6 ring-1 ring-slate-200"
+            aria-label="Đang tạo bảng so sánh"
+          >
+            <div class="h-6 w-40 rounded bg-slate-200" />
+            <div class="mt-6 space-y-4">
+              <div v-for="index in 4" :key="index" class="h-12 rounded-xl bg-slate-100" />
+            </div>
+          </div>
+          <div v-else-if="comparison" id="product-comparison-result" class="scroll-mt-24">
+            <ProductCompareTable :comparison="comparison" />
           </div>
 
           <div

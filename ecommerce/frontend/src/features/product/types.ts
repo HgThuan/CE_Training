@@ -177,6 +177,33 @@ export interface ProductAISummary {
   ai_label: string | null
 }
 
+export interface ProductCompareRow {
+  label: string
+  values: string[]
+}
+
+export interface ProductCompareRecommendation {
+  need: string
+  product_index: number
+  reason: string
+}
+
+export interface ProductCompareData {
+  products: Array<{ id: string; name: string }>
+  rows: ProductCompareRow[]
+  recommendations: ProductCompareRecommendation[]
+  is_ai_generated: boolean
+  ai_label: string | null
+}
+
+export interface SellerListingSuggestion {
+  title: string
+  description: string
+  meta_description: string
+  is_ai_generated: boolean
+  ai_label: string
+}
+
 export interface PublicProductDetail {
   id: string
   name: string

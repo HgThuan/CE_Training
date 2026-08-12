@@ -7,6 +7,7 @@ import type {
   SellerProductListItem,
   SellerProductPayload,
   SellerProductVariant,
+  SellerListingSuggestion,
   VariantUpdatePayload,
 } from '@/features/product/types'
 import { http } from '@/shared/lib/http'
@@ -35,6 +36,11 @@ export const sellerProductApi = {
     }),
   createAttribute: (payload: SellerAttributePayload) =>
     http.post<ApiResponse<SellerAttribute>>('/seller/attributes/', payload),
+  generateListing: (name: string, keywords: string[]) =>
+    http.post<ApiResponse<SellerListingSuggestion>>('/seller/products/generate-listing', {
+      name,
+      keywords,
+    }),
   uploadMedia: (
     productId: string,
     file: File,
