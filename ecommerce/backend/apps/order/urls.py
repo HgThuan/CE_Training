@@ -10,6 +10,11 @@ urlpatterns = [
     path("orders/<uuid:order_id>/cancel", views.CustomerOrderCancelView.as_view()),
     path("orders/<uuid:order_id>/reorder", views.CustomerOrderReorderView.as_view()),
     path("seller/orders", views.SellerOrderListView.as_view()),
+    path("seller/customers", views.SellerCustomerListView.as_view()),
+    path(
+        "seller/customers/<int:customer_id>/orders",
+        views.SellerCustomerOrderListView.as_view(),
+    ),
     path("seller/orders/<uuid:shop_order_id>", views.SellerOrderDetailView.as_view()),
     path("seller/orders/<uuid:shop_order_id>/confirm", views.ConfirmOrderView.as_view()),
     path("seller/orders/<uuid:shop_order_id>/pack", views.PackOrderView.as_view()),

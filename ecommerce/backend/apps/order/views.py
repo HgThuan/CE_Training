@@ -9,12 +9,19 @@ from apps.common.pagination import StandardPagination
 from apps.common.responses import success_response
 
 from .models import ShopOrder
-from .selectors import get_all_orders_for_admin, get_orders_for_customer, get_shop_orders_for_seller
+from .selectors import (
+    get_all_orders_for_admin,
+    get_customer_orders_for_seller,
+    get_customers_for_seller,
+    get_orders_for_customer,
+    get_shop_orders_for_seller,
+)
 from .serializers import (
     CancelSerializer,
     CheckoutPreviewSerializer,
     CheckoutSerializer,
     OrderSerializer,
+    SellerCustomerSerializer,
     ShopOrderDetailSerializer,
 )
 from .services import CheckoutService, OrderService
@@ -132,6 +139,29 @@ class SellerOrderListView(APIView):
             get_shop_orders_for_seller(request.user, status=request.query_params.get("status")),
             ShopOrderDetailSerializer,
         )
+
+
+class SellerCustomerListView(APIView):
+    permission_classes = [IsSeller]
+
+    def get(self, request):
+        return _page(
+            self,
+            get_customers_for_seller(request.user, search=request.query_params.get("search")),
+            SellerCustomerSerializer,
+        )
+
+
+class SellerCustomerOrderListView(APIView):
+    permission_classes = [IsSeller]
+
+    def get(self, request, customer_id):
+        queryset = get_customer_orders_for_seller(request.user, customer_id)
+        if not queryset.exists():
+            from rest_framework.exceptions import NotFound
+
+            raise NotFound("Khách hàng chưa có đơn tại shop")
+        return _page(self, queryset, ShopOrderDetailSerializer)
 
 
 class SellerOrderDetailView(APIView):
