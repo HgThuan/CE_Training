@@ -312,57 +312,69 @@ onMounted(async () => {
       </button>
     </div>
 
-    <div
-      v-for="(item, index) in items"
-      :key="item.id ?? item.variant"
-      class="grid gap-3 rounded-2xl bg-slate-50 p-4 sm:grid-cols-[minmax(0,1fr)_150px_110px_auto]"
-    >
-      <div class="min-w-0">
-        <p class="truncate text-sm font-black">{{ item.product_name || 'Sản phẩm' }}</p>
-        <p class="truncate text-xs text-slate-500">
-          {{ item.variant_sku || 'Biến thể'
-          }}<span v-if="item.shop_name"> · {{ item.shop_name }}</span>
-        </p>
-        <p v-if="item.available_stock !== undefined" class="mt-1 text-xs text-emerald-700">
-          Còn {{ item.available_stock }} sản phẩm · Giá hiện tại
-          {{ formatVnd(item.original_price || 0) }}
+    <div class="max-h-[50vh] overflow-y-auto space-y-3 pr-2">
+      <div
+        v-for="(item, index) in items"
+        :key="item.id ?? item.variant"
+        class="grid gap-3 rounded-2xl bg-slate-50 p-4 sm:grid-cols-[minmax(0,1fr)_80px_130px_110px_auto]"
+      >
+        <div class="min-w-0">
+          <p class="truncate text-sm font-black">{{ item.product_name || 'Sản phẩm' }}</p>
+          <p class="truncate text-xs text-slate-500">
+            Phân loại: <strong class="text-slate-800">{{ item.variant_sku || item.variant || 'Mặc định' }}</strong>
+            <span v-if="item.shop_name"> · {{ item.shop_name }}</span>
+          </p>
+          <p v-if="item.available_stock !== undefined" class="mt-1 text-xs text-emerald-700">
+            Tồn kho: {{ item.available_stock }} · Giá gốc: {{ formatVnd(item.original_price || 0) }}
+          </p>
+        </div>
+        <label class="text-xs font-bold">
+          Giảm %
+          <input
+            :value="item.original_price ? Math.round((1 - item.sale_price / item.original_price) * 100) : 0"
+            type="number"
+            min="0"
+            max="100"
+            class="mt-1 w-full rounded-xl border px-3 py-2"
+            :disabled="item.sold_count > 0 || !item.original_price"
+            @input="update(index, 'sale_price', Math.round((item.original_price || 0) * (1 - Number(($event.target as HTMLInputElement).value) / 100)))"
+          />
+        </label>
+        <label class="text-xs font-bold">
+          Giá Flash Sale
+          <input
+            :value="item.sale_price"
+            type="number"
+            min="0"
+            :max="item.original_price"
+            class="mt-1 w-full rounded-xl border px-3 py-2"
+            :disabled="item.sold_count > 0"
+            @input="update(index, 'sale_price', ($event.target as HTMLInputElement).value)"
+          />
+        </label>
+        <label class="text-xs font-bold">
+          Số lượng
+          <input
+            :value="item.quota"
+            type="number"
+            :min="item.sold_count > 0 ? item.sold_count : 1"
+            :max="item.available_stock"
+            class="mt-1 w-full rounded-xl border px-3 py-2"
+            @input="update(index, 'quota', Number(($event.target as HTMLInputElement).value))"
+          />
+        </label>
+        <button
+          type="button"
+          class="self-end rounded-xl px-3 py-2 font-bold text-rose-700 disabled:opacity-40"
+          :disabled="item.sold_count > 0"
+          @click="remove(index)"
+        >
+          Xóa
+        </button>
+        <p v-if="item.sold_count > 0" class="text-xs text-amber-700 sm:col-span-5">
+          Đã bán {{ item.sold_count }} sản phẩm; giá được khóa, số lượng không thể giảm dưới {{ item.sold_count }}.
         </p>
       </div>
-      <label class="text-xs font-bold">
-        Giá Flash Sale
-        <input
-          :value="item.sale_price"
-          type="number"
-          min="0"
-          :max="item.original_price"
-          class="mt-1 w-full rounded-xl border px-3 py-2"
-          :disabled="item.sold_count > 0"
-          @input="update(index, 'sale_price', ($event.target as HTMLInputElement).value)"
-        />
-      </label>
-      <label class="text-xs font-bold">
-        Số lượng
-        <input
-          :value="item.quota"
-          type="number"
-          min="1"
-          :max="item.available_stock"
-          class="mt-1 w-full rounded-xl border px-3 py-2"
-          :disabled="item.sold_count > 0"
-          @input="update(index, 'quota', Number(($event.target as HTMLInputElement).value))"
-        />
-      </label>
-      <button
-        type="button"
-        class="self-end rounded-xl px-3 py-2 font-bold text-rose-700 disabled:opacity-40"
-        :disabled="item.sold_count > 0"
-        @click="remove(index)"
-      >
-        Xóa
-      </button>
-      <p v-if="item.sold_count > 0" class="text-xs text-amber-700 sm:col-span-4">
-        Đã bán {{ item.sold_count }} sản phẩm; giá và số lượng được khóa trên giao diện.
-      </p>
     </div>
   </fieldset>
 </template>
