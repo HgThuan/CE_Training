@@ -36,6 +36,13 @@ export const customerRoutes: RouteRecordRaw[] = [
         component: () => import('@/features/order/pages/OrderDetailPage.vue'),
         meta: { roles: ['customer'] },
       },
+      {
+        path: 'chat',
+        name: 'customer-chat',
+        component: () => import('@/features/chat/pages/ChatPage.vue'),
+        meta: { roles: ['customer'] },
+      },
+
     ],
   },
 ]
