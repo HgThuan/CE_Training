@@ -76,6 +76,11 @@ export const sellerRoutes: RouteRecordRaw[] = [
         name: 'seller-returns',
         component: () => import('@/features/after-sales/pages/SellerReturnsPage.vue'),
       },
+      {
+        path: 'promotions',
+        name: 'seller-promotions',
+        component: () => import('@/features/promotion/views/seller/VoucherSellerList.vue'),
+      },
     ],
   },
 ]
