@@ -108,8 +108,7 @@ onMounted(loadApplications)
 <template>
   <main class="mx-auto max-w-7xl px-4 py-10">
     <RouterLink class="font-semibold text-indigo-600" to="/admin">← Admin workspace</RouterLink>
-    <p class="mt-5 text-sm font-bold uppercase tracking-[0.2em] text-indigo-600">ADM-09 · ADM-10</p>
-    <h1 class="mt-2 text-3xl font-bold">Duyệt hồ sơ seller</h1>
+    <h1 class="mt-5 text-3xl font-bold">Duyệt hồ sơ seller</h1>
     <FormMessage v-if="message" class="mt-6" :message="message" variant="success" />
     <FormMessage v-if="errorMessage" class="mt-6" :message="errorMessage" />
 
@@ -141,9 +140,16 @@ onMounted(loadApplications)
         >
           <strong>{{ profile.business_name }}</strong>
           <span class="mt-1 block text-sm text-gray-600">
-            {{ profile.tax_code }} · {{ profile.verification_status }}
+            MST: {{ profile.tax_code }} · {{ { unverified: 'Chưa xác thực', pending: 'Chờ xác thực', verified: 'Đã xác thực' }[profile.verification_status] || profile.verification_status }}
+            <br />
+            Nộp: {{ profile.submitted_at ? new Date(profile.submitted_at).toLocaleDateString('vi-VN') : new Date(profile.created_at).toLocaleDateString('vi-VN') }}
           </span>
         </button>
+        <div v-if="meta.total_pages > 1" class="mt-4 flex items-center justify-between border-t pt-4">
+          <button class="rounded-lg border px-3 py-1.5 text-sm font-bold disabled:opacity-50" :disabled="meta.page <= 1" @click="loadApplications(meta.page - 1)" type="button">Trang trước</button>
+          <span class="text-sm text-gray-500">Trang {{ meta.page }} / {{ meta.total_pages }}</span>
+          <button class="rounded-lg border px-3 py-1.5 text-sm font-bold disabled:opacity-50" :disabled="meta.page >= meta.total_pages" @click="loadApplications(meta.page + 1)" type="button">Trang tiếp</button>
+        </div>
       </section>
 
       <section v-if="selected" class="rounded-2xl bg-white p-6 ring-1 ring-gray-200">
@@ -168,10 +174,21 @@ onMounted(loadApplications)
           :key="document.id"
           class="mt-3 rounded-xl bg-gray-50 p-4"
         >
-          <a class="font-semibold text-indigo-600" :href="document.file_url" target="_blank">
-            {{ document.original_name }}
-          </a>
-          <p class="mt-1 text-sm">{{ document.review_status }}</p>
+          <div class="flex items-center justify-between">
+            <a class="font-semibold text-indigo-600 hover:underline" :href="document.file_url" target="_blank" rel="noopener noreferrer">
+              📄 {{ document.original_name || 'Tài liệu không tên' }} (Bấm để tải/xem)
+            </a>
+            <span
+              class="rounded-full px-2 py-0.5 text-xs font-bold"
+              :class="{
+                'bg-yellow-100 text-yellow-800': document.review_status === 'pending',
+                'bg-green-100 text-green-800': document.review_status === 'verified',
+                'bg-red-100 text-red-800': document.review_status === 'additional_required',
+              }"
+            >
+              {{ { pending: 'Chờ duyệt', verified: 'Hợp lệ', additional_required: 'Cần bổ sung' }[document.review_status] || document.review_status }}
+            </span>
+          </div>
           <div class="mt-3 flex gap-2">
             <button
               class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white"

@@ -101,8 +101,7 @@ onMounted(loadSellers)
 <template>
   <main class="mx-auto max-w-7xl px-4 py-10">
     <RouterLink class="font-semibold text-indigo-600" to="/admin">← Admin workspace</RouterLink>
-    <p class="mt-5 text-sm font-bold uppercase tracking-[0.2em] text-indigo-600">ADM-05 · ADM-11</p>
-    <h1 class="mt-2 text-3xl font-bold">Quản lý nhà bán hàng</h1>
+    <h1 class="mt-5 text-3xl font-bold">Quản lý nhà bán hàng</h1>
     <FormMessage v-if="message" class="mt-6" :message="message" variant="success" />
     <FormMessage v-if="errorMessage" class="mt-6" :message="errorMessage" />
     <form class="mt-8 flex flex-wrap gap-3" @submit.prevent="loadSellers(1)">
@@ -138,9 +137,22 @@ onMounted(loadSellers)
               ><br />{{ seller.email }}
             </td>
             <td>{{ seller.shop?.name ?? 'Chưa có shop' }}</td>
-            <td>{{ seller.shop?.status ?? seller.seller_profile.onboarding_status }}</td>
+            <td>
+              <span
+                class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold leading-5"
+                :class="{
+                  'bg-green-100 text-green-800': (seller.shop?.status ?? seller.seller_profile.onboarding_status) === 'approved',
+                  'bg-yellow-100 text-yellow-800': (seller.shop?.status ?? seller.seller_profile.onboarding_status) === 'pending',
+                  'bg-red-100 text-red-800': (seller.shop?.status ?? seller.seller_profile.onboarding_status) === 'rejected',
+                  'bg-gray-100 text-gray-800': (seller.shop?.status ?? seller.seller_profile.onboarding_status) === 'locked',
+                }"
+              >
+                {{ { approved: 'Đã duyệt', pending: 'Chờ duyệt', rejected: 'Từ chối', locked: 'Bị khóa' }[seller.shop?.status ?? seller.seller_profile.onboarding_status] || (seller.shop?.status ?? seller.seller_profile.onboarding_status) }}
+              </span>
+            </td>
             <td class="space-x-2">
               <button
+                v-if="seller.shop"
                 class="font-semibold text-indigo-600"
                 type="button"
                 @click="renameShop(seller)"
@@ -148,6 +160,7 @@ onMounted(loadSellers)
                 Sửa
               </button>
               <button
+                v-if="seller.shop"
                 class="font-semibold text-amber-700"
                 type="button"
                 @click="toggleShop(seller)"
@@ -165,6 +178,11 @@ onMounted(loadSellers)
           </tr>
         </tbody>
       </table>
+      <div v-if="meta.total_pages > 1" class="flex items-center justify-between border-t p-4">
+        <button class="rounded-lg border px-3 py-1.5 text-sm font-bold disabled:opacity-50" :disabled="meta.page <= 1" @click="loadSellers(meta.page - 1)" type="button">Trang trước</button>
+        <span class="text-sm text-gray-500">Trang {{ meta.page }} / {{ meta.total_pages }}</span>
+        <button class="rounded-lg border px-3 py-1.5 text-sm font-bold disabled:opacity-50" :disabled="meta.page >= meta.total_pages" @click="loadSellers(meta.page + 1)" type="button">Trang tiếp</button>
+      </div>
     </div>
   </main>
 </template>

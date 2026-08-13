@@ -68,16 +68,26 @@ watch(
   { immediate: true },
 )
 
+const percentWarning = ref('')
+
 function validate(): boolean {
   fieldErrors.value = {}
+  percentWarning.value = ''
   if (!form.code.trim()) fieldErrors.value.code = 'Mã voucher là bắt buộc'
   if (!form.name.trim()) fieldErrors.value.name = 'Tên chương trình là bắt buộc'
   if (form.discount_value <= 0) fieldErrors.value.discount_value = 'Giá trị giảm phải lớn hơn 0'
-  if (
-    form.discount_type === 'percent' &&
-    (!form.max_discount_amount || form.max_discount_amount <= 0)
-  ) {
-    fieldErrors.value.max_discount_amount = 'Voucher phần trăm cần mức giảm tối đa'
+  if (form.discount_type === 'percent') {
+    if (form.discount_value > 100) {
+      fieldErrors.value.discount_value = 'Phần trăm giảm không được vượt quá 100%'
+    } else if (form.discount_value > 50) {
+      percentWarning.value = `Cảnh báo: Mức giảm ${form.discount_value}% là rất cao. Vui lòng xác nhận lại.`
+    }
+    if (!form.max_discount_amount || form.max_discount_amount <= 0) {
+      fieldErrors.value.max_discount_amount = 'Voucher phần trăm cần mức giảm tối đa'
+    }
+  }
+  if (new Date(form.valid_from) < new Date(Date.now() - 60_000)) {
+    fieldErrors.value.valid_from = 'Thời điểm bắt đầu không được ở quá khứ'
   }
   if (new Date(form.valid_from) >= new Date(form.valid_until)) {
     fieldErrors.value.valid_until = 'Thời điểm kết thúc phải sau thời điểm bắt đầu'
@@ -159,15 +169,19 @@ defineExpose({ showServerError })
         </select>
       </label>
       <label class="text-sm font-bold"
-        >Giá trị
+        >Giá trị {{ form.discount_type === 'percent' ? '(%)' : '(VNĐ)' }}
         <input
           v-model.number="form.discount_value"
           type="number"
           min="1"
+          :max="form.discount_type === 'percent' ? 100 : undefined"
           class="mt-1 w-full rounded-xl border px-3 py-2"
         />
         <span v-if="fieldErrors.discount_value" class="mt-1 block text-xs text-rose-600">{{
           fieldErrors.discount_value
+        }}</span>
+        <span v-else-if="percentWarning" class="mt-1 block text-xs text-amber-600">{{
+          percentWarning
         }}</span>
       </label>
       <label v-if="form.discount_type === 'percent'" class="text-sm font-bold"
@@ -191,7 +205,7 @@ defineExpose({ showServerError })
           <option value="auto">Tự động cấp ở checkout</option>
         </select>
       </label>
-      <label class="flex items-center gap-2 self-end pb-2 text-sm font-bold">
+      <label class="flex items-center gap-2 self-end pb-2 text-sm font-bold" :title="scope === 'platform' ? 'Cho phép sử dụng đồng thời voucher sàn và voucher shop trong cùng đơn hàng' : 'Cho phép sử dụng đồng thời voucher shop và voucher sàn trong cùng đơn hàng'">
         <input
           type="checkbox"
           :checked="form.stackable_with.includes(scope === 'platform' ? 'shop' : 'platform')"
@@ -202,6 +216,7 @@ defineExpose({ showServerError })
           "
         />
         Cho cộng dồn với voucher {{ scope === 'platform' ? 'shop' : 'sàn' }}
+        <span class="font-normal text-slate-400" title="Khi bật, khách hàng có thể áp dụng cả voucher sàn lẫn voucher shop trong cùng một đơn hàng.">ⓘ</span>
       </label>
     </div>
     <div class="grid gap-4 sm:grid-cols-3">
@@ -215,13 +230,15 @@ defineExpose({ showServerError })
         />
       </label>
       <label class="text-sm font-bold"
-        >Tổng lượt (trống = vô hạn)
+        >Tổng lượt sử dụng
         <input
           v-model.number="form.total_usage_limit"
           type="number"
           min="1"
           class="mt-1 w-full rounded-xl border px-3 py-2"
+          placeholder="Để trống = không giới hạn"
         />
+        <span class="mt-1 block text-xs font-normal text-slate-400">Tổng số lần voucher có thể được sử dụng trên toàn hệ thống. Để trống nếu không giới hạn.</span>
       </label>
       <label class="text-sm font-bold"
         >Lượt/người
@@ -234,11 +251,13 @@ defineExpose({ showServerError })
       </label>
     </div>
     <label v-if="scope === 'platform'" class="block text-sm font-bold"
-      >ID danh mục áp dụng (tùy chọn)
+      >Danh mục áp dụng <span class="font-normal text-slate-400">(tùy chọn)</span>
       <input
         v-model="form.applicable_category"
         class="mt-1 w-full rounded-xl border px-3 py-2 font-mono"
+        placeholder="Nhập ID danh mục sản phẩm (VD: 5)"
       />
+      <span class="mt-1 block text-xs font-normal text-slate-400">Chỉ áp dụng voucher cho sản phẩm trong danh mục có ID này. Để trống nếu áp dụng toàn bộ.</span>
     </label>
     <div class="grid gap-4 sm:grid-cols-2">
       <label class="text-sm font-bold"
@@ -248,6 +267,9 @@ defineExpose({ showServerError })
           type="datetime-local"
           class="mt-1 w-full rounded-xl border px-3 py-2"
         />
+        <span v-if="fieldErrors.valid_from" class="mt-1 block text-xs text-rose-600">{{
+          fieldErrors.valid_from
+        }}</span>
       </label>
       <label class="text-sm font-bold"
         >Kết thúc

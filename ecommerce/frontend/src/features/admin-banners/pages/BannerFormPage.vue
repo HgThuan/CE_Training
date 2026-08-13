@@ -71,9 +71,13 @@ function toIsoDateTime(value: string): string | null {
 }
 
 function validateForm(): string | null {
+  if (!form.title.trim()) return 'Tiêu đề banner là bắt buộc.'
   if (!form.imageUrl.trim()) return 'Vui lòng nhập URL ảnh banner.'
-  if (form.sortOrder < 0 || !Number.isInteger(form.sortOrder)) {
-    return 'Thứ tự phải là số nguyên không âm.'
+  if (form.targetUrl.trim() && !/^https?:\/\/.+/.test(form.targetUrl.trim())) {
+    return 'Liên kết đích phải là URL hợp lệ (bắt đầu bằng http:// hoặc https://).'
+  }
+  if (form.sortOrder < 0 || form.sortOrder > 999 || !Number.isInteger(form.sortOrder)) {
+    return 'Thứ tự phải là số nguyên từ 0 đến 999.'
   }
   if (form.startsAt && form.endsAt && new Date(form.startsAt) >= new Date(form.endsAt)) {
     return 'Thời gian kết thúc phải sau thời gian bắt đầu.'
@@ -104,7 +108,7 @@ async function saveBanner(): Promise<void> {
   saving.value = true
   errorMessage.value = ''
   const payload: BannerPayload = {
-    title: form.title.trim() || null,
+    title: form.title.trim(),
     image_url: form.imageUrl.trim(),
     target_url: form.targetUrl.trim() || null,
     position: form.position,
@@ -144,8 +148,7 @@ onMounted(loadBanner)
     </RouterLink>
 
     <div class="mt-6">
-      <p class="text-sm font-bold uppercase tracking-[0.2em] text-indigo-600">ADM-21</p>
-      <h1 class="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
+      <h1 class="text-3xl font-black tracking-tight sm:text-4xl">
         {{ isEditing ? 'Cập nhật banner' : 'Tạo banner mới' }}
       </h1>
       <p class="mt-3 text-slate-600">
@@ -197,11 +200,12 @@ onMounted(loadBanner)
 
       <section class="grid content-start gap-5 sm:grid-cols-2">
         <label class="sm:col-span-2">
-          <span class="text-sm font-bold">Tiêu đề</span>
+          <span class="text-sm font-bold">Tiêu đề *</span>
           <input
             v-model.trim="form.title"
             class="mt-2 w-full rounded-xl border border-slate-300 px-3 py-3"
             maxlength="180"
+            required
           />
         </label>
 
@@ -248,9 +252,11 @@ onMounted(loadBanner)
             class="mt-2 w-full rounded-xl border border-slate-300 px-3 py-3"
             type="number"
             min="0"
+            max="999"
             step="1"
             required
           />
+          <span class="mt-1 block text-xs text-slate-400">Số càng nhỏ, banner càng hiển thị trước. Tối đa 999.</span>
         </label>
 
         <label>

@@ -90,7 +90,7 @@ void store.loadVouchers(props.scope)
       v-if="formOpen"
       class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-4"
     >
-      <div class="my-8 w-full max-w-3xl rounded-3xl bg-white p-6 shadow-2xl">
+      <div class="my-8 w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
         <h2 class="mb-5 text-xl font-black">
           {{ editing ? 'Cập nhật voucher' : 'Tạo voucher mới' }}
         </h2>

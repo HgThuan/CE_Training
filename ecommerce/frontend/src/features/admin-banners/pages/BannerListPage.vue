@@ -127,8 +127,7 @@ onMounted(loadBanners)
   <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-10">
     <div class="flex flex-wrap items-end justify-between gap-5">
       <div>
-        <p class="text-sm font-bold uppercase tracking-[0.2em] text-indigo-600">ADM-21</p>
-        <h1 class="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Quản lý banner</h1>
+        <h1 class="text-3xl font-black tracking-tight sm:text-4xl">Quản lý banner</h1>
         <p class="mt-3 max-w-2xl text-slate-600">
           Kéo thả hoặc dùng nút lên, xuống để đổi thứ tự banner trong từng vị trí.
         </p>
@@ -214,6 +213,12 @@ onMounted(loadBanners)
                 "
               >
                 {{ banner.is_active ? 'Hoạt động' : 'Tạm ẩn' }}
+              </span>
+              <span
+                v-if="banner.ends_at && new Date(banner.ends_at).getTime() < Date.now()"
+                class="absolute right-3 top-3 rounded-full bg-red-500/90 px-2.5 py-1 text-xs font-bold text-white shadow-sm backdrop-blur"
+              >
+                Hết hạn
               </span>
             </div>
 
