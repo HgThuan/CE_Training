@@ -16,6 +16,17 @@ const meta = ref<PaginationMeta>({ page: 1, page_size: 20, total_items: 0, total
 const loading = ref(true)
 const message = ref('')
 const errorMessage = ref('')
+const statusLabels: Record<string, string> = {
+  pending: 'Chờ duyệt',
+  approved: 'Đã duyệt',
+  rejected: 'Đã từ chối',
+  locked: 'Bị khóa',
+}
+function statusClass(status: string): string {
+  if (status === 'approved') return 'bg-emerald-50 text-emerald-700'
+  if (status === 'rejected' || status === 'locked') return 'bg-rose-50 text-rose-700'
+  return 'bg-amber-50 text-amber-700'
+}
 
 async function loadSellers(page = 1): Promise<void> {
   loading.value = true
@@ -101,8 +112,10 @@ onMounted(loadSellers)
 <template>
   <main class="mx-auto max-w-7xl px-4 py-10">
     <RouterLink class="font-semibold text-indigo-600" to="/admin">← Admin workspace</RouterLink>
-    <p class="mt-5 text-sm font-bold uppercase tracking-[0.2em] text-indigo-600">ADM-05 · ADM-11</p>
-    <h1 class="mt-2 text-3xl font-bold">Quản lý nhà bán hàng</h1>
+    <h1 class="mt-6 text-3xl font-bold">Quản lý nhà bán hàng</h1>
+    <p class="mt-2 text-slate-600">
+      Quản lý các seller đã hoạt động. Hồ sơ mới được xử lý tại trang Duyệt hồ sơ seller.
+    </p>
     <FormMessage v-if="message" class="mt-6" :message="message" variant="success" />
     <FormMessage v-if="errorMessage" class="mt-6" :message="errorMessage" />
     <form class="mt-8 flex flex-wrap gap-3" @submit.prevent="loadSellers(1)">
@@ -138,9 +151,18 @@ onMounted(loadSellers)
               ><br />{{ seller.email }}
             </td>
             <td>{{ seller.shop?.name ?? 'Chưa có shop' }}</td>
-            <td>{{ seller.shop?.status ?? seller.seller_profile.onboarding_status }}</td>
+            <td>
+              <span
+                class="rounded-full px-2.5 py-1 text-xs font-bold"
+                :class="statusClass(seller.shop?.status ?? seller.seller_profile.onboarding_status)"
+                >{{
+                  statusLabels[seller.shop?.status ?? seller.seller_profile.onboarding_status]
+                }}</span
+              >
+            </td>
             <td class="space-x-2">
               <button
+                v-if="seller.shop"
                 class="font-semibold text-indigo-600"
                 type="button"
                 @click="renameShop(seller)"
@@ -148,6 +170,7 @@ onMounted(loadSellers)
                 Sửa
               </button>
               <button
+                v-if="seller.shop"
                 class="font-semibold text-amber-700"
                 type="button"
                 @click="toggleShop(seller)"
@@ -163,8 +186,29 @@ onMounted(loadSellers)
               </button>
             </td>
           </tr>
+          <tr v-if="!loading && !sellers.length">
+            <td class="p-8 text-center text-slate-500" colspan="4">Không có seller phù hợp.</td>
+          </tr>
         </tbody>
       </table>
     </div>
+    <nav v-if="meta.total_pages > 1" class="mt-5 flex items-center justify-between text-sm">
+      <span>Trang {{ meta.page }}/{{ meta.total_pages }} · {{ meta.total_items }} seller</span>
+      <div class="flex gap-2">
+        <button
+          class="rounded-xl border px-4 py-2 disabled:opacity-40"
+          :disabled="meta.page <= 1"
+          @click="loadSellers(meta.page - 1)"
+        >
+          Trang trước</button
+        ><button
+          class="rounded-xl border px-4 py-2 disabled:opacity-40"
+          :disabled="meta.page >= meta.total_pages"
+          @click="loadSellers(meta.page + 1)"
+        >
+          Trang sau
+        </button>
+      </div>
+    </nav>
   </main>
 </template>

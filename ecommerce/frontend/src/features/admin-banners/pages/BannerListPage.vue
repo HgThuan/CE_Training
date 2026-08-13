@@ -25,6 +25,7 @@ const busy = ref(false)
 const draggedId = ref('')
 const message = ref('')
 const errorMessage = ref('')
+const statusFilter = ref<'all' | 'active' | 'upcoming' | 'expired' | 'hidden'>('all')
 
 const positionLabels: Record<Banner['position'], string> = {
   hero: 'Đầu trang',
@@ -35,7 +36,9 @@ const groups = computed(() =>
   BANNER_POSITIONS.map((position) => ({
     position,
     label: positionLabels[position],
-    banners: bannersForPosition(banners.value, position),
+    banners: bannersForPosition(banners.value, position).filter(
+      (banner) => statusFilter.value === 'all' || bannerStatus(banner).key === statusFilter.value,
+    ),
   })),
 )
 
@@ -120,6 +123,21 @@ function scheduleLabel(banner: Banner): string {
   return `${start} → ${end}`
 }
 
+function bannerStatus(banner: Banner): {
+  key: 'active' | 'upcoming' | 'expired' | 'hidden'
+  label: string
+  classes: string
+} {
+  if (!banner.is_active)
+    return { key: 'hidden', label: 'Tạm ẩn', classes: 'bg-slate-950/75 text-white' }
+  const now = Date.now()
+  if (banner.starts_at && new Date(banner.starts_at).getTime() > now)
+    return { key: 'upcoming', label: 'Chưa đến giờ', classes: 'bg-amber-50/95 text-amber-800' }
+  if (banner.ends_at && new Date(banner.ends_at).getTime() < now)
+    return { key: 'expired', label: 'Đã hết hạn', classes: 'bg-rose-50/95 text-rose-800' }
+  return { key: 'active', label: 'Đang hiển thị', classes: 'bg-emerald-50/95 text-emerald-800' }
+}
+
 onMounted(loadBanners)
 </script>
 
@@ -127,7 +145,6 @@ onMounted(loadBanners)
   <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-10">
     <div class="flex flex-wrap items-end justify-between gap-5">
       <div>
-        <p class="text-sm font-bold uppercase tracking-[0.2em] text-indigo-600">ADM-21</p>
         <h1 class="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Quản lý banner</h1>
         <p class="mt-3 max-w-2xl text-slate-600">
           Kéo thả hoặc dùng nút lên, xuống để đổi thứ tự banner trong từng vị trí.
@@ -144,6 +161,20 @@ onMounted(loadBanners)
 
     <FormMessage v-if="message" class="mt-6" :message="message" variant="success" />
     <FormMessage v-if="errorMessage" class="mt-6" :message="errorMessage" />
+
+    <label v-if="banners.length" class="mt-6 inline-flex items-center gap-3 text-sm font-bold">
+      Trạng thái
+      <select
+        v-model="statusFilter"
+        class="rounded-xl border border-slate-300 bg-white px-3 py-2 font-normal"
+      >
+        <option value="all">Tất cả</option>
+        <option value="active">Đang hiển thị</option>
+        <option value="upcoming">Chưa đến giờ</option>
+        <option value="expired">Đã hết hạn</option>
+        <option value="hidden">Tạm ẩn</option>
+      </select>
+    </label>
 
     <div
       v-if="loading"
@@ -207,13 +238,9 @@ onMounted(loadBanners)
               />
               <span
                 class="absolute left-3 top-3 rounded-full px-2.5 py-1 text-xs font-bold shadow-sm backdrop-blur"
-                :class="
-                  banner.is_active
-                    ? 'bg-emerald-50/95 text-emerald-800'
-                    : 'bg-slate-950/75 text-white'
-                "
+                :class="bannerStatus(banner).classes"
               >
-                {{ banner.is_active ? 'Hoạt động' : 'Tạm ẩn' }}
+                {{ bannerStatus(banner).label }}
               </span>
             </div>
 

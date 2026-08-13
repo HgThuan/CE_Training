@@ -18,6 +18,21 @@ const loading = ref(true)
 const message = ref('')
 const errorMessage = ref('')
 
+const verificationLabels = {
+  unverified: 'Chưa xác minh',
+  pending: 'Đang xác minh',
+  verified: 'Đã xác minh',
+}
+const documentLabels = {
+  pending: 'Chờ kiểm tra',
+  verified: 'Đã xác minh',
+  additional_required: 'Cần bổ sung',
+}
+
+function isPreviewable(document: SellerDocument): boolean {
+  return /\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(document.file_url)
+}
+
 async function loadApplications(page = 1): Promise<void> {
   loading.value = true
   try {
@@ -108,8 +123,7 @@ onMounted(loadApplications)
 <template>
   <main class="mx-auto max-w-7xl px-4 py-10">
     <RouterLink class="font-semibold text-indigo-600" to="/admin">← Admin workspace</RouterLink>
-    <p class="mt-5 text-sm font-bold uppercase tracking-[0.2em] text-indigo-600">ADM-09 · ADM-10</p>
-    <h1 class="mt-2 text-3xl font-bold">Duyệt hồ sơ seller</h1>
+    <h1 class="mt-6 text-3xl font-bold">Duyệt hồ sơ seller</h1>
     <FormMessage v-if="message" class="mt-6" :message="message" variant="success" />
     <FormMessage v-if="errorMessage" class="mt-6" :message="errorMessage" />
 
@@ -140,10 +154,41 @@ onMounted(loadApplications)
           @click="selectApplication(profile.id)"
         >
           <strong>{{ profile.business_name }}</strong>
-          <span class="mt-1 block text-sm text-gray-600">
-            {{ profile.tax_code }} · {{ profile.verification_status }}
-          </span>
+          <span class="mt-2 flex flex-wrap gap-2 text-xs"
+            ><span class="rounded-full bg-indigo-50 px-2 py-1 font-bold text-indigo-700">{{
+              verificationLabels[profile.verification_status]
+            }}</span
+            ><span class="rounded-full bg-slate-100 px-2 py-1 text-slate-600">{{
+              profile.tax_code
+            }}</span></span
+          >
+          <span class="mt-2 block text-xs text-slate-500"
+            >Nộp
+            {{
+              profile.submitted_at
+                ? new Date(profile.submitted_at).toLocaleString('vi-VN')
+                : 'chưa xác định'
+            }}</span
+          >
         </button>
+        <nav v-if="meta.total_pages > 1" class="mt-4 flex items-center justify-between text-sm">
+          <span>{{ meta.total_items }} hồ sơ</span>
+          <div class="flex gap-2">
+            <button
+              class="rounded-lg border px-3 py-2 disabled:opacity-40"
+              :disabled="meta.page <= 1"
+              @click="loadApplications(meta.page - 1)"
+            >
+              Trước</button
+            ><button
+              class="rounded-lg border px-3 py-2 disabled:opacity-40"
+              :disabled="meta.page >= meta.total_pages"
+              @click="loadApplications(meta.page + 1)"
+            >
+              Sau
+            </button>
+          </div>
+        </nav>
       </section>
 
       <section v-if="selected" class="rounded-2xl bg-white p-6 ring-1 ring-gray-200">
@@ -151,27 +196,40 @@ onMounted(loadApplications)
         <dl class="mt-4 grid gap-2 text-sm">
           <div>
             <dt class="font-bold">Địa chỉ</dt>
-            <dd>{{ selected.business_address }}</dd>
+            <dd class="mt-1 text-slate-700">{{ selected.business_address || 'Chưa cung cấp' }}</dd>
           </div>
           <div>
             <dt class="font-bold">Mã số thuế</dt>
-            <dd>{{ selected.tax_code }}</dd>
+            <dd class="mt-1 text-slate-700">{{ selected.tax_code || 'Chưa cung cấp' }}</dd>
           </div>
           <div>
             <dt class="font-bold">Điện thoại</dt>
-            <dd>{{ selected.contact_phone }}</dd>
+            <dd class="mt-1 text-slate-700">{{ selected.contact_phone || 'Chưa cung cấp' }}</dd>
           </div>
         </dl>
         <h3 class="mt-6 font-bold">Giấy tờ</h3>
+        <p
+          v-if="!selected.documents.length"
+          class="mt-3 rounded-xl bg-amber-50 p-4 text-sm text-amber-800"
+        >
+          Hồ sơ chưa có giấy tờ đính kèm. Không nên duyệt trước khi seller bổ sung tài liệu xác
+          minh.
+        </p>
         <article
           v-for="document in selected.documents"
           :key="document.id"
           class="mt-3 rounded-xl bg-gray-50 p-4"
         >
+          <a v-if="isPreviewable(document)" :href="document.file_url" target="_blank"
+            ><img
+              :src="document.file_url"
+              :alt="document.original_name"
+              class="mb-3 max-h-64 w-full rounded-lg object-contain bg-white"
+          /></a>
           <a class="font-semibold text-indigo-600" :href="document.file_url" target="_blank">
-            {{ document.original_name }}
+            {{ document.original_name }} · Xem toàn màn hình
           </a>
-          <p class="mt-1 text-sm">{{ document.review_status }}</p>
+          <p class="mt-1 text-sm">{{ documentLabels[document.review_status] }}</p>
           <div class="mt-3 flex gap-2">
             <button
               class="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white"
@@ -205,6 +263,12 @@ onMounted(loadApplications)
             Từ chối
           </button>
         </div>
+      </section>
+      <section
+        v-else
+        class="grid min-h-72 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500"
+      >
+        Chọn một hồ sơ để xem thông tin và giấy tờ xác minh.
       </section>
     </div>
   </main>

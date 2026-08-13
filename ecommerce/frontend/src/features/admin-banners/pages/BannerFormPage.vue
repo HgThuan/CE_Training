@@ -71,12 +71,28 @@ function toIsoDateTime(value: string): string | null {
 }
 
 function validateForm(): string | null {
-  if (!form.imageUrl.trim()) return 'Vui lòng nhập URL ảnh banner.'
-  if (form.sortOrder < 0 || !Number.isInteger(form.sortOrder)) {
-    return 'Thứ tự phải là số nguyên không âm.'
-  }
   if (form.startsAt && form.endsAt && new Date(form.startsAt) >= new Date(form.endsAt)) {
     return 'Thời gian kết thúc phải sau thời gian bắt đầu.'
+  }
+  if (!form.title.trim()) return 'Vui lòng nhập tiêu đề để nhận diện banner.'
+  if (!form.imageUrl.trim()) return 'Vui lòng nhập URL ảnh banner.'
+  try {
+    const imageUrl = new URL(form.imageUrl)
+    if (!['http:', 'https:'].includes(imageUrl.protocol)) throw new Error()
+  } catch {
+    return 'URL ảnh phải là liên kết HTTP hoặc HTTPS hợp lệ.'
+  }
+  if (imageFailed.value) return 'Ảnh không tải được. Hãy kiểm tra lại URL trước khi lưu.'
+  if (form.targetUrl.trim()) {
+    try {
+      const targetUrl = new URL(form.targetUrl)
+      if (!['http:', 'https:'].includes(targetUrl.protocol)) throw new Error()
+    } catch {
+      return 'Liên kết đích phải là URL HTTP hoặc HTTPS hợp lệ.'
+    }
+  }
+  if (form.sortOrder < 0 || !Number.isInteger(form.sortOrder)) {
+    return 'Thứ tự phải là số nguyên không âm.'
   }
   return null
 }
@@ -144,7 +160,6 @@ onMounted(loadBanner)
     </RouterLink>
 
     <div class="mt-6">
-      <p class="text-sm font-bold uppercase tracking-[0.2em] text-indigo-600">ADM-21</p>
       <h1 class="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
         {{ isEditing ? 'Cập nhật banner' : 'Tạo banner mới' }}
       </h1>
@@ -190,18 +205,19 @@ onMounted(loadBanner)
           </div>
         </div>
         <div class="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
-          <p class="font-bold text-slate-900">{{ form.title || 'Không tiêu đề' }}</p>
+          <p class="font-bold text-slate-900">{{ form.title || 'Nhập tiêu đề banner' }}</p>
           <p class="mt-1 break-all">{{ form.targetUrl || 'Không có liên kết đích' }}</p>
         </div>
       </section>
 
       <section class="grid content-start gap-5 sm:grid-cols-2">
         <label class="sm:col-span-2">
-          <span class="text-sm font-bold">Tiêu đề</span>
+          <span class="text-sm font-bold">Tiêu đề *</span>
           <input
             v-model.trim="form.title"
             class="mt-2 w-full rounded-xl border border-slate-300 px-3 py-3"
             maxlength="180"
+            required
           />
         </label>
 
@@ -241,7 +257,14 @@ onMounted(loadBanner)
           </select>
         </label>
 
-        <label>
+        <p class="rounded-xl bg-indigo-50 px-3 py-2 text-sm text-indigo-800 sm:col-span-2">
+          Kích thước gợi ý:
+          {{
+            form.position === 'hero' ? '1600 × 700 px (tỷ lệ 16:7)' : '1600 × 600 px (tỷ lệ 8:3)'
+          }}. Ảnh nên dưới 2 MB để tải nhanh.
+        </p>
+
+        <label v-if="isEditing">
           <span class="text-sm font-bold">Thứ tự *</span>
           <input
             v-model.number="form.sortOrder"
