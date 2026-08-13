@@ -115,4 +115,16 @@ export const publicRoutes: RouteRecordRaw[] = [
     component: () => import('@/features/auth/pages/ResetPasswordPage.vue'),
     meta: { guestOnly: true },
   },
+  {
+    path: '/terms',
+    name: 'terms',
+    component: () => import('@/features/auth/pages/LegalPage.vue'),
+    props: { kind: 'terms' },
+  },
+  {
+    path: '/privacy',
+    name: 'privacy',
+    component: () => import('@/features/auth/pages/LegalPage.vue'),
+    props: { kind: 'privacy' },
+  },
 ]

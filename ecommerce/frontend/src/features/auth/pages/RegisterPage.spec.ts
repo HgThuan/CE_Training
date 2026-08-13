@@ -30,6 +30,7 @@ describe('RegisterPage', () => {
     await inputs[1].setValue('new.customer@gmail.com')
     await inputs[2].setValue('StrongPass!234')
     await inputs[3].setValue('StrongPass!234')
+    await inputs[4].setValue(true)
     await form.trigger('submit')
     await flushPromises()
 
@@ -43,5 +44,24 @@ describe('RegisterPage', () => {
 
     expect(resendVerification).toHaveBeenCalledWith('new.customer@gmail.com')
     expect(wrapper.text()).toContain('Email xác thực đã được gửi lại')
+  })
+
+  it('only reveals missing password requirements while typing', async () => {
+    const wrapper = mount(RegisterPage, {
+      global: { stubs: { RouterLink: RouterLinkStub } },
+    })
+
+    expect(wrapper.text()).not.toContain('Cần nhập ít nhất 8 ký tự.')
+
+    const password = wrapper.get('#register-password')
+    await password.setValue('abcdefgh')
+
+    expect(wrapper.text()).not.toContain('Cần nhập ít nhất 8 ký tự.')
+    expect(wrapper.text()).toContain('Cần thêm cả chữ hoa và chữ thường.')
+    expect(wrapper.text()).toContain('Cần thêm ít nhất một chữ số.')
+    expect(wrapper.text()).toContain('Cần thêm ít nhất một ký tự đặc biệt.')
+
+    await password.setValue('Abcdefg1!')
+    expect(wrapper.text()).not.toContain('Cần thêm')
   })
 })
