@@ -335,6 +335,7 @@ class Notification(TimeStampedModel):
         INVENTORY_LOW_STOCK = "inventory_low_stock", "Tồn kho thấp"
         BACK_IN_STOCK = "back_in_stock", "Có hàng trở lại"
         ORDER = "order", "Đơn hàng"
+        CHAT = "chat", "Tin nhắn"
 
     user = models.ForeignKey(
         User,

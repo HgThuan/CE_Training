@@ -2,6 +2,7 @@
 import {
   ArrowLeftStartOnRectangleIcon,
   HeartIcon,
+  ChatBubbleLeftRightIcon,
   ClipboardDocumentListIcon,
   ShoppingBagIcon,
   UserCircleIcon,
@@ -30,6 +31,13 @@ async function logout(): Promise<void> {
           Mercato
         </RouterLink>
         <nav class="flex items-center gap-1 text-sm font-bold">
+          <RouterLink
+            class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100"
+            to="/account/chat"
+          >
+            <ChatBubbleLeftRightIcon class="h-5 w-5" />
+            <span class="hidden sm:inline">Chat</span>
+          </RouterLink>
           <RouterLink
             class="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-slate-600 hover:bg-slate-100"
             to="/products"
