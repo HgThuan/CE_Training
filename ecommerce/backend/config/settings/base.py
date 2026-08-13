@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "apps.review.apps.ReviewConfig",
     "apps.after_sales.apps.AfterSalesConfig",
     "apps.chat.apps.ChatConfig",
+    "apps.notification.apps.NotificationConfig",
 ]
 
 MIDDLEWARE = [

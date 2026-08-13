@@ -42,7 +42,12 @@ export const customerRoutes: RouteRecordRaw[] = [
         component: () => import('@/features/chat/pages/ChatPage.vue'),
         meta: { roles: ['customer'] },
       },
-
+      {
+        path: 'notifications',
+        name: 'customer-notifications',
+        component: () => import('@/features/notification/pages/NotificationCenterPage.vue'),
+        meta: { roles: ['customer'] },
+      },
     ],
   },
 ]

@@ -86,6 +86,11 @@ export const sellerRoutes: RouteRecordRaw[] = [
         name: 'seller-chat',
         component: () => import('@/features/chat/pages/ChatPage.vue'),
       },
+      {
+        path: 'notifications',
+        name: 'seller-notifications',
+        component: () => import('@/features/notification/pages/NotificationCenterPage.vue'),
+      },
     ],
   },
 ]
