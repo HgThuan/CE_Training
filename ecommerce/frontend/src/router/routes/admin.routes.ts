@@ -30,7 +30,7 @@ export const adminRoutes: RouteRecordRaw[] = [
       {
         path: 'seller-applications',
         name: 'admin-seller-applications',
-        component: () => import('@/features/admin-sellers/pages/SellerApprovalPage.vue'),
+        redirect: { path: '/admin/sellers', query: { tab: 'pending' } },
       },
       {
         path: 'sellers',

@@ -6,7 +6,6 @@ import {
   BuildingStorefrontIcon,
   ChartBarSquareIcon,
   ChatBubbleBottomCenterTextIcon,
-  CheckBadgeIcon,
   ClipboardDocumentListIcon,
   CubeIcon,
   HomeIcon,
@@ -82,7 +81,6 @@ const navigation: NavigationGroup[] = [
     items: [
       { label: 'Khách hàng', to: '/admin/customers', icon: UsersIcon },
       { label: 'Nhà bán hàng', to: '/admin/sellers', icon: BuildingStorefrontIcon },
-      { label: 'Duyệt nhà bán', to: '/admin/seller-applications', icon: CheckBadgeIcon },
       { label: 'Vai trò & quyền', to: '/admin/roles', icon: ShieldCheckIcon },
     ],
   },
@@ -133,7 +131,7 @@ async function logout(): Promise<void> {
     >
       <div class="flex h-20 shrink-0 items-center gap-3 border-b border-slate-100 px-5">
         <span
-          class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-sm font-black text-white shadow-lg shadow-indigo-200"
+          class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-700 text-sm font-black text-white shadow-md shadow-indigo-200"
           aria-hidden="true"
         >
           M
@@ -204,7 +202,7 @@ async function logout(): Promise<void> {
         </div>
         <button
           type="button"
-          class="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-rose-50 hover:text-rose-700 disabled:cursor-wait disabled:opacity-60"
+          class="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-rose-700 transition-colors hover:bg-rose-50 hover:text-rose-800 disabled:cursor-wait disabled:opacity-60"
           :disabled="loggingOut"
           @click="logout"
         >

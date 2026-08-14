@@ -1,214 +1,63 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import ActiveSellerWorkspace from '../components/ActiveSellerWorkspace.vue'
+import SellerApplicationWorkspace from '../components/SellerApplicationWorkspace.vue'
 
-import FormMessage from '@/features/auth/components/FormMessage.vue'
-import { getErrorMessage } from '@/features/auth/errors'
-import { promptDialog } from '@/shared/composables/useAppDialog'
-import type { PaginationMeta } from '@/shared/types/api'
-
-import { adminSellersApi } from '../api'
-import type { AdminSeller } from '../types'
-
-const sellers = ref<AdminSeller[]>([])
-const search = ref('')
-const shopStatus = ref<'all' | 'approved' | 'locked'>('all')
-const meta = ref<PaginationMeta>({ page: 1, page_size: 20, total_items: 0, total_pages: 0 })
-const loading = ref(true)
-const message = ref('')
-const errorMessage = ref('')
-const statusLabels: Record<string, string> = {
-  pending: 'Chờ duyệt',
-  approved: 'Đã duyệt',
-  rejected: 'Đã từ chối',
-  locked: 'Bị khóa',
+type SellerTab = 'pending' | 'active' | 'rejected'
+const route = useRoute()
+const router = useRouter()
+const tabs: Array<{ value: SellerTab; label: string; description: string }> = [
+  { value: 'pending', label: 'Chờ duyệt', description: 'Kiểm tra hồ sơ và giấy tờ seller mới' },
+  {
+    value: 'active',
+    label: 'Đang hoạt động',
+    description: 'Quản lý seller và trạng thái gian hàng',
+  },
+  { value: 'rejected', label: 'Đã từ chối', description: 'Tra cứu hồ sơ và lý do đã từ chối' },
+]
+const activeTab = computed<SellerTab>(() => {
+  const tab = String(route.query.tab ?? 'active')
+  return tabs.some((item) => item.value === tab) ? (tab as SellerTab) : 'active'
+})
+function selectTab(tab: SellerTab): void {
+  void router.replace({ query: { ...route.query, tab } })
 }
-function statusClass(status: string): string {
-  if (status === 'approved') return 'bg-emerald-50 text-emerald-700'
-  if (status === 'rejected' || status === 'locked') return 'bg-rose-50 text-rose-700'
-  return 'bg-amber-50 text-amber-700'
-}
-
-async function loadSellers(page = 1): Promise<void> {
-  loading.value = true
-  try {
-    const response = await adminSellersApi.listSellers({
-      search: search.value || undefined,
-      shop__status: shopStatus.value === 'all' ? undefined : shopStatus.value,
-      page,
-      page_size: meta.value.page_size,
-    })
-    sellers.value = response.data.data
-    if (response.data.meta) meta.value = response.data.meta
-  } catch (error) {
-    errorMessage.value = getErrorMessage(error)
-  } finally {
-    loading.value = false
-  }
-}
-
-async function toggleShop(seller: AdminSeller): Promise<void> {
-  if (!seller.shop) return
-  const locking = seller.shop.status !== 'locked'
-  const reason = await promptDialog({
-    title: locking ? 'Khóa gian hàng' : 'Mở khóa gian hàng',
-    inputLabel: locking ? 'Lý do khóa gian hàng' : 'Ghi chú mở khóa',
-    confirmLabel: locking ? 'Khóa gian hàng' : 'Mở khóa',
-    destructive: locking,
-    required: true,
-  })
-  if (!reason?.trim()) return
-  try {
-    const response = locking
-      ? await adminSellersApi.lockShop(seller.shop.id, reason.trim())
-      : await adminSellersApi.unlockShop(seller.shop.id, reason.trim())
-    message.value = response.data.message
-    await loadSellers(meta.value.page)
-  } catch (error) {
-    errorMessage.value = getErrorMessage(error)
-  }
-}
-
-async function renameShop(seller: AdminSeller): Promise<void> {
-  if (!seller.shop) return
-  const name = await promptDialog({
-    title: 'Đổi tên gian hàng',
-    inputLabel: 'Tên gian hàng mới',
-    initialValue: seller.shop.name,
-    confirmLabel: 'Lưu tên',
-    required: true,
-  })
-  if (!name?.trim() || name.trim() === seller.shop.name) return
-  try {
-    message.value = (
-      await adminSellersApi.updateSellerShop(seller.id, { name: name.trim() })
-    ).data.message
-    await loadSellers(meta.value.page)
-  } catch (error) {
-    errorMessage.value = getErrorMessage(error)
-  }
-}
-
-async function deleteSeller(seller: AdminSeller): Promise<void> {
-  const reason = await promptDialog({
-    title: 'Xóa seller',
-    message: seller.email,
-    inputLabel: 'Lý do xóa mềm',
-    confirmLabel: 'Xóa seller',
-    destructive: true,
-    required: true,
-  })
-  if (!reason?.trim()) return
-  try {
-    message.value = (await adminSellersApi.deleteSeller(seller.id, reason.trim())).data.message
-    await loadSellers(meta.value.page)
-  } catch (error) {
-    errorMessage.value = getErrorMessage(error)
-  }
-}
-
-onMounted(loadSellers)
 </script>
 
 <template>
-  <main class="mx-auto max-w-7xl px-4 py-10">
-    <RouterLink class="font-semibold text-indigo-600" to="/admin">← Admin workspace</RouterLink>
-    <h1 class="mt-6 text-3xl font-bold">Quản lý nhà bán hàng</h1>
-    <p class="mt-2 text-slate-600">
-      Quản lý các seller đã hoạt động. Hồ sơ mới được xử lý tại trang Duyệt hồ sơ seller.
-    </p>
-    <FormMessage v-if="message" class="mt-6" :message="message" variant="success" />
-    <FormMessage v-if="errorMessage" class="mt-6" :message="errorMessage" />
-    <form class="mt-8 flex flex-wrap gap-3" @submit.prevent="loadSellers(1)">
-      <input
-        v-model.trim="search"
-        class="min-w-64 flex-1 rounded-xl border px-3 py-2.5"
-        placeholder="Email, họ tên, tên shop"
-      />
-      <select v-model="shopStatus" class="rounded-xl border px-3 py-2.5">
-        <option value="all">Mọi trạng thái</option>
-        <option value="approved">Đã duyệt</option>
-        <option value="locked">Bị khóa</option>
-      </select>
-      <button class="rounded-xl bg-gray-950 px-5 py-2.5 font-bold text-white">Lọc</button>
-    </form>
-    <div class="mt-6 overflow-x-auto rounded-2xl bg-white ring-1 ring-gray-200">
-      <table class="w-full min-w-3xl text-left text-sm">
-        <thead class="bg-gray-50">
-          <tr>
-            <th class="p-4">Seller</th>
-            <th>Shop</th>
-            <th>Trạng thái</th>
-            <th>Thao tác</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="loading">
-            <td class="p-4" colspan="4">Đang tải…</td>
-          </tr>
-          <tr v-for="seller in sellers" :key="seller.id" class="border-t">
-            <td class="p-4">
-              <strong>{{ seller.full_name || seller.email }}</strong
-              ><br />{{ seller.email }}
-            </td>
-            <td>{{ seller.shop?.name ?? 'Chưa có shop' }}</td>
-            <td>
-              <span
-                class="rounded-full px-2.5 py-1 text-xs font-bold"
-                :class="statusClass(seller.shop?.status ?? seller.seller_profile.onboarding_status)"
-                >{{
-                  statusLabels[seller.shop?.status ?? seller.seller_profile.onboarding_status]
-                }}</span
-              >
-            </td>
-            <td class="space-x-2">
-              <button
-                v-if="seller.shop"
-                class="font-semibold text-indigo-600"
-                type="button"
-                @click="renameShop(seller)"
-              >
-                Sửa
-              </button>
-              <button
-                v-if="seller.shop"
-                class="font-semibold text-amber-700"
-                type="button"
-                @click="toggleShop(seller)"
-              >
-                {{ seller.shop?.status === 'locked' ? 'Mở khóa' : 'Khóa shop' }}
-              </button>
-              <button
-                class="font-semibold text-red-700"
-                type="button"
-                @click="deleteSeller(seller)"
-              >
-                Xóa
-              </button>
-            </td>
-          </tr>
-          <tr v-if="!loading && !sellers.length">
-            <td class="p-8 text-center text-slate-500" colspan="4">Không có seller phù hợp.</td>
-          </tr>
-        </tbody>
-      </table>
+  <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-10">
+    <div class="max-w-3xl">
+      <h1 class="text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+        Quản lý nhà bán hàng
+      </h1>
+      <p class="mt-3 text-slate-600">
+        Một nơi để duyệt hồ sơ mới, quản lý seller đang hoạt động và tra cứu các quyết định trước
+        đây.
+      </p>
     </div>
-    <nav v-if="meta.total_pages > 1" class="mt-5 flex items-center justify-between text-sm">
-      <span>Trang {{ meta.page }}/{{ meta.total_pages }} · {{ meta.total_items }} seller</span>
-      <div class="flex gap-2">
+    <div class="mt-8 border-b border-slate-200" role="tablist" aria-label="Nhóm trạng thái seller">
+      <div class="flex gap-1 overflow-x-auto">
         <button
-          class="rounded-xl border px-4 py-2 disabled:opacity-40"
-          :disabled="meta.page <= 1"
-          @click="loadSellers(meta.page - 1)"
+          v-for="tab in tabs"
+          :key="tab.value"
+          class="min-w-max border-b-2 px-4 py-3 text-left transition-colors"
+          :class="
+            activeTab === tab.value
+              ? 'border-indigo-600 text-indigo-700'
+              : 'border-transparent text-slate-500 hover:text-slate-900'
+          "
+          type="button"
+          role="tab"
+          :aria-selected="activeTab === tab.value"
+          @click="selectTab(tab.value)"
         >
-          Trang trước</button
-        ><button
-          class="rounded-xl border px-4 py-2 disabled:opacity-40"
-          :disabled="meta.page >= meta.total_pages"
-          @click="loadSellers(meta.page + 1)"
-        >
-          Trang sau
+          <span class="block font-bold">{{ tab.label }}</span
+          ><span class="mt-0.5 hidden text-xs font-normal sm:block">{{ tab.description }}</span>
         </button>
       </div>
-    </nav>
+    </div>
+    <ActiveSellerWorkspace v-if="activeTab === 'active'" />
+    <SellerApplicationWorkspace v-else :status="activeTab" />
   </main>
 </template>
