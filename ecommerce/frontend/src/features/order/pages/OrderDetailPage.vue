@@ -17,6 +17,9 @@ const route = useRoute(),
 const isReviewDialogOpen = ref(false)
 const selectedOrderItem = ref<OrderItem | null>(null)
 
+const isReturnDialogOpen = ref(false)
+const selectedReturnShop = ref<CommerceOrder['shop_orders'][number] | null>(null)
+
 async function load() {
   try {
     const orderId = String(route.params.orderId)
@@ -66,23 +69,9 @@ function formatDateShort(dateString: string) {
   return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`
 }
 
-async function createReturn(shop: CommerceOrder['shop_orders'][number]) {
-  if (!order.value) return
-  const reason = prompt('Mô tả lý do trả hàng / hoàn tiền')
-  if (!reason) return
-  const image = prompt('URL ảnh chứng cứ') ?? ''
-  try {
-    await afterSalesApi.createReturn(order.value.id, {
-      shop_order_id: shop.id,
-      reason_code: 'OTHER',
-      reason_detail: reason,
-      items: shop.items.map((item) => ({ order_item_id: item.id, quantity: item.quantity })),
-      media: image ? [{ media_type: 'IMAGE', file_url: image }] : [],
-    })
-    await load()
-  } catch {
-    error.value = 'Không thể tạo yêu cầu trả hàng.'
-  }
+function createReturn(shop: CommerceOrder['shop_orders'][number]) {
+  selectedReturnShop.value = shop
+  isReturnDialogOpen.value = true
 }
 async function escalate(item: ReturnRequest) {
   if (!confirm('Chuyển khiếu nại này đến Admin?')) return

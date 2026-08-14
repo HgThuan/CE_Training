@@ -16,3 +16,4 @@ export function formatDateTime(value: string): string {
     timeZone: 'Asia/Ho_Chi_Minh',
   }).format(new Date(value))
 }
+export const formatCurrency = formatVnd

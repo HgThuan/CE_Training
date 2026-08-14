@@ -31,7 +31,6 @@ async function resolve(
     const rawAmount = await showPrompt('Số tiền hoàn', {
       title: 'Hoàn tiền một phần',
       required: true,
-      inputType: 'number',
       placeholder: 'Nhập số tiền lớn hơn 0',
     })
     const amount = Number(rawAmount)
