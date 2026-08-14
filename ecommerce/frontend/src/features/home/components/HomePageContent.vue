@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ArrowRightIcon, SparklesIcon } from '@heroicons/vue/24/outline'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import FormMessage from '@/features/auth/components/FormMessage.vue'
@@ -15,6 +14,7 @@ import type { HomePageData } from '../types'
 import CategoryShowcase from './CategoryShowcase.vue'
 import FlashSaleSection from './FlashSaleSection.vue'
 import HeroBanner from './HeroBanner.vue'
+import MarketCuratedHero from './MarketCuratedHero.vue'
 import ProductGrid from './ProductGrid.vue'
 
 const authStore = useAuthStore()
@@ -83,8 +83,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f8fafc] text-slate-900">
-    <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-12">
+  <div class="min-h-screen bg-[#f7f3ea] text-[#0b2a25]">
+    <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
       <FormMessage v-if="errorMessage" :message="errorMessage" />
       <div v-if="errorMessage" class="mt-4">
         <button
@@ -124,33 +124,11 @@ onBeforeUnmount(() => {
       </div>
 
       <template v-else-if="data">
-        <HeroBanner v-if="heroBanners.length" :banners="heroBanners" />
-        <section
-          v-else
-          class="overflow-hidden rounded-[2rem] bg-slate-950 px-6 py-14 text-white sm:px-12 sm:py-20"
-        >
-          <SparklesIcon class="h-10 w-10 text-indigo-300" />
-          <p class="mt-6 text-sm font-bold uppercase tracking-[0.2em] text-indigo-300">
-            Mercato marketplace
-          </p>
-          <h1 class="mt-3 max-w-3xl text-4xl font-black tracking-tight sm:text-6xl">
-            Khám phá sản phẩm dành cho bạn
-          </h1>
-          <p class="mt-5 max-w-2xl leading-7 text-slate-300 sm:text-lg">
-            Mua sắm từ các gian hàng và sản phẩm đã được kiểm duyệt trên toàn hệ thống.
-          </p>
-          <RouterLink
-            class="mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-bold text-slate-950"
-            to="/products"
-          >
-            Khám phá sản phẩm
-            <ArrowRightIcon class="h-5 w-5" />
-          </RouterLink>
-        </section>
+        <MarketCuratedHero />
 
-        <div class="mt-14 space-y-16 lg:mt-20 lg:space-y-24">
-          <CategoryShowcase :categories="data.categories" />
+        <div class="mt-6 space-y-10 lg:mt-8 lg:space-y-12">
           <FlashSaleSection />
+          <CategoryShowcase :categories="data.categories" />
           <ProductRecommendationCarousel
             v-if="authStore.isAuthenticated"
             title="Gợi ý cho bạn"
@@ -163,7 +141,11 @@ onBeforeUnmount(() => {
             :products="data.new_arrivals"
             empty-message="Sản phẩm mới đang được cập nhật."
           />
-          <HeroBanner v-if="middleBanners.length" :banners="middleBanners" compact />
+          <HeroBanner
+            v-if="[...heroBanners, ...middleBanners].length"
+            :banners="[...heroBanners, ...middleBanners]"
+            compact
+          />
           <ProductGrid
             title="Bán chạy"
             description="Các sản phẩm được khách hàng yêu thích gần đây."
@@ -174,12 +156,21 @@ onBeforeUnmount(() => {
       </template>
     </main>
 
-    <footer class="mt-16 border-t border-slate-200 bg-white">
+    <footer class="market-receipt mt-16 bg-[#173b35] text-white">
       <div
-        class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-8 text-sm text-slate-500 sm:px-6"
+        class="mx-auto grid max-w-7xl gap-5 px-4 py-9 text-sm sm:grid-cols-[1fr_auto] sm:items-center sm:px-6"
       >
-        <p>© 2026 Mercato</p>
-        <RouterLink class="font-bold text-indigo-700" to="/products">Khám phá catalog</RouterLink>
+        <div>
+          <p class="font-display text-2xl">Mercato</p>
+          <p class="mt-1 text-[#d8e5e0]">
+            Một nơi để tìm kiếm, mua sắm và theo dõi đơn từ nhiều gian hàng.
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-4 font-bold">
+          <RouterLink class="text-[#f2c14e]" to="/products">Khám phá sản phẩm</RouterLink>
+          <RouterLink class="text-white" to="/voucher-center">Voucher</RouterLink>
+          <RouterLink class="text-white" to="/account/orders">Đơn hàng</RouterLink>
+        </div>
       </div>
     </footer>
   </div>

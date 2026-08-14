@@ -37,8 +37,8 @@ const selectedAddress = computed(
 const platformVouchers = computed(() =>
   vouchers.value.filter((voucher) => voucher.is_eligible && voucher.campaign.scope === 'platform'),
 )
-const canSubmit = computed(
-  () => Boolean(addressId.value && preview.value && selectedItemIds.value.length && !submitting.value),
+const canSubmit = computed(() =>
+  Boolean(addressId.value && preview.value && selectedItemIds.value.length && !submitting.value),
 )
 
 function shopVouchers(shopId: number): CheckoutVoucher[] {
@@ -131,12 +131,9 @@ async function confirmOrder(): Promise<void> {
   }
 }
 
-watch(
-  [platformCoupon, () => JSON.stringify(shopCouponCodes)],
-  () => {
-    if (initialized.value) void loadPreview()
-  },
-)
+watch([platformCoupon, () => JSON.stringify(shopCouponCodes)], () => {
+  if (initialized.value) void loadPreview()
+})
 
 onMounted(async () => {
   await cartStore.load()
@@ -184,7 +181,9 @@ onMounted(async () => {
             </option>
           </select>
           <div v-if="selectedAddress && !editingAddress" class="mt-4 rounded-2xl bg-slate-50 p-4">
-            <p class="font-black">{{ selectedAddress.recipient_name }} · {{ selectedAddress.phone }}</p>
+            <p class="font-black">
+              {{ selectedAddress.recipient_name }} · {{ selectedAddress.phone }}
+            </p>
             <p class="mt-1 text-sm text-slate-600">
               {{ selectedAddress.detail_address }}, {{ selectedAddress.ward }},
               {{ selectedAddress.district }}, {{ selectedAddress.province }}
@@ -198,15 +197,56 @@ onMounted(async () => {
             class="mt-4 grid gap-3 rounded-2xl border border-indigo-200 p-4 sm:grid-cols-2"
             @submit.prevent="saveAddress"
           >
-            <input v-model.trim="addressDraft.recipient_name" required class="rounded-xl border p-3" placeholder="Người nhận" />
-            <input v-model.trim="addressDraft.phone" required class="rounded-xl border p-3" placeholder="Số điện thoại" />
-            <input v-model.trim="addressDraft.province" required class="rounded-xl border p-3" placeholder="Tỉnh/Thành phố" />
-            <input v-model.trim="addressDraft.district" required class="rounded-xl border p-3" placeholder="Quận/Huyện" />
-            <input v-model.trim="addressDraft.ward" required class="rounded-xl border p-3" placeholder="Phường/Xã" />
-            <input v-model.trim="addressDraft.detail_address" required class="rounded-xl border p-3" placeholder="Địa chỉ cụ thể" />
+            <input
+              v-model.trim="addressDraft.recipient_name"
+              required
+              class="rounded-xl border p-3"
+              placeholder="Người nhận"
+            />
+            <input
+              v-model.trim="addressDraft.phone"
+              required
+              class="rounded-xl border p-3"
+              placeholder="Số điện thoại"
+            />
+            <input
+              v-model.trim="addressDraft.province"
+              required
+              class="rounded-xl border p-3"
+              placeholder="Tỉnh/Thành phố"
+            />
+            <input
+              v-model.trim="addressDraft.district"
+              required
+              class="rounded-xl border p-3"
+              placeholder="Quận/Huyện"
+            />
+            <input
+              v-model.trim="addressDraft.ward"
+              required
+              class="rounded-xl border p-3"
+              placeholder="Phường/Xã"
+            />
+            <input
+              v-model.trim="addressDraft.detail_address"
+              required
+              class="rounded-xl border p-3"
+              placeholder="Địa chỉ cụ thể"
+            />
             <div class="flex gap-2 sm:col-span-2">
-              <button class="rounded-xl bg-indigo-600 px-4 py-2 font-bold text-white" :disabled="savingAddress">{{ savingAddress ? 'Đang lưu…' : 'Lưu địa chỉ' }}</button>
-              <button type="button" class="rounded-xl border px-4 py-2 font-bold" @click="editingAddress = false">Hủy</button>
+              <button
+                class="rounded-xl bg-indigo-600 px-4 py-2 font-bold text-white"
+                :disabled="savingAddress"
+              >
+                {{ savingAddress ? 'Đang lưu…' : 'Lưu địa chỉ' }}
+              </button>
+              <button
+                type="button"
+                class="rounded-xl border px-4 py-2 font-bold"
+                @click="editingAddress = false"
+              >
+                Hủy
+              </button>
             </div>
           </form>
           <p v-if="!addresses.length" class="mt-4 rounded-xl bg-amber-50 p-4 text-amber-800">
@@ -216,15 +256,26 @@ onMounted(async () => {
 
         <article class="rounded-3xl bg-white p-5 shadow-sm">
           <h2 class="text-lg font-black">2. Voucher</h2>
-          <label class="mt-4 block text-sm font-bold">Voucher sàn
+          <label class="mt-4 block text-sm font-bold"
+            >Voucher sàn
             <select v-model="platformCoupon" class="mt-1 w-full rounded-xl border p-3 font-normal">
               <option value="">Không sử dụng</option>
-              <option v-for="voucher in platformVouchers" :key="voucher.id" :value="voucher.campaign.code">
-                {{ voucher.campaign.code }} — {{ voucher.campaign.name }} (ước tính -{{ formatCurrency(voucher.estimated_discount) }})
+              <option
+                v-for="voucher in platformVouchers"
+                :key="voucher.id"
+                :value="voucher.campaign.code"
+              >
+                {{ voucher.campaign.code }} — {{ voucher.campaign.name }} (ước tính -{{
+                  formatCurrency(voucher.estimated_discount)
+                }})
               </option>
             </select>
           </label>
-          <RouterLink class="mt-3 inline-block text-sm font-bold text-indigo-600" to="/voucher-center">Lưu thêm voucher</RouterLink>
+          <RouterLink
+            class="mt-3 inline-block text-sm font-bold text-indigo-600"
+            to="/voucher-center"
+            >Lưu thêm voucher</RouterLink
+          >
         </article>
 
         <article
@@ -238,30 +289,48 @@ onMounted(async () => {
           </div>
           <div class="mt-4 divide-y">
             <div
-              v-for="item in cartStore.cart?.shops.find((group) => group.shop_id === shop.shop_id)?.items.filter((entry) => entry.is_selected) ?? []"
+              v-for="item in cartStore.cart?.shops
+                .find((group) => group.shop_id === shop.shop_id)
+                ?.items.filter((entry) => entry.is_selected) ?? []"
               :key="item.id"
               class="flex items-center justify-between gap-3 py-3 text-sm"
             >
-              <span>{{ item.product_name }} · {{ item.variant_name || item.variant_sku }} × {{ item.quantity }}</span>
+              <span
+                >{{ item.product_name }} · {{ item.variant_name || item.variant_sku }} ×
+                {{ item.quantity }}</span
+              >
               <b>{{ formatCurrency(Number(item.current_price) * item.quantity) }}</b>
             </div>
           </div>
           <div class="mt-4 grid gap-4 md:grid-cols-2">
-            <label class="text-sm font-bold">Voucher của shop
-              <select v-model="shopCouponCodes[String(shop.shop_id)]" class="mt-1 w-full rounded-xl border p-3 font-normal">
+            <label class="text-sm font-bold"
+              >Voucher của shop
+              <select
+                v-model="shopCouponCodes[String(shop.shop_id)]"
+                class="mt-1 w-full rounded-xl border p-3 font-normal"
+              >
                 <option value="">Không sử dụng</option>
-                <option v-for="voucher in shopVouchers(shop.shop_id)" :key="voucher.id" :value="voucher.campaign.code">
+                <option
+                  v-for="voucher in shopVouchers(shop.shop_id)"
+                  :key="voucher.id"
+                  :value="voucher.campaign.code"
+                >
                   {{ voucher.campaign.code }} — {{ voucher.campaign.name }}
                 </option>
               </select>
             </label>
-            <label class="text-sm font-bold">Phương thức vận chuyển
-              <select v-model="shippingMethods[String(shop.shop_id)]" class="mt-1 w-full rounded-xl border p-3 font-normal">
+            <label class="text-sm font-bold"
+              >Phương thức vận chuyển
+              <select
+                v-model="shippingMethods[String(shop.shop_id)]"
+                class="mt-1 w-full rounded-xl border p-3 font-normal"
+              >
                 <option value="STANDARD">Giao hàng tiêu chuẩn (phí cố định)</option>
               </select>
             </label>
           </div>
-          <label class="mt-4 block text-sm font-bold">Lời nhắn với shop
+          <label class="mt-4 block text-sm font-bold"
+            >Lời nhắn với shop
             <textarea
               v-model.trim="shopNotes[String(shop.shop_id)]"
               maxlength="2000"
@@ -272,18 +341,25 @@ onMounted(async () => {
           </label>
           <div class="mt-4 grid grid-cols-2 gap-2 rounded-2xl bg-slate-50 p-4 text-sm">
             <span>Tạm tính</span><b class="text-right">{{ formatCurrency(shop.subtotal) }}</b>
-            <span>Phí vận chuyển</span><b class="text-right">{{ formatCurrency(shop.shipping_fee) }}</b>
+            <span>Phí vận chuyển</span
+            ><b class="text-right">{{ formatCurrency(shop.shipping_fee) }}</b>
           </div>
         </article>
 
         <article class="rounded-3xl bg-white p-5 shadow-sm">
           <h2 class="text-lg font-black">3. Phương thức thanh toán</h2>
           <div class="mt-4 grid gap-3 sm:grid-cols-2">
-            <label class="cursor-pointer rounded-2xl border p-4" :class="paymentMethod === 'COD' && 'border-indigo-500 bg-indigo-50'">
+            <label
+              class="cursor-pointer rounded-2xl border p-4"
+              :class="paymentMethod === 'COD' && 'border-indigo-500 bg-indigo-50'"
+            >
               <input v-model="paymentMethod" value="COD" type="radio" />
               <b class="ml-2">Thanh toán khi nhận hàng (COD)</b>
             </label>
-            <label class="cursor-pointer rounded-2xl border p-4" :class="paymentMethod === 'VNPAY' && 'border-indigo-500 bg-indigo-50'">
+            <label
+              class="cursor-pointer rounded-2xl border p-4"
+              :class="paymentMethod === 'VNPAY' && 'border-indigo-500 bg-indigo-50'"
+            >
               <input v-model="paymentMethod" value="VNPAY" type="radio" />
               <b class="ml-2">VNPay Sandbox</b>
             </label>
@@ -291,17 +367,27 @@ onMounted(async () => {
         </article>
       </div>
 
-      <aside class="h-fit rounded-3xl bg-slate-950 p-6 text-white lg:sticky lg:top-24">
+      <aside
+        class="market-receipt h-fit rounded-2xl bg-[#173b35] p-6 text-white shadow-[0_16px_40px_rgba(23,59,53,0.16)] lg:sticky lg:top-36"
+      >
         <h2 class="text-xl font-black">Chi tiết thanh toán</h2>
         <template v-if="preview">
-          <p class="mt-5 flex justify-between"><span>Tiền hàng</span><b>{{ formatCurrency(preview.subtotal) }}</b></p>
-          <p class="mt-3 flex justify-between text-emerald-300"><span>Voucher</span><b>-{{ formatCurrency(preview.discount) }}</b></p>
-          <p class="mt-3 flex justify-between"><span>Vận chuyển</span><b>{{ formatCurrency(preview.shipping_total) }}</b></p>
-          <p class="mt-5 flex justify-between border-t border-slate-700 pt-5 text-xl"><span>Tổng tiền</span><b>{{ formatCurrency(preview.total) }}</b></p>
+          <p class="mt-5 flex justify-between">
+            <span>Tiền hàng</span><b>{{ formatCurrency(preview.subtotal) }}</b>
+          </p>
+          <p v-if="Number(preview.discount) > 0" class="mt-3 flex justify-between text-[#f2c14e]">
+            <span>Voucher</span><b>-{{ formatCurrency(preview.discount) }}</b>
+          </p>
+          <p class="mt-3 flex justify-between">
+            <span>Vận chuyển</span><b>{{ formatCurrency(preview.shipping_total) }}</b>
+          </p>
+          <p class="mt-5 flex justify-between border-t border-slate-700 pt-5 text-xl">
+            <span>Tổng tiền</span><b>{{ formatCurrency(preview.total) }}</b>
+          </p>
         </template>
         <div v-else class="mt-5 h-32 animate-pulse rounded-2xl bg-slate-800" />
         <button
-          class="mt-6 w-full rounded-xl bg-indigo-500 py-3 font-black hover:bg-indigo-400 disabled:opacity-50"
+          class="market-primary-action mt-6 w-full py-3 disabled:opacity-50"
           :disabled="!canSubmit"
           @click="confirmOrder"
         >

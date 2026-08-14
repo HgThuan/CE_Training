@@ -62,9 +62,16 @@ const displayPrice = computed(() => {
   return `${formatVnd(product.value.min_price)} – ${formatVnd(product.value.max_price)}`
 })
 const displayRegularPrice = computed(() => {
-  if (selectedVariant.value?.is_flash_sale)
-    return formatVnd(selectedVariant.value.regular_price ?? selectedVariant.value.sale_price)
-  if (!selectedVariant.value && product.value?.is_flash_sale)
+  if (
+    selectedVariant.value?.is_flash_sale &&
+    Number(selectedVariant.value.regular_price) > Number(selectedVariant.value.sale_price)
+  )
+    return formatVnd(selectedVariant.value.regular_price)
+  if (
+    !selectedVariant.value &&
+    product.value?.is_flash_sale &&
+    Number(product.value.regular_min_price) > Number(product.value.min_price)
+  )
     return formatVnd(product.value.regular_min_price)
   return ''
 })
@@ -74,7 +81,11 @@ const maximumQuantity = computed(() => {
   return Math.min(99, stock, flashQuota ?? stock)
 })
 const canAdd = computed(
-  () => Boolean(product.value && selectedVariant.value) && quantity.value <= maximumQuantity.value,
+  () =>
+    Boolean(product.value && selectedVariant.value) &&
+    maximumQuantity.value > 0 &&
+    quantity.value >= 1 &&
+    quantity.value <= maximumQuantity.value,
 )
 
 function updateQuantity(amount: number): void {
@@ -238,7 +249,7 @@ onBeforeUnmount(() => {
         <div class="mt-8 grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
           <ProductGallery :media="galleryMedia" :product-name="product.name" />
 
-          <section class="lg:pt-2">
+          <section class="market-panel p-5 sm:p-8 lg:sticky lg:top-36 lg:self-start">
             <div class="flex flex-wrap items-center gap-2 text-sm font-semibold">
               <span class="rounded-full bg-indigo-50 px-3 py-1 text-indigo-700">
                 {{ product.category.name }}
@@ -273,7 +284,7 @@ onBeforeUnmount(() => {
                 Đã kiểm duyệt
               </span>
             </div>
-            <p class="mt-7 text-3xl font-black tracking-tight text-indigo-700">
+            <p class="mt-7 text-3xl font-black tracking-tight text-[#e85d3f]">
               {{ displayPrice }}
             </p>
             <div v-if="displayRegularPrice" class="mt-2 flex flex-wrap items-center gap-3">
@@ -345,7 +356,7 @@ onBeforeUnmount(() => {
                 </button>
               </div>
               <button
-                class="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border-2 border-indigo-600 px-5 font-bold text-indigo-700 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400"
+                class="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border-2 border-[#173b35] px-5 font-bold text-[#173b35] transition hover:bg-[#e8eee9] disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400"
                 type="button"
                 :disabled="!canAdd"
                 @click="prepareCart('cart')"
@@ -354,7 +365,7 @@ onBeforeUnmount(() => {
                 Thêm vào giỏ
               </button>
               <button
-                class="h-12 flex-1 rounded-xl bg-indigo-600 px-5 font-bold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                class="market-primary-action h-12 flex-1 px-5 disabled:cursor-not-allowed disabled:bg-slate-300"
                 type="button"
                 :disabled="!canAdd"
                 @click="prepareCart('buy')"

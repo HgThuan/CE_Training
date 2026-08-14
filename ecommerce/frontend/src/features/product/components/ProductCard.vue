@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CheckIcon, PhotoIcon, ScaleIcon, StarIcon } from '@heroicons/vue/24/outline'
+import { CheckIcon, ScaleIcon, StarIcon } from '@heroicons/vue/24/outline'
 import { computed, ref } from 'vue'
 
 import { formatVnd } from '@/shared/lib/formatters'
@@ -14,17 +14,31 @@ const imageFailed = ref(false)
 const compareStore = useCompareStore()
 const selectedForCompare = computed(() => compareStore.isSelected(props.product.id))
 const compareDisabled = computed(() => compareStore.isFull && !selectedForCompare.value)
+const hasDiscount = computed(
+  () =>
+    Boolean(props.product.is_flash_sale && props.product.regular_min_price) &&
+    Number(props.product.regular_min_price) > Number(props.product.min_price),
+)
+const hasPriceRange = computed(
+  () =>
+    Boolean(props.product.max_price) &&
+    Number(props.product.max_price) > Number(props.product.min_price),
+)
 </script>
 
 <template>
-  <article class="relative flex h-full flex-col gap-2">
-    <div data-test="compare-control" :title="compareDisabled ? 'Tối đa 4 sản phẩm' : undefined">
+  <article
+    class="group relative flex h-full flex-col overflow-hidden rounded-2xl bg-[#fffdf8] shadow-[0_10px_30px_rgba(23,59,53,0.08)]"
+  >
+    <div
+      class="absolute left-3 top-3 z-10"
+      data-test="compare-control"
+      :title="compareDisabled ? 'Tối đa 4 sản phẩm' : undefined"
+    >
       <button
-        class="flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-50"
+        class="grid h-11 w-11 place-items-center rounded-xl bg-[#fffdf8]/95 text-[#173b35] shadow-md transition hover:bg-[#f2c14e] disabled:cursor-not-allowed disabled:opacity-50"
         :class="
-          selectedForCompare
-            ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-            : 'border-slate-300 bg-white text-slate-700 hover:border-indigo-400 hover:text-indigo-700'
+          selectedForCompare ? 'bg-[#f2c14e] text-[#173b35]' : 'bg-[#fffdf8]/95 text-[#173b35]'
         "
         type="button"
         :disabled="compareDisabled"
@@ -36,9 +50,9 @@ const compareDisabled = computed(() => compareStore.isFull && !selectedForCompar
         "
         @click="compareStore.toggle(product)"
       >
-        <CheckIcon v-if="selectedForCompare" class="h-4 w-4" />
-        <ScaleIcon v-else class="h-4 w-4" />
-        {{ selectedForCompare ? 'Đã chọn ✓' : 'Thêm vào so sánh' }}
+        <CheckIcon v-if="selectedForCompare" class="h-5 w-5" />
+        <ScaleIcon v-else class="h-5 w-5" />
+        <span class="sr-only">{{ selectedForCompare ? 'Đã chọn' : 'Thêm vào so sánh' }}</span>
       </button>
     </div>
     <RouterLink
@@ -47,60 +61,64 @@ const compareDisabled = computed(() => compareStore.isFull && !selectedForCompar
         params: { slug: product.slug },
         query: { shop: product.shop_slug },
       }"
-      class="group flex flex-1 flex-col overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-200 transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/70 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-600"
+      class="flex flex-1 flex-col focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#e85d3f]"
     >
-      <div class="relative aspect-[4/3] overflow-hidden bg-slate-100">
+      <div class="relative aspect-[4/3] overflow-hidden bg-[#ece8de]">
         <img
           v-if="product.thumbnail && !imageFailed"
           :src="product.thumbnail"
           :alt="product.name"
-          class="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+          class="h-full w-full object-cover transition duration-500 ease-out group-hover:scale-[1.03]"
           loading="lazy"
           decoding="async"
           @error="imageFailed = true"
         />
-        <div v-else class="grid h-full place-items-center text-slate-400">
-          <PhotoIcon class="h-12 w-12" aria-hidden="true" />
+        <div
+          v-else
+          class="grid h-full place-items-center bg-[#e8eee9] text-[#526762]"
+          role="img"
+          :aria-label="`Chưa có ảnh cho ${product.name}`"
+        >
+          <div class="text-center">
+            <span
+              class="mx-auto grid size-14 place-items-center rounded-xl bg-[#fffdf8] font-black text-[#173b35] shadow-sm"
+              >M</span
+            ><span class="mt-2 block text-xs font-semibold">Ảnh đang cập nhật</span>
+          </div>
         </div>
         <span
-          class="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-slate-700 shadow-sm backdrop-blur"
+          class="absolute bottom-3 left-3 rounded-lg bg-[#fffdf8]/95 px-2.5 py-1 text-xs font-bold text-[#526762] shadow-sm"
         >
           {{ product.sold_count }} đã bán
         </span>
         <span
           v-if="product.is_flash_sale"
-          class="absolute right-4 top-4 rounded-full bg-rose-600 px-3 py-1 text-xs font-black text-white shadow-sm"
+          class="absolute bottom-3 right-3 rounded-lg bg-[#e85d3f] px-2.5 py-1 text-xs font-black text-white shadow-sm"
         >
           FLASH SALE
         </span>
       </div>
-      <div class="flex flex-1 flex-col p-5">
-        <p class="text-xs font-semibold uppercase tracking-wider text-indigo-600">
+      <div class="flex flex-1 flex-col p-4">
+        <p class="text-xs font-bold text-[#526762]">
           {{ product.shop_name }}
         </p>
-        <h2 class="mt-2 line-clamp-2 text-lg font-bold leading-6 text-slate-950">
+        <h2 class="mt-1.5 line-clamp-2 text-base font-bold leading-6 text-[#0b2a25]">
           {{ product.name }}
         </h2>
-        <div class="mt-3 flex items-center gap-1 text-sm text-slate-600">
-          <StarIcon class="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden="true" />
-          <strong class="text-slate-900">{{ Number(product.rating_average).toFixed(1) }}</strong>
+        <div class="mt-2.5 flex items-center gap-1 text-sm text-[#526762]">
+          <StarIcon class="h-4 w-4 fill-[#f2c14e] text-[#f2c14e]" aria-hidden="true" />
+          <strong class="text-[#173b35]">{{ Number(product.rating_average).toFixed(1) }}</strong>
           <span>({{ product.rating_count }})</span>
         </div>
-        <div class="mt-auto pt-5">
-          <p class="text-xl font-black tracking-tight text-indigo-700">
+        <div class="mt-auto pt-4">
+          <p class="text-xl font-black tracking-tight text-[#e85d3f]">
             {{ formatVnd(product.min_price) }}
           </p>
-          <p
-            v-if="product.is_flash_sale && product.regular_min_price"
-            class="mt-0.5 text-sm text-slate-400 line-through"
-          >
+          <p v-if="hasDiscount" class="mt-0.5 text-sm text-[#71827e] line-through">
             {{ formatVnd(product.regular_min_price) }}
           </p>
-          <p
-            v-if="product.max_price && product.max_price !== product.min_price"
-            class="mt-0.5 text-xs text-slate-500"
-          >
-            đến {{ formatVnd(product.max_price) }}
+          <p v-if="hasPriceRange" class="mt-0.5 text-xs text-[#526762]">
+            Giá từ {{ formatVnd(product.min_price) }} đến {{ formatVnd(product.max_price) }}
           </p>
         </div>
       </div>

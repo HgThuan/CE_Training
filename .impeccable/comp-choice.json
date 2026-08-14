@@ -1,0 +1,36 @@
+{
+  "title": "Chọn composition homepage Mercato",
+  "question": "Visual world đã khóa. Chọn cấu trúc homepage sẽ dẫn toàn bộ hệ thống Customer.",
+  "options": [
+    {
+      "id": "home-a",
+      "label": "Curated Market Table",
+      "kicker": "ĐỀ XUẤT",
+      "thesis": "Hero đa ngành hàng mạnh, Flash Sale và catalog cân bằng trong một nhịp cuộn quen thuộc.",
+      "viewport": "Header hai tầng, hero tuyển chọn rộng, receipt Flash Sale, category strip và product grid.",
+      "risk": "Cần giữ hero gọn trên mobile để không đẩy catalog xuống quá sâu.",
+      "hero": ".impeccable/mocks/home-a.png"
+    },
+    {
+      "id": "home-b",
+      "label": "Market Route Spine",
+      "kicker": "MẬT ĐỘ CAO",
+      "thesis": "Danh mục là xương sống điều hướng, các kệ sản phẩm vận hành như những phiếu hàng liên tục.",
+      "viewport": "Category rail trái, product shelves trung tâm và basket summary bên phải.",
+      "risk": "Bố cục ba cột khó chuyển xuống mobile và dễ giống dashboard vận hành.",
+      "hero": ".impeccable/mocks/home-b.png"
+    },
+    {
+      "id": "home-c",
+      "label": "Folded Retail Circular",
+      "kicker": "PREMIUM",
+      "thesis": "Một nửa truyền cảm hứng, một nửa giúp tìm kiếm; catalog phía dưới có nhịp hình ảnh phong phú.",
+      "viewport": "Split hero, receipt discovery panel, shelf-label categories, deal rail và varied catalog.",
+      "risk": "Masonry card cần được chuẩn hóa cẩn thận để so sánh giá vẫn nhanh.",
+      "hero": ".impeccable/mocks/home-c.png"
+    }
+  ],
+  "reroll": false,
+  "canon": false,
+  "steer": true
+}

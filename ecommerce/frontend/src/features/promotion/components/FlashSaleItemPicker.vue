@@ -321,7 +321,10 @@ onMounted(async () => {
         <div class="min-w-0">
           <p class="truncate text-sm font-black">{{ item.product_name || 'Sản phẩm' }}</p>
           <p class="truncate text-xs text-slate-500">
-            Phân loại: <strong class="text-slate-800">{{ item.variant_sku || item.variant || 'Mặc định' }}</strong>
+            Phân loại:
+            <strong class="text-slate-800">{{
+              item.variant_sku || item.variant || 'Mặc định'
+            }}</strong>
             <span v-if="item.shop_name"> · {{ item.shop_name }}</span>
           </p>
           <p v-if="item.available_stock !== undefined" class="mt-1 text-xs text-emerald-700">
@@ -331,13 +334,26 @@ onMounted(async () => {
         <label class="text-xs font-bold">
           Giảm %
           <input
-            :value="item.original_price ? Math.round((1 - item.sale_price / item.original_price) * 100) : 0"
+            :value="
+              item.original_price
+                ? Math.round((1 - Number(item.sale_price) / Number(item.original_price)) * 100)
+                : 0
+            "
             type="number"
             min="0"
             max="100"
             class="mt-1 w-full rounded-xl border px-3 py-2"
             :disabled="item.sold_count > 0 || !item.original_price"
-            @input="update(index, 'sale_price', Math.round((item.original_price || 0) * (1 - Number(($event.target as HTMLInputElement).value) / 100)))"
+            @input="
+              update(
+                index,
+                'sale_price',
+                Math.round(
+                  Number(item.original_price || 0) *
+                    (1 - Number(($event.target as HTMLInputElement).value) / 100),
+                ),
+              )
+            "
           />
         </label>
         <label class="text-xs font-bold">
@@ -372,7 +388,8 @@ onMounted(async () => {
           Xóa
         </button>
         <p v-if="item.sold_count > 0" class="text-xs text-amber-700 sm:col-span-5">
-          Đã bán {{ item.sold_count }} sản phẩm; giá được khóa, số lượng không thể giảm dưới {{ item.sold_count }}.
+          Đã bán {{ item.sold_count }} sản phẩm; giá được khóa, số lượng không thể giảm dưới
+          {{ item.sold_count }}.
         </p>
       </div>
     </div>
