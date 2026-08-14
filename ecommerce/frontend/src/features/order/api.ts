@@ -32,8 +32,9 @@ export const orderApi = {
     }),
   packingSlip: (shopOrderId: string) =>
     http.get<string>(`/seller/orders/${shopOrderId}/packing-slip`, { responseType: 'text' }),
-  adminOrders: (params: Record<string, string>) =>
+  adminOrders: (params: Record<string, string | number>) =>
     http.get<ApiResponse<CommerceOrder[]>>('/admin/orders', { params }),
+  adminOrder: (orderId: string) => http.get<ApiResponse<CommerceOrder>>(`/admin/orders/${orderId}`),
   paymentStatus: (orderId: string) => http.get(`/payment/${orderId}/status`),
   verifyVnpayReturn: (params: Record<string, string>) =>
     http.get('/payment/callback/vnpay', { params }),

@@ -9,6 +9,7 @@ from apps.account.models import Shop
 from apps.account.permissions import IsAdmin, IsSeller
 from apps.common.cache_utils import build_cache_key
 from apps.common.models import AuditLog, SiteSetting
+from apps.common.pagination import StandardPagination
 from apps.common.responses import success_response
 
 from . import selectors
@@ -165,6 +166,8 @@ class AuditLogView(APIView):
         for field in ("action", "target_type", "target_id", "request_id"):
             if value := request.query_params.get(field):
                 queryset = queryset.filter(**{field: value})
+        paginator = StandardPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
         data = [
             {
                 "id": row.pk,
@@ -177,9 +180,9 @@ class AuditLogView(APIView):
                 "diff": row.diff,
                 "created_at": row.created_at,
             }
-            for row in queryset[:200]
+            for row in page
         ]
-        return success_response(data=data)
+        return paginator.get_paginated_response(data)
 
 
 class SiteSettingView(APIView):

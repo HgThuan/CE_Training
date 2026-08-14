@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { AxiosError } from 'axios'
-import { reactive, ref, watch } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
+
+import { adminCatalogApi } from '@/features/admin/api'
+import type { Category } from '@/features/product/types'
 
 import type { Voucher, VoucherPayload, VoucherScope } from '../types'
 
@@ -16,6 +19,7 @@ const emit = defineEmits<{
 
 const fieldErrors = ref<Record<string, string>>({})
 const serverError = ref('')
+const categories = ref<Category[]>([])
 
 function localDate(value: string): string {
   if (!value) return ''
@@ -73,6 +77,9 @@ function validate(): boolean {
   if (!form.code.trim()) fieldErrors.value.code = 'Mã voucher là bắt buộc'
   if (!form.name.trim()) fieldErrors.value.name = 'Tên chương trình là bắt buộc'
   if (form.discount_value <= 0) fieldErrors.value.discount_value = 'Giá trị giảm phải lớn hơn 0'
+  if (form.discount_type === 'percent' && form.discount_value > 100) {
+    fieldErrors.value.discount_value = 'Phần trăm giảm không được vượt quá 100%'
+  }
   if (
     form.discount_type === 'percent' &&
     (!form.max_discount_amount || form.max_discount_amount <= 0)
@@ -81,6 +88,9 @@ function validate(): boolean {
   }
   if (new Date(form.valid_from) >= new Date(form.valid_until)) {
     fieldErrors.value.valid_until = 'Thời điểm kết thúc phải sau thời điểm bắt đầu'
+  }
+  if (!props.voucher && new Date(form.valid_from).getTime() < Date.now() - 60_000) {
+    fieldErrors.value.valid_from = 'Thời điểm bắt đầu không được ở trong quá khứ'
   }
   return Object.keys(fieldErrors.value).length === 0
 }
@@ -115,6 +125,15 @@ function showServerError(error: unknown): void {
 }
 
 defineExpose({ showServerError })
+
+onMounted(async () => {
+  if (props.scope !== 'platform') return
+  try {
+    categories.value = (await adminCatalogApi.categories()).data.data
+  } catch {
+    categories.value = []
+  }
+})
 </script>
 
 <template>
@@ -164,6 +183,7 @@ defineExpose({ showServerError })
           v-model.number="form.discount_value"
           type="number"
           min="1"
+          :max="form.discount_type === 'percent' ? 100 : undefined"
           class="mt-1 w-full rounded-xl border px-3 py-2"
         />
         <span v-if="fieldErrors.discount_value" class="mt-1 block text-xs text-rose-600">{{
@@ -201,7 +221,12 @@ defineExpose({ showServerError })
               : []
           "
         />
-        Cho cộng dồn với voucher {{ scope === 'platform' ? 'shop' : 'sàn' }}
+        <span>
+          Cho dùng đồng thời với voucher {{ scope === 'platform' ? 'shop' : 'sàn' }}
+          <span class="block text-xs font-normal text-slate-500"
+            >Khách có thể áp dụng cả hai voucher trong cùng một đơn hàng.</span
+          >
+        </span>
       </label>
     </div>
     <div class="grid gap-4 sm:grid-cols-3">
@@ -215,11 +240,12 @@ defineExpose({ showServerError })
         />
       </label>
       <label class="text-sm font-bold"
-        >Tổng lượt (trống = vô hạn)
+        >Tổng lượt sử dụng
         <input
           v-model.number="form.total_usage_limit"
           type="number"
           min="1"
+          placeholder="Để trống = không giới hạn"
           class="mt-1 w-full rounded-xl border px-3 py-2"
         />
       </label>
@@ -234,11 +260,16 @@ defineExpose({ showServerError })
       </label>
     </div>
     <label v-if="scope === 'platform'" class="block text-sm font-bold"
-      >ID danh mục áp dụng (tùy chọn)
-      <input
+      >Danh mục áp dụng
+      <select
         v-model="form.applicable_category"
-        class="mt-1 w-full rounded-xl border px-3 py-2 font-mono"
-      />
+        class="mt-1 w-full rounded-xl border bg-white px-3 py-2"
+      >
+        <option :value="null">Tất cả danh mục</option>
+        <option v-for="category in categories" :key="category.id" :value="category.id">
+          {{ category.name }}
+        </option>
+      </select>
     </label>
     <div class="grid gap-4 sm:grid-cols-2">
       <label class="text-sm font-bold"
@@ -248,6 +279,9 @@ defineExpose({ showServerError })
           type="datetime-local"
           class="mt-1 w-full rounded-xl border px-3 py-2"
         />
+        <span v-if="fieldErrors.valid_from" class="mt-1 block text-xs text-rose-600">{{
+          fieldErrors.valid_from
+        }}</span>
       </label>
       <label class="text-sm font-bold"
         >Kết thúc

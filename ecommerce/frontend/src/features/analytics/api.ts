@@ -26,8 +26,14 @@ export const analyticsApi = {
     http.get<ApiResponse<Record<string, number>>>('/admin/reports/cancel-return-rate/', {
       params: { days },
     }),
-  auditLogs: (params?: { action?: string; target_type?: string; target_id?: string }) =>
-    http.get<ApiResponse<AuditEntry[]>>('/admin/audit-logs/', { params }),
+  auditLogs: (params?: {
+    action?: string
+    target_type?: string
+    target_id?: string
+    request_id?: string
+    page?: number
+    page_size?: number
+  }) => http.get<ApiResponse<AuditEntry[]>>('/admin/audit-logs/', { params }),
   settings: () => http.get<ApiResponse<SiteSetting[]>>('/admin/settings/'),
   updateSettings: (settings: SiteSetting[]) =>
     http.put<ApiResponse<SiteSetting[]>>('/admin/settings/', { settings }),

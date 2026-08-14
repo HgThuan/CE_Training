@@ -12,6 +12,25 @@ function status(voucher: Voucher): string {
   if (new Date(voucher.valid_from).getTime() > Date.now()) return 'Sắp diễn ra'
   return 'Đang hoạt động'
 }
+
+function usage(voucher: Voucher): string {
+  const used =
+    voucher.issued_quantity ??
+    (voucher.total_usage_limit !== null && voucher.remaining_quantity !== null
+      ? voucher.total_usage_limit - voucher.remaining_quantity
+      : 0)
+  return voucher.total_usage_limit === null
+    ? `${used} lượt đã dùng · Không giới hạn`
+    : `${used}/${voucher.total_usage_limit} lượt đã dùng`
+}
+
+function statusClass(voucher: Voucher): string {
+  const value = status(voucher)
+  if (value === 'Đang hoạt động') return 'bg-emerald-50 text-emerald-700'
+  if (value === 'Sắp diễn ra') return 'bg-amber-50 text-amber-700'
+  if (value === 'Đã hết hạn') return 'bg-rose-50 text-rose-700'
+  return 'bg-slate-100 text-slate-600'
+}
 </script>
 
 <template>
@@ -41,14 +60,18 @@ function status(voucher: Voucher): string {
             }}
           </td>
           <td class="px-5 py-4">
-            Từ {{ formatVnd(voucher.min_order_amount) }}
+            {{
+              Number(voucher.min_order_amount) > 0
+                ? `Từ ${formatVnd(voucher.min_order_amount)}`
+                : 'Không yêu cầu đơn tối thiểu'
+            }}
             <p class="text-xs text-slate-500">
-              {{ voucher.total_usage_limit ?? 'Không giới hạn' }} lượt
+              {{ usage(voucher) }}
             </p>
           </td>
           <td class="px-5 py-4">{{ new Date(voucher.valid_until).toLocaleString('vi-VN') }}</td>
           <td class="px-5 py-4">
-            <span class="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold">{{
+            <span class="rounded-full px-2 py-1 text-xs font-bold" :class="statusClass(voucher)">{{
               status(voucher)
             }}</span>
           </td>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import type { Voucher, VoucherPayload, VoucherScope } from '../types'
 import { usePromotionStore } from '../store'
@@ -14,6 +14,30 @@ const formOpen = ref(false)
 const formRef = ref<InstanceType<typeof VoucherForm> | null>(null)
 const confirmOpen = ref(false)
 const confirmTarget = ref<Voucher | null>(null)
+const search = ref('')
+const statusFilter = ref('all')
+const typeFilter = ref('all')
+
+const filteredVouchers = computed(() => {
+  const now = Date.now()
+  return store.vouchers.filter((voucher) => {
+    const matchesSearch = `${voucher.code} ${voucher.name}`
+      .toLowerCase()
+      .includes(search.value.toLowerCase())
+    const currentStatus = !voucher.is_active
+      ? 'inactive'
+      : new Date(voucher.valid_until).getTime() < now
+        ? 'expired'
+        : new Date(voucher.valid_from).getTime() > now
+          ? 'upcoming'
+          : 'active'
+    return (
+      matchesSearch &&
+      (statusFilter.value === 'all' || statusFilter.value === currentStatus) &&
+      (typeFilter.value === 'all' || voucher.discount_type === typeFilter.value)
+    )
+  })
+})
 
 function openForm(voucher: Voucher | null = null): void {
   editing.value = voucher
@@ -79,10 +103,42 @@ void store.loadVouchers(props.scope)
     >
       Chưa có voucher nào. Tạo voucher đầu tiên để bắt đầu.
     </section>
+    <div
+      v-if="!store.loading && !store.error && store.vouchers.length"
+      class="mt-7 grid gap-3 rounded-2xl bg-white p-4 ring-1 ring-slate-200 md:grid-cols-3"
+    >
+      <input
+        v-model.trim="search"
+        class="rounded-xl border border-slate-300 px-3 py-2.5"
+        placeholder="Tìm theo mã hoặc tên voucher"
+      />
+      <select
+        v-model="statusFilter"
+        class="rounded-xl border border-slate-300 bg-white px-3 py-2.5"
+      >
+        <option value="all">Mọi trạng thái</option>
+        <option value="active">Đang hoạt động</option>
+        <option value="upcoming">Sắp diễn ra</option>
+        <option value="expired">Đã hết hạn</option>
+        <option value="inactive">Đã tắt</option>
+      </select>
+      <select v-model="typeFilter" class="rounded-xl border border-slate-300 bg-white px-3 py-2.5">
+        <option value="all">Mọi loại giảm</option>
+        <option value="percent">Phần trăm</option>
+        <option value="fixed">Số tiền</option>
+        <option value="freeship">Miễn phí vận chuyển</option>
+      </select>
+    </div>
+    <p
+      v-if="!store.loading && !store.error && store.vouchers.length && !filteredVouchers.length"
+      class="mt-7 rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500"
+    >
+      Không tìm thấy voucher phù hợp.
+    </p>
     <VoucherTable
-      v-else
+      v-if="!store.loading && !store.error && filteredVouchers.length"
       class="mt-7"
-      :vouchers="store.vouchers"
+      :vouchers="filteredVouchers"
       @edit="openForm"
       @remove="requestRemove"
     />
@@ -90,7 +146,9 @@ void store.loadVouchers(props.scope)
       v-if="formOpen"
       class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 p-4"
     >
-      <div class="my-8 w-full max-w-3xl rounded-3xl bg-white p-6 shadow-2xl">
+      <div
+        class="my-4 max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
+      >
         <h2 class="mb-5 text-xl font-black">
           {{ editing ? 'Cập nhật voucher' : 'Tạo voucher mới' }}
         </h2>
@@ -105,7 +163,7 @@ void store.loadVouchers(props.scope)
         />
       </div>
     </div>
-    
+
     <ConfirmDialog
       :open="confirmOpen"
       title="Xóa voucher"

@@ -83,6 +83,11 @@ export const adminRoutes: RouteRecordRaw[] = [
         component: () => import('@/features/admin/order/AdminOrderPage.vue'),
       },
       {
+        path: 'orders/:orderId',
+        name: 'admin-order-detail',
+        component: () => import('@/features/admin/order/AdminOrderDetailPage.vue'),
+      },
+      {
         path: 'disputes',
         name: 'admin-disputes',
         component: () => import('@/features/after-sales/pages/AdminDisputesPage.vue'),
