@@ -55,11 +55,11 @@ describe('StorefrontLayout customer navigation', () => {
     })
 
     expect(wrapper.findAll('a[href="/wishlist"]')).toHaveLength(1)
-    expect(wrapper.findAll('a[href="/account/orders"]')).toHaveLength(1)
+    expect(wrapper.findAll('a[href="/account/orders"]')).toHaveLength(2)
     const menuButton = wrapper.get('button[aria-label="Mở menu"]')
     await menuButton.trigger('click')
     expect(wrapper.findAll('a[href="/wishlist"]')).toHaveLength(2)
-    expect(wrapper.findAll('a[href="/account/orders"]')).toHaveLength(2)
+    expect(wrapper.findAll('a[href="/account/orders"]')).toHaveLength(3)
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
     await flushPromises()

@@ -77,8 +77,8 @@ onUnmounted(stopAutoplay)
 <template>
   <section
     v-if="activeBanner"
-    class="relative overflow-hidden bg-slate-950 text-white shadow-xl"
-    :class="compact ? 'rounded-3xl' : 'rounded-[2rem]'"
+    class="relative overflow-hidden bg-[#173b35] text-white shadow-[0_16px_40px_rgba(23,59,53,0.14)]"
+    :class="compact ? 'rounded-2xl' : 'rounded-2xl'"
     aria-label="Banner khuyến mại"
     aria-roledescription="carousel"
     @mouseenter="pause"
@@ -92,7 +92,7 @@ onUnmounted(stopAutoplay)
       class="relative block"
     >
       <div
-        class="grid place-items-center overflow-hidden bg-gradient-to-br from-indigo-700 via-violet-700 to-slate-950"
+        class="grid place-items-center overflow-hidden bg-[#173b35]"
         :class="compact ? 'aspect-[16/5]' : 'aspect-[16/7] min-h-64'"
       >
         <img
@@ -107,7 +107,7 @@ onUnmounted(stopAutoplay)
       </div>
       <div
         v-if="activeBanner.title"
-        class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/90 to-transparent px-6 pb-8 pt-20 sm:px-10"
+        class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#0b2a25]/95 to-transparent px-6 pb-8 pt-20 sm:px-10"
       >
         <p
           class="max-w-3xl font-black tracking-tight"

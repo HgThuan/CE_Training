@@ -22,10 +22,10 @@ withDefaults(
   <section>
     <div class="flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h2 class="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">{{ title }}</h2>
-        <p v-if="description" class="mt-2 text-slate-600">{{ description }}</p>
+        <h2 class="text-2xl font-black tracking-tight text-[#0b2a25] sm:text-3xl">{{ title }}</h2>
+        <p v-if="description" class="mt-2 text-[#526762]">{{ description }}</p>
       </div>
-      <RouterLink class="text-sm font-bold text-indigo-700 hover:text-indigo-900" to="/products">
+      <RouterLink class="text-sm font-bold text-[#c8452d] hover:text-[#8f2f20]" to="/products">
         Xem tất cả →
       </RouterLink>
     </div>

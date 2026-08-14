@@ -27,6 +27,7 @@ const errorMessage = ref('')
 const avatarPreview = ref(authStore.user?.avatar_url ?? '')
 const croppedAvatar = ref<Blob | null>(null)
 const avatarSaving = ref(false)
+const avatarInput = ref<HTMLInputElement | null>(null)
 
 async function selectAvatar(event: Event): Promise<void> {
   errorMessage.value = ''
@@ -95,10 +96,7 @@ async function logout(): Promise<void> {
   <main class="mx-auto max-w-4xl px-5 py-10">
     <header class="flex flex-wrap items-center justify-between gap-4">
       <div>
-        <p class="text-sm font-semibold uppercase tracking-widest text-indigo-600">
-          {{ authStore.user?.role }}
-        </p>
-        <h1 class="mt-2 text-3xl font-bold text-gray-950">Hồ sơ cá nhân</h1>
+        <h1 class="text-3xl font-bold text-[#0b2a25]">Hồ sơ cá nhân</h1>
         <p class="mt-1 text-gray-600">{{ authStore.user?.email }}</p>
       </div>
       <button class="rounded-xl border border-gray-300 px-4 py-2 font-semibold" @click="logout">
@@ -109,10 +107,7 @@ async function logout(): Promise<void> {
     <FormMessage v-if="errorMessage" class="mt-6" :message="errorMessage" />
 
     <div class="mt-8 grid gap-6 lg:grid-cols-2">
-      <form
-        class="space-y-4 rounded-2xl bg-white p-6 ring-1 ring-gray-200"
-        @submit.prevent="saveProfile"
-      >
+      <form class="market-panel space-y-4 p-6" @submit.prevent="saveProfile">
         <h2 class="text-xl font-bold">Thông tin chung</h2>
         <FormMessage v-if="profileMessage" :message="profileMessage" variant="success" />
         <section class="flex flex-wrap items-center gap-4 rounded-xl bg-gray-50 p-4">
@@ -124,21 +119,29 @@ async function logout(): Promise<void> {
           />
           <div
             v-else
-            class="grid size-20 place-items-center rounded-full bg-indigo-100 text-2xl font-bold text-indigo-700"
+            class="grid size-20 place-items-center rounded-full bg-[#e8eee9] text-2xl font-bold text-[#173b35]"
             aria-label="Chưa có ảnh đại diện"
           >
             {{ authStore.user?.full_name?.charAt(0).toUpperCase() || '?' }}
           </div>
           <div class="min-w-0 flex-1 space-y-2">
-            <label class="block text-sm font-semibold">
-              Chọn và tự động cắt ảnh vuông
+            <div class="block text-sm font-semibold">
+              Ảnh đại diện
               <input
-                class="mt-2 block w-full text-sm"
+                ref="avatarInput"
+                class="sr-only"
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
                 @change="selectAvatar"
               />
-            </label>
+              <button
+                class="mt-2 rounded-xl border border-[#173b35]/25 bg-white px-4 py-2.5 text-sm font-bold text-[#173b35] hover:border-[#e85d3f]"
+                type="button"
+                @click="avatarInput?.click()"
+              >
+                Chọn ảnh từ thiết bị
+              </button>
+            </div>
             <button
               v-if="croppedAvatar"
               class="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
@@ -184,10 +187,7 @@ async function logout(): Promise<void> {
         </button>
       </form>
 
-      <form
-        class="space-y-4 rounded-2xl bg-white p-6 ring-1 ring-gray-200"
-        @submit.prevent="changePassword"
-      >
+      <form class="market-panel space-y-4 p-6" @submit.prevent="changePassword">
         <h2 class="text-xl font-bold">Đổi mật khẩu</h2>
         <FormMessage v-if="passwordMessage" :message="passwordMessage" variant="success" />
         <label class="block text-sm font-medium">
@@ -196,6 +196,7 @@ async function logout(): Promise<void> {
             v-model="passwordForm.old_password"
             class="mt-2 w-full rounded-xl border px-3 py-2"
             type="password"
+            autocomplete="current-password"
             required
           />
         </label>
@@ -205,6 +206,7 @@ async function logout(): Promise<void> {
             v-model="passwordForm.new_password"
             class="mt-2 w-full rounded-xl border px-3 py-2"
             type="password"
+            autocomplete="new-password"
             minlength="8"
             required
           />
@@ -215,6 +217,7 @@ async function logout(): Promise<void> {
             v-model="passwordForm.new_password_confirm"
             class="mt-2 w-full rounded-xl border px-3 py-2"
             type="password"
+            autocomplete="new-password"
             required
           />
         </label>
