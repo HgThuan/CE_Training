@@ -52,11 +52,51 @@ Tuy nhiên, bạn có thể tham khảo:
       },
     })
 
+    expect(wrapper.text()).toContain('Gợi ý gần nhu cầu')
+    expect(wrapper.text()).toContain('chỉ khớp một phần')
+
     await wrapper
       .findAll('button')
       .find((button) => button.text().includes('Tìm sản phẩm tương tự'))!
       .trigger('click')
 
     expect(wrapper.emitted('followUp')).toEqual([['Tìm sản phẩm tương tự']])
+  })
+
+  it('separates verified matches from alternative products', () => {
+    const baseProduct = { id: 'product', name: 'Laptop' } as never
+    const message: ChatMessage = {
+      id: 'assistant-groups',
+      role: 'assistant',
+      content: 'Mình đã kiểm tra các tiêu chí từ dữ liệu Mercato.',
+      attachments: [
+        {
+          type: 'product_card',
+          product_id: 'exact-product',
+          product: baseProduct,
+          match: { kind: 'exact', matched_terms: ['laptop'], missing_terms: [] },
+        },
+        {
+          type: 'product_card',
+          product_id: 'alternative-product',
+          product: baseProduct,
+          match: {
+            kind: 'alternative',
+            matched_terms: ['laptop'],
+            missing_terms: ['budget_max:20000000'],
+          },
+        },
+      ],
+      created_at: '2026-08-14T00:00:00Z',
+    }
+
+    const wrapper = mount(ChatMessageList, {
+      props: { messages: [message], isStreaming: false },
+      global: { stubs: { ChatProductCard: { template: '<article />' } } },
+    })
+
+    expect(wrapper.text()).toContain('Khớp với nhu cầu')
+    expect(wrapper.text()).toContain('Gợi ý gần nhu cầu')
+    expect(wrapper.text()).toContain('vượt ngân sách tối đa 20.000.000')
   })
 })

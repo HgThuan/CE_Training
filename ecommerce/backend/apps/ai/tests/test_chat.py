@@ -11,10 +11,13 @@ from rest_framework.test import APIClient
 from apps.account.models import User
 from apps.ai.chat_service import AIChatService, ChatEvent
 from apps.ai.models import AIRequestLog, ChatMessage, ChatSession, PolicyDocument
-from apps.ai.providers import BaseAIProvider, ChatChunk, ToolCall
+from apps.ai.providers import AIProviderError, BaseAIProvider, ChatChunk, ToolCall
 from apps.ai.providers.gemini import GeminiProvider
 from apps.ai.services import AIResult, AIService
-from apps.ai.tools import _get_policy
+from apps.ai.tools import _get_policy, _serialize_products_with_verified_ratings
+from apps.catalog.tests.factories import CategoryFactory
+from apps.product.models import Product
+from apps.product.tests.factories import ProductFactory
 
 
 def product_payload(product_id=None):
@@ -34,6 +37,21 @@ def product_payload(product_id=None):
         "sold_count": 8,
         "shop_name": "Mercato Tech",
         "shop_slug": "mercato-tech",
+    }
+
+
+def product_search_result(product, *, kind="exact", missing_terms=None):
+    return {
+        "products": [product],
+        "result_count": 1,
+        "matches": [
+            {
+                "product_id": product["id"],
+                "kind": kind,
+                "matched_terms": ["laptop"] if kind == "exact" else ["dong", "ho"],
+                "missing_terms": missing_terms or [],
+            }
+        ],
     }
 
 
@@ -68,7 +86,7 @@ def test_chat_turn_grounds_product_card_from_search_result():
         ],
         [ChatChunk(delta_text="Mình tìm thấy một lựa chọn phù hợp.")],
     )
-    executor = Mock(return_value={"products": [product], "result_count": 1})
+    executor = Mock(return_value=product_search_result(product))
     session = ChatSession.objects.create(guest_token="guest-token-for-chat-tests")
 
     events = list(
@@ -79,14 +97,423 @@ def test_chat_turn_grounds_product_card_from_search_result():
     )
 
     done = events[-1].to_dict()["message"]
-    assert done["content"] == "Mình tìm thấy một lựa chọn phù hợp."
+    assert done["content"] == (
+        "Mình tìm thấy 1 sản phẩm khớp với những tiêu chí có thể kiểm chứng từ dữ liệu Mercato."
+    )
     assert done["attachments"] == [
-        {"type": "product_card", "product_id": product["id"], "product": product}
+        {
+            "type": "product_card",
+            "product_id": product["id"],
+            "product": product,
+            "match": product_search_result(product)["matches"][0],
+        }
     ]
     assert ChatMessage.objects.filter(session=session, role=ChatMessage.Role.TOOL).count() == 1
     assert AIRequestLog.objects.get(feature=AIRequestLog.Feature.CHAT_TURN).metadata[
         "tool_names"
     ] == ["search_products"]
+
+
+@pytest.mark.django_db
+def test_gift_advice_asks_for_missing_needs_before_searching():
+    CategoryFactory(name="Âm thanh", slug="am-thanh")
+    provider = fake_provider([ChatChunk(delta_text="Không được gọi")])
+    executor = Mock()
+    session = ChatSession.objects.create(guest_token="guest-token-gift-clarification")
+
+    events = list(
+        AIChatService(provider=provider, tool_executor=executor).handle_turn(
+            session,
+            "Tôi muốn mua quà sinh nhật cho bạn",
+        )
+    )
+
+    response = events[-1].message["content"]
+    assert "Bạn ấy thích gì" in response
+    assert "Ngân sách dự kiến" in response
+    assert events[-1].message["attachments"] == []
+    provider.generate_chat.assert_not_called()
+    executor.assert_not_called()
+    request_log = AIRequestLog.objects.get(feature=AIRequestLog.Feature.CHAT_TURN)
+    assert request_log.provider == "dialogue_rules"
+    assert request_log.metadata["dialogue_action"] == "clarify"
+    assert request_log.metadata["dialogue_intent"] == "gift_advice"
+
+
+@pytest.mark.django_db
+def test_gift_advice_does_not_invent_a_birthday_for_other_occasions():
+    session = ChatSession.objects.create(guest_token="guest-token-wedding-gift")
+
+    events = list(
+        AIChatService(provider=fake_provider()).handle_turn(
+            session,
+            "Tôi muốn mua quà cưới cho bạn",
+        )
+    )
+
+    assert "chọn quà đám cưới" in events[-1].message["content"]
+    assert "sinh nhật" not in events[-1].message["content"]
+
+
+@pytest.mark.django_db
+def test_gift_advice_understands_standalone_budget_follow_up():
+    CategoryFactory(name="Âm thanh", slug="am-thanh")
+    provider = fake_provider([ChatChunk(delta_text="Không được gọi")])
+    executor = Mock()
+    session = ChatSession.objects.create(guest_token="guest-token-standalone-budget")
+    service = AIChatService(provider=provider, tool_executor=executor)
+
+    list(service.handle_turn(session, "Tôi muốn mua quà sinh nhật"))
+    events = list(service.handle_turn(session, "1 triệu"))
+
+    assert "ngân sách khoảng 1.000.000 đ" in events[-1].message["content"]
+    assert "Người nhận thích gì" in events[-1].message["content"]
+    provider.generate_chat.assert_not_called()
+    executor.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_gift_advice_collects_slots_across_turns_then_runs_grounded_search():
+    CategoryFactory(name="Âm thanh", slug="am-thanh")
+    CategoryFactory(name="Phụ kiện", slug="phu-kien")
+    CategoryFactory(name="Thiết bị đeo", slug="thiet-bi-deo")
+    product = product_payload()
+    provider = fake_provider([ChatChunk(delta_text="Không được gọi")])
+    executor = Mock(return_value=product_search_result(product))
+    session = ChatSession.objects.create(guest_token="guest-token-gift-multiturn")
+    service = AIChatService(provider=provider, tool_executor=executor)
+
+    first = list(service.handle_turn(session, "Tôi muốn mua quà sinh nhật cho bạn"))
+    second = list(service.handle_turn(session, "Bạn ấy thích công nghệ, tầm 1 triệu"))
+    third = list(service.handle_turn(session, "Âm thanh"))
+
+    assert "Bạn ấy thích gì" in first[-1].message["content"]
+    assert "sở thích công nghệ" in second[-1].message["content"]
+    assert "Âm thanh, Phụ kiện hay Thiết bị đeo" in second[-1].message["content"]
+    assert third[-1].message["attachments"][0]["product_id"] == product["id"]
+    assert "Mình tìm thấy 1 sản phẩm khớp" in third[-1].message["content"]
+    provider.generate_chat.assert_not_called()
+    executor.assert_called_once_with(
+        "search_products",
+        {
+            "query": "Âm thanh",
+            "category": "Âm thanh",
+            "limit": 4,
+            "max_price": 1_000_000,
+            "_user_need": "Âm thanh dưới 1000000 đồng",
+        },
+        user=None,
+    )
+    log_actions = list(
+        AIRequestLog.objects.filter(feature=AIRequestLog.Feature.CHAT_TURN)
+        .order_by("created_at")
+        .values_list("metadata__dialogue_action", flat=True)
+    )
+    assert log_actions == ["clarify", "clarify", "guided_search"]
+
+
+@pytest.mark.django_db
+def test_gift_follow_up_can_repeat_gift_words_without_losing_collected_budget():
+    CategoryFactory(name="Âm thanh", slug="am-thanh")
+    executor = Mock(return_value=product_search_result(product_payload()))
+    session = ChatSession.objects.create(guest_token="guest-token-gift-repeat-words")
+    service = AIChatService(provider=fake_provider(), tool_executor=executor)
+
+    list(service.handle_turn(session, "Tôi muốn mua quà sinh nhật"))
+    list(service.handle_turn(session, "Ngân sách khoảng 1 triệu"))
+    events = list(service.handle_turn(session, "Tôi muốn mua quà là tai nghe"))
+
+    assert events[-1].message["attachments"]
+    search_arguments = executor.call_args.args[1]
+    assert search_arguments["query"] == "tai nghe"
+    assert search_arguments["max_price"] == 1_000_000
+
+
+@pytest.mark.django_db
+def test_gift_advice_uses_latest_category_and_budget_corrections():
+    CategoryFactory(name="Âm thanh", slug="am-thanh")
+    CategoryFactory(name="Phụ kiện", slug="phu-kien")
+    executor = Mock(return_value=product_search_result(product_payload()))
+    session = ChatSession.objects.create(guest_token="guest-token-gift-correction")
+    service = AIChatService(provider=fake_provider(), tool_executor=executor)
+
+    list(service.handle_turn(session, "Tôi muốn mua quà sinh nhật"))
+    list(service.handle_turn(session, "Ngân sách dưới 1 triệu"))
+    events = list(service.handle_turn(session, "Đổi lên khoảng 2 triệu, chọn Phụ kiện"))
+
+    assert events[-1].message["attachments"]
+    search_arguments = executor.call_args.args[1]
+    assert search_arguments["query"] == "Phụ kiện"
+    assert search_arguments["category"] == "Phụ kiện"
+    assert search_arguments["max_price"] == 2_000_000
+
+
+@pytest.mark.django_db
+def test_gift_advice_separates_over_budget_alternatives():
+    CategoryFactory(name="Âm thanh", slug="am-thanh")
+    product = product_payload()
+    executor = Mock(
+        side_effect=[
+            {"products": [], "result_count": 0, "matches": []},
+            product_search_result(
+                product,
+                kind="alternative",
+                missing_terms=["budget_max:1000000"],
+            ),
+        ]
+    )
+    session = ChatSession.objects.create(guest_token="guest-token-gift-alternative")
+    service = AIChatService(provider=fake_provider(), tool_executor=executor)
+
+    list(service.handle_turn(session, "Tôi muốn mua quà sinh nhật"))
+    events = list(service.handle_turn(session, "Tai nghe dưới 1 triệu"))
+
+    assert "chưa tìm thấy sản phẩm đáp ứng đầy đủ" in events[-1].message["content"]
+    assert events[-1].message["attachments"][0]["match"]["kind"] == "alternative"
+    assert executor.call_count == 2
+    assert executor.call_args_list[0].kwargs["user"] is None
+    assert executor.call_args_list[0].args[1]["query"] == "tai nghe"
+    assert executor.call_args_list[0].args[1]["category"] == "Âm thanh"
+    assert executor.call_args_list[0].args[1]["_user_need"] == ("tai nghe dưới 1000000 đồng")
+    assert executor.call_args_list[0].args[1]["max_price"] == 1_000_000
+    assert "max_price" not in executor.call_args_list[1].args[1]
+
+
+@pytest.mark.django_db
+def test_gift_advice_can_be_cancelled_and_returns_to_general_chat():
+    provider = fake_provider([ChatChunk(delta_text="Mình sẽ chuyển sang tìm laptop cho bạn.")])
+    executor = Mock()
+    session = ChatSession.objects.create(guest_token="guest-token-cancel-gift")
+    service = AIChatService(provider=provider, tool_executor=executor)
+
+    list(service.handle_turn(session, "Tôi muốn mua quà sinh nhật"))
+    events = list(service.handle_turn(session, "Không mua quà nữa, tìm laptop"))
+
+    assert events[-1].message["content"] == "Mình sẽ chuyển sang tìm laptop cho bạn."
+    provider.generate_chat.assert_called_once()
+    executor.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_general_buying_advice_collects_purpose_budget_then_searches():
+    CategoryFactory(name="Laptop", slug="laptop")
+    CategoryFactory(name="Máy tính bảng", slug="may-tinh-bang")
+    executor = Mock(return_value=product_search_result(product_payload()))
+    provider = fake_provider([ChatChunk(delta_text="Không được gọi")])
+    session = ChatSession.objects.create(guest_token="guest-token-general-advice")
+    service = AIChatService(provider=provider, tool_executor=executor)
+
+    first = list(service.handle_turn(session, "Gợi ý sản phẩm để học tập"))
+    second = list(service.handle_turn(session, "Laptop, tầm 15 triệu"))
+
+    assert "ưu tiên nhóm nào: Laptop hay Máy tính bảng" in first[-1].message["content"]
+    assert "Ngân sách dự kiến" in first[-1].message["content"]
+    assert second[-1].message["attachments"]
+    provider.generate_chat.assert_not_called()
+    executor.assert_called_once_with(
+        "search_products",
+        {
+            "query": "Laptop",
+            "category": "Laptop",
+            "limit": 4,
+            "max_price": 15_000_000,
+            "_user_need": "Laptop dưới 15000000 đồng",
+        },
+        user=None,
+    )
+    latest_log = AIRequestLog.objects.order_by("-created_at").first()
+    assert latest_log.metadata["dialogue_intent"] == "shopping_advice"
+
+
+@pytest.mark.django_db
+def test_guided_search_failure_returns_a_stable_done_event():
+    CategoryFactory(name="Âm thanh", slug="am-thanh")
+    executor = Mock(side_effect=RuntimeError("catalog unavailable"))
+    session = ChatSession.objects.create(guest_token="guest-token-guided-search-error")
+
+    events = list(
+        AIChatService(provider=fake_provider(), tool_executor=executor).handle_turn(
+            session,
+            "Tôi muốn mua quà sinh nhật là tai nghe dưới 1 triệu",
+        )
+    )
+
+    assert events[-1].type == "done"
+    assert "đã ghi nhận đủ nhu cầu" in events[-1].message["content"]
+    assert "chưa thể tra cứu danh mục Mercato" in events[-1].message["content"]
+    assert executor.call_count == 1
+    request_log = AIRequestLog.objects.get(feature=AIRequestLog.Feature.CHAT_TURN)
+    assert request_log.status == AIRequestLog.Status.FALLBACK
+    assert request_log.error_code == "guided_search_failed"
+
+
+@pytest.mark.django_db
+@override_settings(AI_MAX_RETRIES=1, AI_RETRY_BACKOFF_SECONDS=0.01)
+def test_chat_retries_rate_limit_then_returns_grounded_response():
+    provider = Mock(spec=BaseAIProvider)
+    provider.name = "gemini"
+    provider.generate_chat.side_effect = [
+        AIProviderError("rate limited", code="http_429", retryable=True),
+        iter([ChatChunk(delta_text="Mình đã tìm lại được kết quả phù hợp.")]),
+    ]
+    sleeps: list[float] = []
+    session = ChatSession.objects.create(guest_token="guest-token-retry")
+
+    events = list(
+        AIChatService(provider=provider, sleep_fn=sleeps.append).handle_turn(
+            session,
+            "Tìm laptop học tập",
+        )
+    )
+
+    assert provider.generate_chat.call_count == 2
+    assert sleeps == [0.01]
+    assert events[-1].message["content"] == "Mình đã tìm lại được kết quả phù hợp."
+
+
+@pytest.mark.django_db
+@override_settings(AI_MAX_RETRIES=1, AI_RETRY_BACKOFF_SECONDS=0)
+def test_chat_rate_limit_falls_back_to_real_catalog_results():
+    product = product_payload()
+    provider = Mock(spec=BaseAIProvider)
+    provider.name = "gemini"
+    provider.generate_chat.side_effect = AIProviderError(
+        "rate limited",
+        code="http_429",
+        retryable=True,
+    )
+    executor = Mock(return_value=product_search_result(product))
+    session = ChatSession.objects.create(guest_token="guest-token-local-fallback")
+
+    events = list(
+        AIChatService(
+            provider=provider,
+            tool_executor=executor,
+            sleep_fn=Mock(),
+        ).handle_turn(session, "Tìm laptop học tập")
+    )
+
+    done = events[-1].message
+    assert provider.generate_chat.call_count == 2
+    assert "Mình tìm thấy 1 sản phẩm khớp" in done["content"]
+    assert done["attachments"] == [
+        {
+            "type": "product_card",
+            "product_id": product["id"],
+            "product": product,
+            "match": product_search_result(product)["matches"][0],
+        }
+    ]
+    executor.assert_called_once_with(
+        "search_products",
+        {
+            "query": "Tìm laptop học tập",
+            "limit": 4,
+            "_user_need": "Tìm laptop học tập",
+        },
+        user=None,
+    )
+
+
+@pytest.mark.django_db
+@override_settings(AI_MAX_RETRIES=0)
+def test_chat_fallback_separates_missing_request_from_alternatives():
+    product = product_payload()
+    provider = Mock(spec=BaseAIProvider)
+    provider.name = "gemini"
+    provider.generate_chat.side_effect = AIProviderError(
+        "rate limited",
+        code="http_429",
+        retryable=True,
+    )
+    executor = Mock(
+        side_effect=[
+            {"products": [], "result_count": 0},
+            {"products": [], "result_count": 0},
+            {"products": [], "result_count": 0},
+            product_search_result(
+                product,
+                kind="alternative",
+                missing_terms=["chu noi braille", "khiem thi"],
+            ),
+        ]
+    )
+    session = ChatSession.objects.create(guest_token="guest-token-alternative-fallback")
+
+    events = list(
+        AIChatService(provider=provider, tool_executor=executor).handle_turn(
+            session,
+            "Tôi cần đồng hồ chữ nổi Braille cho người khiếm thị",
+        )
+    )
+
+    done = events[-1].message
+    assert "chưa tìm thấy sản phẩm đáp ứng đầy đủ" in done["content"]
+    assert "chỉ gần với một phần nhu cầu" in done["content"]
+    assert "không nhầm với sản phẩm phù hợp hoàn toàn" in done["content"]
+    assert done["attachments"][0]["product_id"] == product["id"]
+    assert executor.call_args_list[-1].args == (
+        "search_products",
+        {
+            "query": "đồng hồ",
+            "limit": 4,
+            "_user_need": "Tôi cần đồng hồ chữ nổi Braille cho người khiếm thị",
+        },
+    )
+
+
+@pytest.mark.django_db
+def test_chat_hides_review_metrics_from_model_and_removes_numeric_review_claims():
+    product = product_payload()
+    provider = fake_provider(
+        [
+            ChatChunk(
+                tool_calls=[
+                    ToolCall(
+                        id="search-with-rating",
+                        name="search_products",
+                        arguments={"query": "laptop"},
+                    )
+                ]
+            )
+        ],
+        [
+            ChatChunk(
+                delta_text=(
+                    "Sản phẩm này có 4.9 sao và 999 lượt đánh giá.\nMẫu này phù hợp để học tập."
+                )
+            )
+        ],
+    )
+    session = ChatSession.objects.create(guest_token="guest-token-rating-grounding")
+
+    events = list(
+        AIChatService(
+            provider=provider,
+            tool_executor=Mock(return_value=product_search_result(product)),
+        ).handle_turn(session, "Tìm laptop")
+    )
+
+    tool_context = provider.generate_chat.call_args_list[1].kwargs["messages"][-1]["content"]
+    assert "rating_average" not in tool_context
+    assert "rating_count" not in tool_context
+    assert "4.9 sao" not in events[-1].message["content"]
+    assert "999 lượt đánh giá" not in events[-1].message["content"]
+    assert "Mình tìm thấy 1 sản phẩm khớp" in events[-1].message["content"]
+
+
+@pytest.mark.django_db
+def test_chat_product_rating_ignores_unverified_cached_product_values():
+    product = ProductFactory(
+        status=Product.Status.APPROVED,
+        rating_average="4.95",
+        rating_count=87,
+    )
+
+    serialized = _serialize_products_with_verified_ratings([product])
+
+    assert serialized[0]["rating_average"] == "0.00"
+    assert serialized[0]["rating_count"] == 0
 
 
 def test_grounding_removes_unknown_product_and_compare_attachments():
@@ -127,7 +554,7 @@ def test_chat_respects_global_ai_feature_switch():
         events = list(AIChatService().handle_turn(session, "Tìm laptop học tập"))
 
     generate_chat.assert_not_called()
-    assert "tạm gián đoạn" in events[-2].text
+    assert "chưa tìm thấy sản phẩm khớp" in events[-2].text
     assert events[-1].type == "done"
     assert AIRequestLog.objects.get(feature=AIRequestLog.Feature.CHAT_TURN).status == (
         AIRequestLog.Status.FALLBACK

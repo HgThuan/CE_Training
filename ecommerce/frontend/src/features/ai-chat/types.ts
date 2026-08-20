@@ -4,6 +4,12 @@ export interface ProductCardAttachment {
   type: 'product_card'
   product_id: string
   product: PublicProductListItem
+  match?: {
+    product_id?: string
+    kind: 'exact' | 'alternative'
+    matched_terms: string[]
+    missing_terms: string[]
+  }
 }
 
 export interface CompareTableAttachment {

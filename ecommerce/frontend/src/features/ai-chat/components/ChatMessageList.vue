@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import {
   ArrowsRightLeftIcon,
+  CheckBadgeIcon,
   CheckIcon,
   ClipboardDocumentIcon,
-  ShoppingBagIcon,
+  LightBulbIcon,
 } from '@heroicons/vue/24/outline'
 import { SparklesIcon } from '@heroicons/vue/24/solid'
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 
 import ProductCompareTable from '@/features/product/components/ProductCompareTable.vue'
+import { formatVnd } from '@/shared/lib/formatters'
 
-import type { ChatMessage } from '../types'
+import type { ChatMessage, ProductCardAttachment } from '../types'
 import ChatProductCard from './ChatProductCard.vue'
 import ChatRichText from './ChatRichText.vue'
 
@@ -34,6 +36,32 @@ function followUps(message: ChatMessage): string[] {
   if (productCount >= 2) return ['So sánh các sản phẩm này', 'Tìm lựa chọn khác']
   if (productCount === 1) return ['Tìm sản phẩm tương tự', 'Hỏi về phí giao hàng']
   return ['Tìm sản phẩm phù hợp', 'Hỏi chính sách đổi trả']
+}
+
+function productCards(
+  message: ChatMessage,
+  kind: 'exact' | 'alternative',
+): ProductCardAttachment[] {
+  return message.attachments.filter(
+    (item): item is ProductCardAttachment =>
+      item.type === 'product_card' &&
+      (kind === 'exact' ? item.match?.kind === 'exact' : item.match?.kind !== 'exact'),
+  )
+}
+
+function alternativeCaveat(message: ChatMessage): string {
+  const missingTerms = productCards(message, 'alternative').flatMap(
+    (attachment) => attachment.match?.missing_terms ?? [],
+  )
+  const maxBudget = missingTerms.find((term) => term.startsWith('budget_max:'))?.split(':', 2)[1]
+  const minBudget = missingTerms.find((term) => term.startsWith('budget_min:'))?.split(':', 2)[1]
+  if (maxBudget) {
+    return `Các lựa chọn này vượt ngân sách tối đa ${formatVnd(maxBudget)} bạn đã nêu.`
+  }
+  if (minBudget) {
+    return `Các lựa chọn này thấp hơn khoảng giá tối thiểu ${formatVnd(minBudget)} bạn đã nêu.`
+  }
+  return 'Các sản phẩm này chỉ khớp một phần. Mercato chưa có đủ dữ liệu để xác nhận toàn bộ tiêu chí bạn yêu cầu.'
 }
 
 async function copyMessage(message: ChatMessage): Promise<void> {
@@ -132,19 +160,36 @@ watch(
           </div>
 
           <div
-            v-if="message.attachments.some((item) => item.type === 'product_card')"
+            v-if="productCards(message, 'exact').length"
             class="ai-chat-answer__section"
-            aria-label="Sản phẩm được đề xuất"
+            aria-label="Sản phẩm khớp với nhu cầu"
           >
             <h3 class="ai-chat-answer__section-title">
-              <ShoppingBagIcon class="size-4" aria-hidden="true" />
-              Sản phẩm phù hợp
+              <CheckBadgeIcon class="size-4" aria-hidden="true" />
+              Khớp với nhu cầu
             </h3>
             <ul class="space-y-2.5">
+              <li v-for="attachment in productCards(message, 'exact')" :key="attachment.product_id">
+                <ChatProductCard :product="attachment.product" />
+              </li>
+            </ul>
+          </div>
+
+          <div
+            v-if="productCards(message, 'alternative').length"
+            class="ai-chat-answer__section ai-chat-answer__section--alternatives"
+            aria-label="Sản phẩm gần với nhu cầu"
+          >
+            <h3 class="ai-chat-answer__section-title">
+              <LightBulbIcon class="size-4" aria-hidden="true" />
+              Gợi ý gần nhu cầu
+            </h3>
+            <p class="ai-chat-answer__section-help">
+              {{ alternativeCaveat(message) }}
+            </p>
+            <ul class="space-y-2.5">
               <li
-                v-for="attachment in message.attachments.filter(
-                  (item) => item.type === 'product_card',
-                )"
+                v-for="attachment in productCards(message, 'alternative')"
                 :key="attachment.product_id"
               >
                 <ChatProductCard :product="attachment.product" />
@@ -287,6 +332,19 @@ watch(
 .ai-chat-answer__section-title svg {
   width: 1rem;
   height: 1rem;
+}
+
+.ai-chat-answer__section-help {
+  margin: -0.15rem 0 0.7rem;
+  color: #526762;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.ai-chat-answer__section--alternatives {
+  border-radius: 0.875rem;
+  background: rgb(242 193 78 / 12%);
+  padding: 0.75rem;
 }
 
 .ai-chat-answer__follow-ups {

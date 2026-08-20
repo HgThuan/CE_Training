@@ -6,14 +6,17 @@ from typing import Any
 
 from django.conf import settings
 from django.db import DatabaseError, connections
-from django.db.models import Q
+from django.db.models import Avg, Count, Q
 
 from apps.catalog.models import Category
 from apps.common.exceptions import BusinessError
+from apps.product.models import ProductAttributeValue, VariantAttributeValue
 from apps.product.selectors import ProductSelector, SearchSelector
 from apps.product.serializers import PublicProductListSerializer
+from apps.review.models import Review
 
 from .models import AIRequestLog, PolicyDocument, sanitize_ai_text
+from .product_matching import assess_product_matches
 from .services import AIService
 
 try:
@@ -91,7 +94,10 @@ def execute_tool(name: str, arguments: dict[str, Any], *, user: Any = None) -> d
         if name == "search_products":
             return _search_products(**arguments)
         if name == "get_product":
-            return _get_product(arguments.get("product_id"))
+            return _get_product(
+                arguments.get("product_id"),
+                user_need=str(arguments.get("_user_need", "")),
+            )
         if name == "compare_products":
             return AIService().compare_products(arguments.get("product_ids", []), user=user)
         if name == "get_policy":
@@ -116,6 +122,7 @@ def _search_products(
     min_price: Any = None,
     max_price: Any = None,
     limit: Any = 5,
+    _user_need: str = "",
 ) -> dict[str, Any]:
     normalized_query = sanitize_ai_text(query, max_length=300).strip()
     if not normalized_query:
@@ -154,13 +161,24 @@ def _search_products(
         raise ToolExecutionError("Giá tối thiểu không thể lớn hơn giá tối đa")
 
     products = list(SearchSelector.search(params)[:normalized_limit])
+    serialized_products = _serialize_products_with_verified_ratings(products)
+    matches = assess_product_matches(
+        user_need=_user_need or normalized_query,
+        products=products,
+        attribute_text_by_product=_attribute_text_by_product(products),
+        price_range_by_product={
+            str(product["id"]): (product.get("min_price"), product.get("max_price"))
+            for product in serialized_products
+        },
+    )
     return {
-        "products": list(PublicProductListSerializer(products, many=True).data),
+        "products": serialized_products,
         "result_count": len(products),
+        "matches": [match.to_dict() for match in matches],
     }
 
 
-def _get_product(product_id: Any) -> dict[str, Any]:
+def _get_product(product_id: Any, *, user_need: str = "") -> dict[str, Any]:
     try:
         normalized_id = uuid.UUID(str(product_id))
     except (TypeError, ValueError, AttributeError) as exc:
@@ -168,7 +186,82 @@ def _get_product(product_id: Any) -> dict[str, Any]:
     product = ProductSelector.public_list().filter(pk=normalized_id).first()
     if product is None:
         raise ToolExecutionError("Sản phẩm không tồn tại hoặc không còn hiển thị")
-    return {"product": dict(PublicProductListSerializer(product).data)}
+    serialized_product = _serialize_products_with_verified_ratings([product])[0]
+    matches = assess_product_matches(
+        user_need=user_need or product.name,
+        products=[product],
+        attribute_text_by_product=_attribute_text_by_product([product]),
+        price_range_by_product={
+            str(serialized_product["id"]): (
+                serialized_product.get("min_price"),
+                serialized_product.get("max_price"),
+            )
+        },
+    )
+    return {
+        "product": serialized_product,
+        "matches": [match.to_dict() for match in matches],
+    }
+
+
+def _attribute_text_by_product(products: list[Any]) -> dict[str, list[str]]:
+    product_ids = [product.pk for product in products]
+    values_by_product: dict[str, list[str]] = {str(product_id): [] for product_id in product_ids}
+    if not product_ids:
+        return values_by_product
+
+    product_values = ProductAttributeValue.objects.filter(product_id__in=product_ids).values_list(
+        "product_id",
+        "attribute_value__attribute__name",
+        "attribute_value__value",
+        "attribute_value__display_value",
+    )
+    for product_id, attribute_name, value, display_value in product_values:
+        values_by_product[str(product_id)].extend(
+            part for part in (attribute_name, value, display_value) if part
+        )
+
+    variant_values = VariantAttributeValue.objects.filter(
+        variant__product_id__in=product_ids,
+        variant__is_active=True,
+        variant__is_deleted=False,
+    ).values_list(
+        "variant__product_id",
+        "attribute__name",
+        "attribute_value__value",
+        "attribute_value__display_value",
+    )
+    for product_id, attribute_name, value, display_value in variant_values:
+        values_by_product[str(product_id)].extend(
+            part for part in (attribute_name, value, display_value) if part
+        )
+    return values_by_product
+
+
+def _serialize_products_with_verified_ratings(products: list[Any]) -> list[dict[str, Any]]:
+    """Use visible review rows as the source of truth for chat product ratings."""
+    serialized = [dict(item) for item in PublicProductListSerializer(products, many=True).data]
+    if not serialized:
+        return serialized
+
+    product_ids = [item["id"] for item in serialized]
+    verified_stats = {
+        str(row["product_id"]): row
+        for row in Review.objects.filter(
+            product_id__in=product_ids,
+            status=Review.Status.VISIBLE,
+            is_deleted=False,
+        )
+        .values("product_id")
+        .annotate(rating_average=Avg("rating"), rating_count=Count("id"))
+    }
+    for item in serialized:
+        stats = verified_stats.get(str(item["id"]))
+        item["rating_average"] = (
+            f"{stats['rating_average']:.2f}" if stats and stats["rating_average"] else "0.00"
+        )
+        item["rating_count"] = int(stats["rating_count"]) if stats else 0
+    return serialized
 
 
 def _get_policy(topic: str, *, user: Any = None) -> dict[str, Any]:
@@ -256,14 +349,50 @@ def build_attachments(name: str, result: dict[str, Any]) -> list[dict[str, Any]]
     if result.get("error"):
         return []
     if name == "search_products":
+        matches = {
+            str(match.get("product_id")): match
+            for match in result.get("matches", [])
+            if isinstance(match, dict)
+        }
         return [
-            {"type": "product_card", "product_id": product["id"], "product": product}
+            {
+                "type": "product_card",
+                "product_id": product["id"],
+                "product": product,
+                "match": matches.get(
+                    str(product["id"]),
+                    {
+                        "kind": "alternative",
+                        "matched_terms": [],
+                        "missing_terms": [],
+                    },
+                ),
+            }
             for product in result.get("products", [])
             if isinstance(product, dict) and product.get("id")
         ]
     if name == "get_product" and isinstance(result.get("product"), dict):
         product = result["product"]
-        return [{"type": "product_card", "product_id": product["id"], "product": product}]
+        match = next(
+            (
+                item
+                for item in result.get("matches", [])
+                if isinstance(item, dict) and str(item.get("product_id")) == str(product["id"])
+            ),
+            {
+                "kind": "alternative",
+                "matched_terms": [],
+                "missing_terms": [],
+            },
+        )
+        return [
+            {
+                "type": "product_card",
+                "product_id": product["id"],
+                "product": product,
+                "match": match,
+            }
+        ]
     if name == "compare_products":
         product_ids = [
             str(product["id"])
