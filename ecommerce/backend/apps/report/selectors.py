@@ -1,11 +1,12 @@
 from datetime import timedelta
 from decimal import Decimal
 
-from django.db.models import Count, DecimalField, F, Sum, Value
-from django.db.models.functions import Coalesce, TruncDay, TruncWeek, TruncMonth
+from django.db.models import Avg, Count, DecimalField, F, Q, Sum, Value
+from django.db.models.functions import Coalesce, TruncDay, TruncMonth, TruncWeek
 from django.utils import timezone
 
 from apps.account.models import CustomerProfile, Shop
+from apps.ai.models import AIRequestLog, ChatFeedback, ChatSession
 from apps.order.models import Order, OrderItem, ShopOrder
 from apps.product.models import Product
 
@@ -35,27 +36,27 @@ def admin_summary(days=30):
 
 def revenue_chart(days=30, shop=None, period="day"):
     start, _ = date_range(days)
-    
+
     # Current period data
     queryset = ShopOrder.objects.filter(
         fulfillment_status__in=REVENUE_STATUSES, completed_at__gte=start
     )
     if shop is not None:
         queryset = queryset.filter(shop=shop)
-        
+
     current_revenue = queryset.aggregate(v=revenue_expression())["v"]
-    
+
     # Prior period data
     prior_start, prior_end = start - timedelta(days=days), start
     prior_qs = ShopOrder.objects.filter(
-        fulfillment_status__in=REVENUE_STATUSES, 
-        completed_at__gte=prior_start, 
-        completed_at__lt=prior_end
+        fulfillment_status__in=REVENUE_STATUSES,
+        completed_at__gte=prior_start,
+        completed_at__lt=prior_end,
     )
     if shop is not None:
         prior_qs = prior_qs.filter(shop=shop)
     prior_revenue = prior_qs.aggregate(v=revenue_expression())["v"]
-    
+
     # Growth percentage
     if prior_revenue > 0:
         growth = round((current_revenue - prior_revenue) / prior_revenue * 100, 2)
@@ -76,19 +77,19 @@ def revenue_chart(days=30, shop=None, period="day"):
         .annotate(revenue=revenue_expression(), orders=Count("id"))
         .order_by("group")
     )
-    
+
     return {
         "current_revenue": current_revenue,
         "prior_revenue": prior_revenue,
         "growth": float(growth),
         "chart": [
             {
-                "date": row["group"].date() if hasattr(row["group"], "date") else row["group"], 
-                "revenue": row["revenue"], 
-                "orders": row["orders"]
+                "date": row["group"].date() if hasattr(row["group"], "date") else row["group"],
+                "revenue": row["revenue"],
+                "orders": row["orders"],
             }
             for row in rows
-        ]
+        ],
     }
 
 
@@ -180,4 +181,50 @@ def cancel_return_rate(days=30):
         "returned": returned,
         "cancel_rate": round(cancelled * 100 / divisor, 2),
         "return_rate": round(returned * 100 / divisor, 2),
+    }
+
+
+def chatbot_metrics(days=30):
+    start, _ = date_range(days)
+    sessions = ChatSession.objects.filter(created_at__gte=start)
+    total_sessions = sessions.count()
+    escalated_sessions = sessions.filter(status=ChatSession.Status.ESCALATED).count()
+    feedback = ChatFeedback.objects.filter(created_at__gte=start)
+    feedback_count = feedback.count()
+    resolved_feedback = feedback.filter(resolved=True).count()
+    unresolved_feedback = feedback.filter(resolved=False).count()
+    outcome_count = feedback_count + escalated_sessions
+    chat_logs = AIRequestLog.objects.filter(
+        feature=AIRequestLog.Feature.CHAT_TURN,
+        created_at__gte=start,
+    )
+    variant_rows = sessions.values("experiment_variant").annotate(
+        sessions=Count("id", distinct=True),
+        escalated=Count(
+            "id",
+            filter=Q(status=ChatSession.Status.ESCALATED),
+            distinct=True,
+        ),
+        feedback_count=Count("feedback_entries", distinct=True),
+        csat=Avg("feedback_entries__rating"),
+    )
+    return {
+        "sessions": total_sessions,
+        "handoffs": escalated_sessions,
+        "handoff_rate": round(escalated_sessions * 100 / (total_sessions or 1), 2),
+        "automated_resolution_rate": round(resolved_feedback * 100 / (outcome_count or 1), 2),
+        "average_response_ms": round(chat_logs.aggregate(value=Avg("latency_ms"))["value"] or 0),
+        "feedback_count": feedback_count,
+        "feedback_rate": round(feedback_count * 100 / (total_sessions or 1), 2),
+        "csat": round(feedback.aggregate(value=Avg("rating"))["value"] or 0, 2),
+        "resolved_feedback": resolved_feedback,
+        "unresolved_feedback": unresolved_feedback,
+        "variants": [
+            {
+                **row,
+                "csat": round(row["csat"] or 0, 2),
+                "handoff_rate": round(row["escalated"] * 100 / (row["sessions"] or 1), 2),
+            }
+            for row in variant_rows.order_by("experiment_variant")
+        ],
     }

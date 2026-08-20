@@ -50,6 +50,17 @@ class AdminDashboardView(APIView):
         return cached(request, f"admin-dashboard-{self.metric}", producers[self.metric])
 
 
+class ChatbotMetricsView(APIView):
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get(self, request):
+        return cached(
+            request,
+            "admin-chatbot-metrics",
+            lambda: selectors.chatbot_metrics(days_from(request)),
+        )
+
+
 class SellerDashboardView(APIView):
     permission_classes = [IsAuthenticated, IsSeller]
     metric = "summary"

@@ -7,7 +7,7 @@ from apps.catalog.models import Category
 from .models import ChatMessage, ChatSession
 from .product_matching import extract_price_filters, normalize_words
 
-DialogueAction = Literal["delegate", "clarify", "guided_search"]
+DialogueAction = Literal["delegate", "clarify", "guided_search", "support", "handoff"]
 
 _APPROXIMATE_BUDGET_RE = re.compile(
     r"\b(?:ngân\s+sách(?:\s+(?:là|khoảng))?|tầm|khoảng)\s*"

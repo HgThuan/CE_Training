@@ -13,17 +13,19 @@ from rest_framework.throttling import AnonRateThrottle, SimpleRateThrottle, User
 from rest_framework.views import APIView
 
 from apps.account.permissions import IsSeller
+from apps.common.models import SiteSetting
 from apps.common.responses import success_response
 from apps.product.selectors import ProductSelector
 from apps.product.serializers import PublicProductListSerializer
 
 from .chat_service import AIChatService
-from .models import ChatMessage, ChatSession
+from .models import ChatFeedback, ChatMessage, ChatSession, sanitize_ai_text
 from .permissions import AISearchRateThrottle
 from .renderers import ServerSentEventRenderer
 from .search_service import AISearchService
 from .serializers import (
     AISearchResponseSerializer,
+    ChatFeedbackSerializer,
     ChatMessageHistoryResponseSerializer,
     ChatTurnRequestSerializer,
     ProductAIReviewSummaryResponseSerializer,
@@ -73,6 +75,7 @@ class ChatTurnView(APIView):
         serializer = ChatTurnRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         session = _resolve_or_create_chat_session(request, serializer.validated_data)
+        _apply_chat_context(session, serializer.validated_data)
         message = serializer.validated_data["message"]
 
         def event_stream():
@@ -108,11 +111,58 @@ class ChatMessageHistoryView(APIView):
     def get(self, request, session_id):
         guest_token = str(request.query_params.get("guest_token", "")).strip()
         session = _owned_chat_session(request, session_id, guest_token=guest_token)
-        messages = session.messages.filter(
-            role__in=(ChatMessage.Role.USER, ChatMessage.Role.ASSISTANT)
-        ).order_by("created_at", "id")
+        messages = (
+            session.messages.filter(role__in=(ChatMessage.Role.USER, ChatMessage.Role.ASSISTANT))
+            .select_related("feedback")
+            .order_by("created_at", "id")
+        )
         data = [AIChatService.serialize_message(message) for message in messages]
         return success_response(data=data)
+
+
+class ChatFeedbackView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        operation_id="ai_shopping_chat_feedback",
+        request=ChatFeedbackSerializer,
+        responses={200: ChatFeedbackSerializer},
+    )
+    def post(self, request, message_id):
+        serializer = ChatFeedbackSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        guest_token = str(serializer.validated_data.get("guest_token", "")).strip()
+        message = get_object_or_404(
+            ChatMessage.objects.select_related("session"),
+            pk=message_id,
+            role=ChatMessage.Role.ASSISTANT,
+        )
+        session = _owned_chat_session(
+            request,
+            message.session_id,
+            guest_token=guest_token,
+        )
+        feedback, _ = ChatFeedback.objects.update_or_create(
+            message=message,
+            defaults={
+                "session": session,
+                "submitted_by": request.user if request.user.is_authenticated else None,
+                "rating": serializer.validated_data["rating"],
+                "resolved": serializer.validated_data.get("resolved"),
+                "comment": sanitize_ai_text(
+                    serializer.validated_data.get("comment", ""),
+                    max_length=1_000,
+                ),
+            },
+        )
+        return success_response(
+            data={
+                "rating": feedback.rating,
+                "resolved": feedback.resolved,
+                "comment": feedback.comment,
+            },
+            message="Cảm ơn bạn đã phản hồi.",
+        )
 
 
 def _resolve_or_create_chat_session(request, data) -> ChatSession:
@@ -179,6 +229,20 @@ def _owned_chat_session(request, session_id, *, guest_token: str) -> ChatSession
         user__isnull=True,
         guest_token=guest_token,
     )
+
+
+def _apply_chat_context(session: ChatSession, data) -> None:
+    context = dict(session.context or {})
+    context["channel"] = data.get("channel", context.get("channel", "web"))
+    if "browsing_history" in data:
+        context["browsing_history"] = [str(item) for item in data["browsing_history"][:20]]
+
+    update_fields = ["context", "updated_at"]
+    if session.turn_count == 0 and SiteSetting.get_bool("ai.chat_ab_test.enabled", True):
+        session.experiment_variant = "guided_actions" if session.pk.int % 2 else "control"
+        update_fields.append("experiment_variant")
+    session.context = context
+    session.save(update_fields=update_fields)
 
 
 def _sse_data(payload: dict) -> str:

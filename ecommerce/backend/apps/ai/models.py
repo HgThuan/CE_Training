@@ -357,6 +357,8 @@ class ChatSession(TimeStampedModel):
     )
     title = models.CharField(max_length=200, blank=True)
     history_summary = models.TextField(blank=True)
+    context = models.JSONField(default=dict, blank=True)
+    experiment_variant = models.CharField(max_length=40, default="control", db_index=True)
     turn_count = models.PositiveIntegerField(default=0)
     last_active_at = models.DateTimeField(default=timezone.now, db_index=True)
 
@@ -412,6 +414,97 @@ class ChatMessage(models.Model):
 
     def __str__(self) -> str:
         return f"{self.session_id}:{self.role}:{self.pk}"
+
+
+class ChatHandoff(TimeStampedModel):
+    class Status(models.TextChoices):
+        OPEN = "open", "Chờ tiếp nhận"
+        ASSIGNED = "assigned", "Đã tiếp nhận"
+        RESOLVED = "resolved", "Đã xử lý"
+        CLOSED = "closed", "Đã đóng"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    session = models.ForeignKey(
+        ChatSession,
+        on_delete=models.CASCADE,
+        related_name="handoffs",
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="chat_handoffs",
+    )
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="assigned_chat_handoffs",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.OPEN,
+        db_index=True,
+    )
+    reason = models.CharField(max_length=300, blank=True)
+    conversation_summary = models.TextField(blank=True)
+    context_snapshot = models.JSONField(default=list, blank=True)
+    channel = models.CharField(max_length=30, default="web")
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "chat_handoffs"
+        ordering = ("-created_at", "-id")
+        indexes = [
+            models.Index(fields=("status", "-created_at"), name="chat_handoff_status_idx"),
+            models.Index(fields=("session", "-created_at"), name="chat_handoff_session_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.pk}:{self.status}"
+
+
+class ChatFeedback(TimeStampedModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    message = models.OneToOneField(
+        ChatMessage,
+        on_delete=models.CASCADE,
+        related_name="feedback",
+    )
+    session = models.ForeignKey(
+        ChatSession,
+        on_delete=models.CASCADE,
+        related_name="feedback_entries",
+    )
+    submitted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="chat_feedback_entries",
+    )
+    rating = models.PositiveSmallIntegerField()
+    resolved = models.BooleanField(null=True, blank=True)
+    comment = models.CharField(max_length=1_000, blank=True)
+
+    class Meta:
+        db_table = "chat_feedback"
+        ordering = ("-created_at", "-id")
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(rating__gte=1, rating__lte=5),
+                name="chat_feedback_rating_range",
+            )
+        ]
+        indexes = [
+            models.Index(fields=("rating", "-created_at"), name="chat_feedback_rating_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.message_id}:{self.rating}"
 
 
 class PolicyDocument(TimeStampedModel):

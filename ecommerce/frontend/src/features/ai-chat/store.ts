@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 import { useAuthStore } from '@/stores/auth'
+import { readBrowsingHistory } from '@/features/product/browsingHistory'
 
 import { aiChatApi, streamChatTurn } from './api'
 import type { ChatMessage, ChatStreamEvent } from './types'
@@ -82,8 +83,7 @@ export const useChatStore = defineStore('ai-shopping-chat', () => {
         messages.value = []
         saveSession()
       } else {
-        historyError.value =
-          'Chưa thể tải lại cuộc trò chuyện. Phiên vẫn được giữ để bạn thử lại.'
+        historyError.value = 'Chưa thể tải lại cuộc trò chuyện. Phiên vẫn được giữ để bạn thử lại.'
       }
     } finally {
       isLoadingHistory.value = false
@@ -141,6 +141,8 @@ export const useChatStore = defineStore('ai-shopping-chat', () => {
           ...(sessionId.value ? { session_id: sessionId.value } : {}),
           guest_token: guestToken.value,
           message: content,
+          browsing_history: readBrowsingHistory(authStore.user?.id),
+          channel: 'web',
         },
         authStore.accessToken,
         (event) => handleEvent(event, assistantId),
@@ -171,6 +173,21 @@ export const useChatStore = defineStore('ai-shopping-chat', () => {
     saveSession()
   }
 
+  async function submitFeedback(messageId: string, rating: number): Promise<void> {
+    const message = messages.value.find((entry) => entry.id === messageId)
+    if (!message || message.role !== 'assistant' || message.id.startsWith('local-')) return
+    try {
+      const response = await aiChatApi.feedback(messageId, {
+        guest_token: guestToken.value,
+        rating,
+        resolved: rating >= 4,
+      })
+      message.feedback = response.data.data
+    } catch {
+      errorMessage.value = 'Chưa thể gửi đánh giá. Bạn có thể thử lại sau.'
+    }
+  }
+
   return {
     sessionId,
     messages,
@@ -181,6 +198,7 @@ export const useChatStore = defineStore('ai-shopping-chat', () => {
     initialize,
     loadHistory,
     sendMessage,
+    submitFeedback,
     newConversation,
   }
 })

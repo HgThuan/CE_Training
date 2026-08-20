@@ -2,6 +2,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from apps.account.models import Shop, User
+from apps.ai.models import ChatFeedback, ChatMessage, ChatSession
 from apps.common.models import AuditLog, SiteSetting
 
 
@@ -33,6 +34,35 @@ class ReportApiTests(TestCase):
         response = self.client.get("/api/v1/seller/dashboard/summary/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["data"]["shop_name"], "Report Shop")
+
+    def test_chatbot_metrics_include_csat_and_ab_variant(self):
+        session = ChatSession.objects.create(
+            user=self.customer,
+            experiment_variant="guided_actions",
+        )
+        message = ChatMessage.objects.create(
+            session=session,
+            role=ChatMessage.Role.ASSISTANT,
+            content="Tư vấn đã xác minh.",
+        )
+        ChatFeedback.objects.create(
+            message=message,
+            session=session,
+            submitted_by=self.customer,
+            rating=5,
+            resolved=True,
+        )
+
+        self.client.force_authenticate(self.admin)
+        response = self.client.get("/api/v1/admin/dashboard/chatbot?days=30")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["data"]["csat"], 5)
+        self.assertEqual(response.data["data"]["automated_resolution_rate"], 100)
+        self.assertEqual(
+            response.data["data"]["variants"][0]["experiment_variant"],
+            "guided_actions",
+        )
 
     def test_site_setting_update_invalidates_cache_and_creates_audit_log(self):
         self.client.force_authenticate(self.admin)

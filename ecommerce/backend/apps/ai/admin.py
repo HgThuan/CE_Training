@@ -3,6 +3,8 @@ from django.contrib import admin
 from .models import (
     AIContentCache,
     AIRequestLog,
+    ChatFeedback,
+    ChatHandoff,
     ChatMessage,
     ChatSession,
     PolicyDocument,
@@ -96,6 +98,8 @@ class ChatSessionAdmin(admin.ModelAdmin):
         "guest_token",
         "title",
         "history_summary",
+        "context",
+        "experiment_variant",
         "turn_count",
         "last_active_at",
         "created_at",
@@ -103,6 +107,57 @@ class ChatSessionAdmin(admin.ModelAdmin):
     )
 
     def has_add_permission(self, request) -> bool:
+        return False
+
+    def has_delete_permission(self, request, obj=None) -> bool:
+        return False
+
+
+@admin.register(ChatHandoff)
+class ChatHandoffAdmin(admin.ModelAdmin):
+    list_display = ("id", "session", "status", "channel", "assigned_to", "created_at")
+    list_filter = ("status", "channel")
+    search_fields = ("id", "session__id", "session__user__email", "reason")
+    readonly_fields = (
+        "id",
+        "session",
+        "requested_by",
+        "reason",
+        "conversation_summary",
+        "context_snapshot",
+        "channel",
+        "created_at",
+        "updated_at",
+    )
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+    def has_delete_permission(self, request, obj=None) -> bool:
+        return False
+
+
+@admin.register(ChatFeedback)
+class ChatFeedbackAdmin(admin.ModelAdmin):
+    list_display = ("message", "rating", "resolved", "submitted_by", "created_at")
+    list_filter = ("rating", "resolved")
+    search_fields = ("message__id", "session__id", "submitted_by__email", "comment")
+    readonly_fields = (
+        "id",
+        "message",
+        "session",
+        "submitted_by",
+        "rating",
+        "resolved",
+        "comment",
+        "created_at",
+        "updated_at",
+    )
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+    def has_change_permission(self, request, obj=None) -> bool:
         return False
 
     def has_delete_permission(self, request, obj=None) -> bool:

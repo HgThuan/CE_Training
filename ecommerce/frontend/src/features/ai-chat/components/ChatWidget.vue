@@ -8,6 +8,9 @@ import {
   MinusIcon,
   ScaleIcon,
   SparklesIcon,
+  TagIcon,
+  TruckIcon,
+  UserGroupIcon,
 } from '@heroicons/vue/24/outline'
 import { storeToRefs } from 'pinia'
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -39,10 +42,28 @@ const starters = [
     icon: MagnifyingGlassIcon,
   },
   {
+    title: 'Theo dõi đơn hàng',
+    description: 'Trạng thái giao và thanh toán mới nhất',
+    prompt: 'Kiểm tra đơn hàng gần nhất của tôi',
+    icon: TruckIcon,
+  },
+  {
+    title: 'Tìm mã giảm giá',
+    description: 'Ưu đãi đang còn hiệu lực',
+    prompt: 'Có mã giảm giá nào đang dùng được?',
+    icon: TagIcon,
+  },
+  {
     title: 'So sánh lựa chọn',
     description: 'Đối chiếu điểm khác biệt quan trọng',
     prompt: 'Giúp tôi tìm hai sản phẩm phù hợp để so sánh',
     icon: ScaleIcon,
+  },
+  {
+    title: 'Gặp nhân viên hỗ trợ',
+    description: 'Chuyển tiếp cả ngữ cảnh hội thoại',
+    prompt: 'Tôi muốn gặp nhân viên hỗ trợ',
+    icon: UserGroupIcon,
   },
   {
     title: 'Hỏi chính sách',
@@ -84,6 +105,10 @@ watch(
 
 function send(message: string): void {
   void chatStore.sendMessage(message)
+}
+
+function submitFeedback(messageId: string, rating: number): void {
+  void chatStore.submitFeedback(messageId, rating)
 }
 
 async function openChat(): Promise<void> {
@@ -229,6 +254,7 @@ function handlePanelKeydown(event: KeyboardEvent): void {
           :messages="messages"
           :is-streaming="isStreaming"
           @follow-up="send"
+          @feedback="submitFeedback"
         />
 
         <p

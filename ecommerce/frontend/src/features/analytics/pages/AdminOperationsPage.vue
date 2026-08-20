@@ -1,14 +1,27 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref, watch } from 'vue'
 import { analyticsApi } from '../api'
-import type { AuditEntry, RankingRow, SiteSetting } from '../types'
+import type { AuditEntry, ChatbotMetrics, RankingRow, SiteSetting } from '../types'
 import type { PaginationMeta } from '@/shared/types/api'
 
-const tab = ref<'reports' | 'audit' | 'settings'>('reports')
+const tab = ref<'reports' | 'chatbot' | 'audit' | 'settings'>('reports')
 const ranking = ref<RankingRow[]>([]),
   rates = ref<Record<string, number>>({}),
   logs = ref<AuditEntry[]>([]),
   settings = ref<SiteSetting[]>([])
+const chatbot = ref<ChatbotMetrics>({
+  sessions: 0,
+  handoffs: 0,
+  handoff_rate: 0,
+  automated_resolution_rate: 0,
+  average_response_ms: 0,
+  feedback_count: 0,
+  feedback_rate: 0,
+  csat: 0,
+  resolved_feedback: 0,
+  unresolved_feedback: 0,
+  variants: [],
+})
 const message = ref(''),
   error = ref(''),
   loadingLogs = ref(false)
@@ -51,14 +64,16 @@ async function loadAudit(page = 1) {
 }
 async function load() {
   try {
-    const [rankingResponse, ratesResponse, settingsResponse] = await Promise.all([
+    const [rankingResponse, ratesResponse, settingsResponse, chatbotResponse] = await Promise.all([
       analyticsApi.ranking('top-sellers', 30),
       analyticsApi.rates(30),
       analyticsApi.settings(),
+      analyticsApi.chatbotMetrics(30),
     ])
     ranking.value = rankingResponse.data.data
     rates.value = ratesResponse.data.data
     settings.value = settingsResponse.data.data
+    chatbot.value = chatbotResponse.data.data
     await loadAudit()
   } catch {
     error.value = 'Không thể tải dữ liệu vận hành.'
@@ -94,7 +109,7 @@ onMounted(load)
     <p v-if="error" class="rounded-xl bg-rose-50 p-3 text-rose-700">{{ error }}</p>
     <div class="flex gap-2 overflow-x-auto border-b border-slate-200">
       <button
-        v-for="item in ['reports', 'audit', 'settings'] as const"
+        v-for="item in ['reports', 'chatbot', 'audit', 'settings'] as const"
         :key="item"
         class="border-b-2 px-4 py-3 font-bold whitespace-nowrap"
         :class="
@@ -102,7 +117,14 @@ onMounted(load)
         "
         @click="tab = item"
       >
-        {{ { reports: 'Báo cáo', audit: 'Audit log', settings: 'Cấu hình' }[item] }}
+        {{
+          {
+            reports: 'Báo cáo',
+            chatbot: 'Hiệu quả chatbot',
+            audit: 'Audit log',
+            settings: 'Cấu hình',
+          }[item]
+        }}
       </button>
     </div>
     <section v-if="tab === 'reports'" class="space-y-5">
@@ -130,6 +152,59 @@ onMounted(load)
           <span>#{{ index + 1 }} · {{ row.name }}</span
           ><b>{{ Number(row.revenue).toLocaleString('vi-VN') }} ₫</b>
         </div>
+      </div>
+    </section>
+    <section v-else-if="tab === 'chatbot'" class="space-y-5">
+      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <article
+          v-for="metric in [
+            { label: 'Phiên hội thoại', value: chatbot.sessions },
+            { label: 'Tự động giải quyết', value: `${chatbot.automated_resolution_rate}%` },
+            { label: 'Chuyển CSKH', value: `${chatbot.handoff_rate}%` },
+            { label: 'CSAT', value: `${chatbot.csat}/5` },
+            { label: 'Phản hồi', value: `${chatbot.feedback_rate}%` },
+            { label: 'Phản hồi tích cực', value: chatbot.resolved_feedback },
+            { label: 'Cần cải thiện', value: chatbot.unresolved_feedback },
+            { label: 'Phản hồi trung bình', value: `${chatbot.average_response_ms} ms` },
+          ]"
+          :key="metric.label"
+          class="rounded-2xl bg-white p-5 ring-1 ring-slate-200"
+        >
+          <p class="text-sm text-slate-500">{{ metric.label }}</p>
+          <p class="mt-1 text-2xl font-black">{{ metric.value }}</p>
+        </article>
+      </div>
+      <div class="overflow-x-auto rounded-2xl bg-white p-6 ring-1 ring-slate-200">
+        <h2 class="mb-4 text-lg font-black">A/B test trải nghiệm hội thoại</h2>
+        <table class="w-full min-w-[620px] text-left text-sm">
+          <thead class="border-b text-slate-500">
+            <tr>
+              <th class="py-3">Biến thể</th>
+              <th>Phiên</th>
+              <th>CSAT</th>
+              <th>Tỷ lệ handoff</th>
+              <th>Số phản hồi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="variant in chatbot.variants"
+              :key="variant.experiment_variant"
+              class="border-b"
+            >
+              <td class="py-3 font-bold">{{ variant.experiment_variant }}</td>
+              <td>{{ variant.sessions }}</td>
+              <td>{{ variant.csat }}/5</td>
+              <td>{{ variant.handoff_rate }}%</td>
+              <td>{{ variant.feedback_count }}</td>
+            </tr>
+            <tr v-if="!chatbot.variants.length">
+              <td colspan="5" class="py-8 text-center text-slate-500">
+                Chưa có dữ liệu thử nghiệm.
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
     <section v-else-if="tab === 'audit'" class="space-y-4">
