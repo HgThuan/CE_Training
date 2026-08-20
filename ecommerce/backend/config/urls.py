@@ -9,7 +9,12 @@ from apps.ai.recommendation_views import (
     ProductRecommendationsView,
     SimilarProductsView,
 )
-from apps.ai.views import ProductCompareView, SellerListingGenerateView
+from apps.ai.views import (
+    ChatMessageHistoryView,
+    ChatTurnView,
+    ProductCompareView,
+    SellerListingGenerateView,
+)
 from apps.common.views import HealthCheckView
 
 urlpatterns = [
@@ -34,6 +39,12 @@ urlpatterns = [
         name="product-similar",
     ),
     path("api/v1/products/compare", ProductCompareView.as_view(), name="product-compare"),
+    path("api/v1/chat/turn", ChatTurnView.as_view(), name="ai-shopping-chat-turn"),
+    path(
+        "api/v1/chat/sessions/<uuid:session_id>/messages",
+        ChatMessageHistoryView.as_view(),
+        name="ai-shopping-chat-history",
+    ),
     path(
         "api/v1/seller/products/generate-listing",
         SellerListingGenerateView.as_view(),

@@ -1,5 +1,7 @@
 import json
 import re
+import uuid
+from collections.abc import Iterator
 from typing import Any
 from urllib import error, request
 
@@ -8,8 +10,10 @@ from django.conf import settings
 from .base import (
     AIProviderError,
     BaseAIProvider,
+    ChatChunk,
     EmbeddingResponse,
     ProviderResponse,
+    ToolCall,
 )
 
 MODEL_NAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
@@ -108,6 +112,131 @@ class GeminiProvider(BaseAIProvider):
                 "total_tokens": self._nonnegative_int(usage.get("totalTokenCount")),
             },
         )
+
+    def generate_chat(
+        self,
+        *,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        system_prompt: str = "",
+        model_name: str | None = None,
+        timeout: float,
+        temperature: float = 0.3,
+        max_output_tokens: int = 1024,
+    ) -> Iterator[ChatChunk]:
+        model = self._validated_model(model_name or settings.AI_MODEL)
+        generation_config: dict[str, Any] = {
+            "temperature": temperature,
+            "maxOutputTokens": max_output_tokens,
+        }
+        if model.startswith("gemini-3"):
+            generation_config["thinkingConfig"] = {"thinkingLevel": "minimal"}
+
+        context_instructions = [
+            str(message.get("content", "")).strip()
+            for message in messages
+            if message.get("role") == "system" and str(message.get("content", "")).strip()
+        ]
+        payload: dict[str, Any] = {
+            "contents": self._chat_contents(messages),
+            "generationConfig": generation_config,
+        }
+        if tools:
+            payload["tools"] = [{"functionDeclarations": tools}]
+        combined_instruction = "\n\n".join(
+            part for part in (system_prompt, *context_instructions) if part
+        )
+        if combined_instruction:
+            payload["systemInstruction"] = {"parts": [{"text": combined_instruction}]}
+
+        url = f"{self._generation_base_url}/models/{model}:streamGenerateContent?alt=sse"
+        for data in self._stream_json(url, payload, timeout=timeout):
+            candidates = data.get("candidates") or []
+            candidate = candidates[0] if candidates and isinstance(candidates[0], dict) else {}
+            content = candidate.get("content") or {}
+            parts = content.get("parts") or []
+            delta_text = ""
+            tool_calls: list[ToolCall] = []
+            for part in parts:
+                if not isinstance(part, dict):
+                    continue
+                if isinstance(part.get("text"), str) and not part.get("thought"):
+                    delta_text += part["text"]
+                function_call = part.get("functionCall")
+                if not isinstance(function_call, dict):
+                    continue
+                name = str(function_call.get("name", "")).strip()
+                arguments = function_call.get("args")
+                if not name or not isinstance(arguments, dict):
+                    continue
+                tool_calls.append(
+                    ToolCall(
+                        id=str(function_call.get("id") or f"gemini-{uuid.uuid4().hex}"),
+                        name=name,
+                        arguments=arguments,
+                        thought_signature=str(part.get("thoughtSignature", "")),
+                    )
+                )
+
+            usage = data.get("usageMetadata") or {}
+            finish_reason = candidate.get("finishReason")
+            if delta_text or tool_calls or finish_reason:
+                yield ChatChunk(
+                    delta_text=delta_text,
+                    tool_calls=tool_calls,
+                    finish_reason=str(finish_reason) if finish_reason else None,
+                    input_tokens=self._nonnegative_int(usage.get("promptTokenCount")),
+                    output_tokens=self._nonnegative_int(
+                        usage.get("candidatesTokenCount") or usage.get("responseTokenCount")
+                    ),
+                )
+
+    @staticmethod
+    def _chat_contents(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        contents: list[dict[str, Any]] = []
+        for message in messages:
+            role = str(message.get("role", "user"))
+            if role == "system":
+                continue
+            if role == "tool":
+                raw_content = message.get("content", "")
+                try:
+                    result = (
+                        json.loads(raw_content) if isinstance(raw_content, str) else raw_content
+                    )
+                except json.JSONDecodeError:
+                    result = {"result": str(raw_content)}
+                response: dict[str, Any] = {
+                    "name": str(message.get("name", "")),
+                    "response": result if isinstance(result, dict) else {"result": result},
+                }
+                if message.get("tool_call_id"):
+                    response["id"] = str(message["tool_call_id"])
+                contents.append({"role": "user", "parts": [{"functionResponse": response}]})
+                continue
+
+            parts: list[dict[str, Any]] = []
+            content = str(message.get("content", ""))
+            if content:
+                parts.append({"text": content})
+            for raw_call in message.get("tool_calls") or []:
+                if not isinstance(raw_call, dict):
+                    continue
+                function_call: dict[str, Any] = {
+                    "name": str(raw_call.get("name", "")),
+                    "args": raw_call.get("arguments") or {},
+                }
+                if raw_call.get("id"):
+                    function_call["id"] = str(raw_call["id"])
+                part: dict[str, Any] = {"functionCall": function_call}
+                if raw_call.get("thought_signature"):
+                    part["thoughtSignature"] = str(raw_call["thought_signature"])
+                parts.append(part)
+            if parts:
+                contents.append(
+                    {"role": "model" if role == "assistant" else "user", "parts": parts}
+                )
+        return contents
 
     def embed_text(
         self,
@@ -231,6 +360,85 @@ class GeminiProvider(BaseAIProvider):
         if not isinstance(decoded, dict):
             raise AIProviderError(
                 "Gemini returned an unexpected response",
+                code="invalid_response",
+                retryable=False,
+            )
+        return decoded
+
+    def _stream_json(
+        self,
+        url: str,
+        payload: dict[str, Any],
+        *,
+        timeout: float,
+    ) -> Iterator[dict[str, Any]]:
+        if not self._api_key:
+            raise AIProviderError(
+                "Gemini provider is not configured",
+                code="provider_not_configured",
+                retryable=False,
+            )
+
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        http_request = request.Request(
+            url,
+            data=body,
+            method="POST",
+            headers={
+                "Accept": "text/event-stream",
+                "Content-Type": "application/json",
+                "X-Goog-Api-Key": self._api_key,
+            },
+        )
+        try:
+            with request.urlopen(http_request, timeout=timeout) as response:
+                data_lines: list[str] = []
+                for raw_line in response:
+                    try:
+                        line = raw_line.decode("utf-8").rstrip("\r\n")
+                    except UnicodeDecodeError as exc:
+                        raise AIProviderError(
+                            "Gemini returned malformed streaming data",
+                            code="invalid_stream",
+                            retryable=False,
+                        ) from exc
+                    if not line:
+                        if data_lines:
+                            yield self._decode_sse_data("\n".join(data_lines))
+                            data_lines = []
+                        continue
+                    if line.startswith(":"):
+                        continue
+                    if line.startswith("data:"):
+                        data_lines.append(line[5:].lstrip())
+                if data_lines:
+                    yield self._decode_sse_data("\n".join(data_lines))
+        except error.HTTPError as exc:
+            raise AIProviderError(
+                f"Gemini HTTP request failed with status {exc.code}",
+                code=f"http_{exc.code}",
+                retryable=exc.code in RETRYABLE_HTTP_STATUSES,
+            ) from exc
+        except (error.URLError, TimeoutError, OSError) as exc:
+            raise AIProviderError(
+                "Gemini request could not reach the provider",
+                code="network_error",
+                retryable=True,
+            ) from exc
+
+    @staticmethod
+    def _decode_sse_data(value: str) -> dict[str, Any]:
+        try:
+            decoded = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise AIProviderError(
+                "Gemini returned malformed streaming JSON",
+                code="invalid_json",
+                retryable=False,
+            ) from exc
+        if not isinstance(decoded, dict):
+            raise AIProviderError(
+                "Gemini returned an unexpected streaming response",
                 code="invalid_response",
                 retryable=False,
             )

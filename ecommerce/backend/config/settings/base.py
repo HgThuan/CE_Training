@@ -178,6 +178,7 @@ REST_FRAMEWORK = {
         "ai_product_summary": env("AI_PRODUCT_SUMMARY_RATE_LIMIT", default="10/minute"),
         "ai_product_compare": env("AI_PRODUCT_COMPARE_RATE_LIMIT", default="10/minute"),
         "ai_seller_listing": env("AI_SELLER_LISTING_RATE_LIMIT", default="10/minute"),
+        "ai_chat_session": env("AI_CHAT_SESSION_RATE_LIMIT", default="12/minute"),
         "payment_callback": env("PAYMENT_CALLBACK_RATE_LIMIT", default="120/minute"),
     },
 }

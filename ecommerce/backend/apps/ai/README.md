@@ -1,8 +1,36 @@
 # AI app
 
-`apps.ai` is the provider-neutral boundary for smart search, semantic search, embeddings, and
-future recommendation features. Callers use `AIService`; views, tasks, and domain services never
-import a provider implementation directly.
+`apps.ai` is the provider-neutral boundary for smart search, semantic search, embeddings,
+recommendations, and the multi-turn shopping assistant. Most callers use `AIService`; streaming
+conversation orchestration lives in `AIChatService`, which still consumes the same provider
+interface instead of importing a concrete provider.
+
+## Shopping assistant
+
+- `POST /api/v1/chat/turn` accepts `message`, an optional `session_id`, and a stable
+  `guest_token`. It returns Server-Sent Events (`session`, `delta`, `error`, and `done`).
+- `GET /api/v1/chat/sessions/<session_id>/messages` restores user/assistant history. A guest
+  session can be claimed by the authenticated user only when the original guest token matches.
+- `AIChatService` retains the latest 10 turns, summarizes older context, caps a session at 30
+  user turns, and allows at most 5 function-calling rounds per turn.
+- The model can search public in-stock products, retrieve a current product, compare 2–4
+  products, and retrieve verified policy documents. Product cards and comparison tables are
+  emitted only for product IDs returned by those tools during the current turn.
+- The storefront/customer widget consumes the SSE response incrementally and reuses the existing
+  `ProductCard` and `ProductCompareTable` components. The assistant never creates an order or
+  makes a refund/discount commitment.
+
+Policy answers come only from active `PolicyDocument` rows. The seed migration records the
+shipping, return, and payment behavior implemented by the platform; it intentionally does not
+invent a warranty policy or a fixed delivery SLA. Admins can maintain these documents in Django
+admin. To build missing vector embeddings after policy changes, run:
+
+```bash
+python manage.py reindex_policy_embeddings
+```
+
+Use `--force` to replace existing policy vectors. Without embeddings, on SQLite, or when the AI
+provider is unavailable, policy lookup falls back to the same verified rows by category/keyword.
 
 ## Search API
 

@@ -157,9 +157,7 @@ class ProductAISummaryResponseSerializer(serializers.Serializer):
 
 
 class ProductCompareRequestSerializer(serializers.Serializer):
-    product_ids = serializers.ListField(
-        child=serializers.UUIDField(), min_length=2, max_length=4
-    )
+    product_ids = serializers.ListField(child=serializers.UUIDField(), min_length=2, max_length=4)
 
     def validate_product_ids(self, value):
         if len(set(value)) != len(value):
@@ -227,3 +225,32 @@ class SellerListingResponseSerializer(serializers.Serializer):
     success = serializers.BooleanField()
     message = serializers.CharField()
     data = SellerListingDataSerializer()
+
+
+class ChatTurnRequestSerializer(serializers.Serializer):
+    session_id = serializers.UUIDField(required=False, allow_null=True)
+    guest_token = serializers.RegexField(
+        regex=r"^[A-Za-z0-9._-]{20,64}$",
+        required=False,
+        allow_blank=False,
+    )
+    message = serializers.CharField(
+        min_length=1,
+        max_length=1_000,
+        trim_whitespace=True,
+    )
+
+
+class ChatMessageSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    session_id = serializers.UUIDField()
+    role = serializers.ChoiceField(choices=("user", "assistant"))
+    content = serializers.CharField(allow_blank=True)
+    attachments = serializers.ListField(child=serializers.DictField())
+    created_at = serializers.DateTimeField()
+
+
+class ChatMessageHistoryResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    message = serializers.CharField()
+    data = ChatMessageSerializer(many=True)

@@ -28,8 +28,10 @@ async function compareNow(): Promise<void> {
 <template>
   <aside
     v-if="selectedProducts.length"
+    id="product-compare-bar"
     class="fixed inset-x-3 bottom-3 z-50 mx-auto max-w-6xl rounded-3xl border border-slate-700 bg-slate-950/95 p-3 text-white shadow-2xl backdrop-blur sm:inset-x-6 sm:p-4"
     aria-label="Danh sách sản phẩm đang chọn để so sánh"
+    tabindex="-1"
   >
     <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
       <div class="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 lg:pb-0">
