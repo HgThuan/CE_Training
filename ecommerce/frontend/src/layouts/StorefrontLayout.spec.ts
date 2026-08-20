@@ -21,6 +21,8 @@ describe('StorefrontLayout', () => {
       global: {
         plugins: [createPinia(), router],
         stubs: {
+          ChatWidget: true,
+          ProductCompareBar: true,
           SearchBar: { template: '<form role="search" />' },
           RouterView: true,
         },

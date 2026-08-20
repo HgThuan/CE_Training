@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import { XMarkIcon, PhotoIcon, VideoCameraIcon, TrashIcon, StarIcon as StarIconSolid } from '@heroicons/vue/24/solid'
 import { StarIcon as StarIconOutline } from '@heroicons/vue/24/outline'
+import { CheckCircleIcon, StarIcon as StarIconSolid, XMarkIcon } from '@heroicons/vue/24/solid'
+import { AxiosError } from 'axios'
+import { computed, ref, watch } from 'vue'
 
-import type { OrderItem } from '@/features/order/types'
 import { afterSalesApi } from '@/features/after-sales/api'
+import type { ReviewMedia } from '@/features/after-sales/types'
+import type { OrderItem } from '@/features/order/types'
 
 const props = defineProps<{
   isOpen: boolean
@@ -12,127 +14,87 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'close'): void
-  (e: 'submitted'): void
+  (event: 'close'): void
+  (event: 'submitted'): void
 }>()
 
 const rating = ref(0)
 const hoverRating = ref(0)
 const content = ref('')
-const mediaFiles = ref<Array<{ file?: File, type: 'IMAGE' | 'VIDEO', previewUrl: string, file_url?: string }>>([])
+const media = ref<ReviewMedia[]>([])
 const isSubmitting = ref(false)
+const errorMessage = ref('')
+const successMessage = ref('')
 
 const existingReview = computed(() => props.orderItem?.review)
-const isEditMode = computed(() => !!existingReview.value)
+const isEditMode = computed(() => Boolean(existingReview.value))
 const isExpired = computed(() => {
   if (!existingReview.value?.editable_until) return false
   return new Date(existingReview.value.editable_until) < new Date()
 })
 
-const errorMsg = ref('')
-const successMsg = ref('')
-
-watch(() => props.isOpen, (newVal) => {
-  errorMsg.value = ''
-  successMsg.value = ''
-  if (newVal) {
-    if (existingReview.value) {
-      rating.value = existingReview.value.rating
-      content.value = existingReview.value.content || ''
-      mediaFiles.value = (existingReview.value.media || []).map(m => ({
-        type: m.media_type,
-        previewUrl: m.file_url,
-        file_url: m.file_url
-      }))
-    } else {
-      rating.value = 0
-      content.value = ''
-      mediaFiles.value = []
-    }
-  }
+const ratingLabel = computed(() => {
+  const labels = ['', 'Rất không hài lòng', 'Chưa hài lòng', 'Bình thường', 'Hài lòng', 'Rất hài lòng']
+  return labels[hoverRating.value || rating.value] || 'Chọn mức độ hài lòng'
 })
 
-const handleFileSelect = (event: Event, type: 'IMAGE' | 'VIDEO') => {
-  const input = event.target as HTMLInputElement
-  if (!input.files?.length) return
-  errorMsg.value = ''
-  
-  const currentImages = mediaFiles.value.filter(m => m.type === 'IMAGE').length
-  const currentVideos = mediaFiles.value.filter(m => m.type === 'VIDEO').length
-  
-  Array.from(input.files).forEach(file => {
-    if (type === 'IMAGE' && currentImages >= 5) {
-      errorMsg.value = 'Tối đa 5 ảnh'
-      return
-    }
-    if (type === 'VIDEO' && currentVideos >= 1) {
-      errorMsg.value = 'Tối đa 1 video'
-      return
-    }
-    
-    mediaFiles.value.push({
-      file,
-      type,
-      previewUrl: URL.createObjectURL(file)
-    })
-  })
-  
-  input.value = '' // reset
+watch(
+  () => props.isOpen,
+  (open) => {
+    errorMessage.value = ''
+    successMessage.value = ''
+    hoverRating.value = 0
+    if (!open) return
+    rating.value = existingReview.value?.rating ?? 0
+    content.value = existingReview.value?.content ?? ''
+    media.value = [...(existingReview.value?.media ?? [])]
+  },
+)
+
+function close(): void {
+  if (!isSubmitting.value) emit('close')
 }
 
-const removeMedia = (index: number) => {
-  const media = mediaFiles.value[index]
-  if (media.file) {
-    URL.revokeObjectURL(media.previewUrl)
-  }
-  mediaFiles.value.splice(index, 1)
+function selectRating(star: number): void {
+  if (!isExpired.value && !isSubmitting.value) rating.value = star
 }
 
-const submitReview = async () => {
-  if (!props.orderItem) return
-  errorMsg.value = ''
-  successMsg.value = ''
-  
-  if (rating.value === 0) {
-    errorMsg.value = 'Vui lòng chọn số sao'
+function apiErrorMessage(error: unknown): string {
+  if (!(error instanceof AxiosError)) return 'Đã xảy ra lỗi. Vui lòng thử lại.'
+  const response = error.response?.data as { message?: string } | undefined
+  return response?.message || 'Không thể lưu đánh giá. Vui lòng thử lại.'
+}
+
+async function submitReview(): Promise<void> {
+  if (!props.orderItem || isExpired.value) return
+  errorMessage.value = ''
+  successMessage.value = ''
+  if (!rating.value) {
+    errorMessage.value = 'Vui lòng chọn số sao trước khi gửi.'
     return
   }
 
   isSubmitting.value = true
   try {
-    // Mock upload for new files
-    const mediaPayload = mediaFiles.value.map(m => {
-      if (m.file_url) {
-        return { media_type: m.type, file_url: m.file_url }
-      }
-      // Giả lập upload file trả về URL thật để pass validation của Backend
-      const fakeUrl = m.type === 'IMAGE' 
-        ? 'https://picsum.photos/800/800' 
-        : 'https://www.w3schools.com/html/mov_bbb.mp4'
-      return { media_type: m.type, file_url: fakeUrl }
-    })
-
     const payload = {
       rating: rating.value,
-      content: content.value,
-      media: mediaPayload
+      content: content.value.trim(),
+      media: media.value.map((item) => ({
+        media_type: item.media_type,
+        file_url: item.file_url,
+      })),
     }
-
     if (isEditMode.value && existingReview.value) {
       await afterSalesApi.updateReview(existingReview.value.id, payload)
-      successMsg.value = 'Cập nhật đánh giá thành công'
+      successMessage.value = 'Đánh giá đã được cập nhật.'
     } else {
       await afterSalesApi.createReview(props.orderItem.id, payload)
-      successMsg.value = 'Đã gửi đánh giá thành công'
+      successMessage.value = 'Cảm ơn bạn đã chia sẻ đánh giá.'
     }
-    
     emit('submitted')
-    // Tự động đóng sau 1.5s
-    setTimeout(() => {
-      emit('close')
-    }, 1500)
-  } catch (error: any) {
-    errorMsg.value = error.response?.data?.message || 'Có lỗi xảy ra'
+    window.setTimeout(() => emit('close'), 900)
+  } catch (error) {
+    errorMessage.value = apiErrorMessage(error)
   } finally {
     isSubmitting.value = false
   }
@@ -140,154 +102,124 @@ const submitReview = async () => {
 </script>
 
 <template>
-  <div v-if="isOpen" class="relative z-50">
-    <div class="fixed inset-0 bg-black/25 transition-opacity" @click="!isSubmitting && emit('close')"></div>
+  <div v-if="isOpen" class="app-modal" role="presentation" @click.self="close">
+    <section
+      class="app-modal__panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="review-dialog-title"
+    >
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="app-page-eyebrow">Mua hàng đã xác thực</p>
+          <h2 id="review-dialog-title" class="mt-1 text-xl font-black text-slate-950">
+            {{ isEditMode ? 'Cập nhật đánh giá' : 'Đánh giá sản phẩm' }}
+          </h2>
+        </div>
+        <button
+          type="button"
+          class="workspace-icon-button"
+          :disabled="isSubmitting"
+          aria-label="Đóng hộp thoại đánh giá"
+          @click="close"
+        >
+          <XMarkIcon class="h-5 w-5" aria-hidden="true" />
+        </button>
+      </div>
 
-    <div class="fixed inset-0 z-10 overflow-y-auto">
-      <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
-        <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-md p-6">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-medium leading-6 text-gray-900">
-              {{ isEditMode ? 'Đánh giá sản phẩm' : 'Đánh giá sản phẩm' }}
-            </h3>
+      <div v-if="orderItem" class="mt-5 rounded-xl bg-slate-50 p-4">
+        <p class="font-extrabold text-slate-900">{{ orderItem.product_name }}</p>
+        <p class="mt-1 text-xs text-slate-500">{{ orderItem.variant_name || orderItem.sku }}</p>
+      </div>
+
+      <div v-if="errorMessage" class="workspace-alert workspace-alert--error" role="alert">
+        {{ errorMessage }}
+      </div>
+      <div v-if="successMessage" class="mt-4 flex items-center gap-2 rounded-xl bg-emerald-50 p-4 text-sm font-bold text-emerald-700">
+        <CheckCircleIcon class="h-5 w-5" aria-hidden="true" />
+        {{ successMessage }}
+      </div>
+
+      <form class="mt-6 space-y-5" @submit.prevent="submitReview">
+        <fieldset :disabled="isExpired || isSubmitting">
+          <legend class="w-full text-center text-sm font-bold text-slate-700">
+            Trải nghiệm của bạn thế nào?
+          </legend>
+          <div class="mt-3 flex justify-center gap-1" @mouseleave="hoverRating = 0">
             <button
-              @click="emit('close')"
-              class="rounded-full p-1 hover:bg-gray-100"
-              :disabled="isSubmitting"
+              v-for="star in 5"
+              :key="star"
+              type="button"
+              class="rounded-lg p-1.5 transition hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:cursor-not-allowed"
+              :aria-label="`${star} sao`"
+              :aria-pressed="rating === star"
+              @mouseenter="hoverRating = star"
+              @focus="hoverRating = star"
+              @blur="hoverRating = 0"
+              @click="selectRating(star)"
             >
-              <XMarkIcon class="w-5 h-5 text-gray-500" />
+              <StarIconSolid
+                v-if="star <= (hoverRating || rating)"
+                class="h-9 w-9 text-amber-400"
+                aria-hidden="true"
+              />
+              <StarIconOutline v-else class="h-9 w-9 text-slate-300" aria-hidden="true" />
             </button>
           </div>
+          <p class="mt-2 h-5 text-center text-sm font-bold text-amber-700">{{ ratingLabel }}</p>
+        </fieldset>
 
-          <!-- Product Info -->
-          <div class="flex items-center gap-3 mb-6 p-3 bg-gray-50 rounded-lg" v-if="orderItem">
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-gray-900 truncate">{{ orderItem?.product_name }}</p>
-              <p class="text-xs text-gray-500 truncate">{{ orderItem?.variant_name }}</p>
+        <label class="block text-sm font-bold text-slate-700">
+          Chia sẻ chi tiết <span class="font-normal text-slate-400">(không bắt buộc)</span>
+          <textarea
+            v-model="content"
+            class="mt-2 min-h-28 w-full rounded-xl border border-slate-300 p-3 text-sm leading-6 disabled:bg-slate-50"
+            :disabled="isExpired || isSubmitting"
+            maxlength="5000"
+            placeholder="Chất lượng, kích thước, giao hàng… điều gì hữu ích cho người mua khác?"
+          />
+          <span class="mt-1 block text-right text-xs font-normal text-slate-400">
+            {{ content.length }}/5000
+          </span>
+        </label>
+
+        <div v-if="media.length" class="space-y-2">
+          <p class="text-sm font-bold text-slate-700">Ảnh/video đã đính kèm</p>
+          <div class="flex flex-wrap gap-2">
+            <div
+              v-for="item in media"
+              :key="item.id"
+              class="h-16 w-16 overflow-hidden rounded-xl border border-slate-200 bg-slate-100"
+            >
+              <img
+                v-if="item.media_type === 'IMAGE'"
+                :src="item.file_url"
+                alt="Ảnh đánh giá"
+                class="h-full w-full object-cover"
+              />
+              <video v-else :src="item.file_url" class="h-full w-full object-cover" />
             </div>
           </div>
-
-          <!-- Messages -->
-          <div v-if="errorMsg" class="mb-4 rounded-md bg-rose-50 p-3 text-sm text-rose-700">
-            {{ errorMsg }}
-          </div>
-          <div v-if="successMsg" class="mb-4 rounded-md bg-emerald-50 p-3 text-sm text-emerald-700">
-            {{ successMsg }}
-          </div>
-
-          <form @submit.prevent="submitReview" class="space-y-4">
-            <!-- Star Rating -->
-            <div class="flex flex-col items-center justify-center space-y-2">
-              <p class="text-sm text-gray-500">Chất lượng sản phẩm</p>
-              <div class="flex gap-1" @mouseleave="hoverRating = 0">
-                <button
-                  v-for="star in 5"
-                  :key="star"
-                  type="button"
-                  :disabled="isExpired || isSubmitting"
-                  class="p-1 focus:outline-none transition-transform hover:scale-110 disabled:hover:scale-100 disabled:cursor-not-allowed"
-                  @mouseenter="!isExpired && (hoverRating = star)"
-                  @click="!isExpired && (rating = star)"
-                >
-                  <StarIconSolid
-                    v-if="star <= (hoverRating || rating)"
-                    class="w-8 h-8 text-yellow-400"
-                  />
-                  <StarIconOutline
-                    v-else
-                    class="w-8 h-8 text-gray-300"
-                  />
-                </button>
-              </div>
-              <p class="text-xs text-rose-600 h-4 font-medium">{{ isExpired ? 'Đánh giá đã hết hạn chỉnh sửa' : '' }}</p>
-            </div>
-
-            <!-- Content -->
-            <div>
-              <textarea
-                v-model="content"
-                rows="3"
-                :disabled="isExpired || isSubmitting"
-                placeholder="Hãy chia sẻ nhận xét của bạn về sản phẩm này nhé..."
-                class="block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm disabled:bg-gray-50 disabled:text-gray-500"
-              ></textarea>
-            </div>
-
-            <!-- Media Upload -->
-            <div>
-              <div class="flex items-center gap-2 mb-2">
-                <p class="text-sm text-gray-700 font-medium">Thêm ảnh/video</p>
-                <span class="text-xs text-gray-500">(Tối đa 5 ảnh, 1 video)</span>
-              </div>
-              
-              <div class="flex flex-wrap gap-2">
-                <!-- Media Previews -->
-                <div 
-                  v-for="(media, index) in mediaFiles" 
-                  :key="index"
-                  class="relative w-16 h-16 rounded-lg border overflow-hidden group"
-                >
-                  <img 
-                    v-if="media.type === 'IMAGE'" 
-                    :src="media.previewUrl" 
-                    class="w-full h-full object-cover"
-                  />
-                  <video 
-                    v-else 
-                    :src="media.previewUrl"
-                    class="w-full h-full object-cover"
-                  />
-                  
-                  <button
-                    v-if="!isExpired"
-                    type="button"
-                    @click="removeMedia(index)"
-                    class="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <TrashIcon class="w-5 h-5 text-white" />
-                  </button>
-                </div>
-
-                <!-- Upload Buttons -->
-                <label 
-                  v-if="!isExpired && mediaFiles.filter(m => m.type === 'IMAGE').length < 5"
-                  class="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-500 hover:border-indigo-500 hover:text-indigo-500 cursor-pointer transition-colors"
-                >
-                  <input type="file" accept="image/*" multiple class="hidden" @change="handleFileSelect($event, 'IMAGE')" />
-                  <PhotoIcon class="w-6 h-6" />
-                </label>
-
-                <label 
-                  v-if="!isExpired && mediaFiles.filter(m => m.type === 'VIDEO').length < 1"
-                  class="w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-500 hover:border-indigo-500 hover:text-indigo-500 cursor-pointer transition-colors"
-                >
-                  <input type="file" accept="video/*" class="hidden" @change="handleFileSelect($event, 'VIDEO')" />
-                  <VideoCameraIcon class="w-6 h-6" />
-                </label>
-              </div>
-            </div>
-
-            <!-- Footer -->
-            <div class="mt-6 flex gap-3">
-              <button
-                type="button"
-                class="flex-1 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50"
-                @click="emit('close')"
-              >
-                Đóng
-              </button>
-              <button
-                v-if="!isExpired"
-                type="submit"
-                :disabled="isSubmitting"
-                class="flex-1 inline-flex justify-center rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {{ isSubmitting ? 'Đang xử lý...' : (isEditMode ? 'Cập nhật' : 'Gửi đánh giá') }}
-              </button>
-            </div>
-          </form>
         </div>
-      </div>
-    </div>
+
+        <p v-if="isExpired" class="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">
+          Đánh giá đã hết thời hạn chỉnh sửa và hiện ở chế độ chỉ đọc.
+        </p>
+
+        <div class="flex gap-3 pt-1">
+          <button type="button" class="workspace-page-action flex-1" @click="close">
+            {{ isExpired ? 'Đóng' : 'Để sau' }}
+          </button>
+          <button
+            v-if="!isExpired"
+            type="submit"
+            class="workspace-primary-action flex-1"
+            :disabled="isSubmitting"
+          >
+            {{ isSubmitting ? 'Đang lưu…' : isEditMode ? 'Lưu thay đổi' : 'Gửi đánh giá' }}
+          </button>
+        </div>
+      </form>
+    </section>
   </div>
 </template>

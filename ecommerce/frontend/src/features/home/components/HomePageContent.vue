@@ -156,22 +156,5 @@ onBeforeUnmount(() => {
       </template>
     </main>
 
-    <footer class="market-receipt mt-16 bg-[#173b35] text-white">
-      <div
-        class="mx-auto grid max-w-7xl gap-5 px-4 py-9 text-sm sm:grid-cols-[1fr_auto] sm:items-center sm:px-6"
-      >
-        <div>
-          <p class="font-display text-2xl">Mercato</p>
-          <p class="mt-1 text-[#d8e5e0]">
-            Một nơi để tìm kiếm, mua sắm và theo dõi đơn từ nhiều gian hàng.
-          </p>
-        </div>
-        <div class="flex flex-wrap gap-4 font-bold">
-          <RouterLink class="text-[#f2c14e]" to="/products">Khám phá sản phẩm</RouterLink>
-          <RouterLink class="text-white" to="/voucher-center">Voucher</RouterLink>
-          <RouterLink class="text-white" to="/account/orders">Đơn hàng</RouterLink>
-        </div>
-      </div>
-    </footer>
   </div>
 </template>

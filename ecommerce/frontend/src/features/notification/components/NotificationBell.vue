@@ -27,7 +27,7 @@ onMounted(() => {
   >
     <BellIcon class="h-5 w-5" />
     <span
-      v-if="center.unreadCount"
+      v-if="unreadCount"
       class="absolute -right-1 -top-1 min-w-5 rounded-full bg-rose-600 px-1 text-center text-[10px] font-black leading-5 text-white"
     >
       {{ unreadCount > 99 ? '99+' : unreadCount }}

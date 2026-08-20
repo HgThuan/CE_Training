@@ -48,6 +48,8 @@ describe('StorefrontLayout customer navigation', () => {
       global: {
         plugins: [pinia, router],
         stubs: {
+          ChatWidget: true,
+          ProductCompareBar: true,
           SearchBar: { template: '<form role="search" />' },
           RouterView: true,
         },
@@ -55,11 +57,11 @@ describe('StorefrontLayout customer navigation', () => {
     })
 
     expect(wrapper.findAll('a[href="/wishlist"]')).toHaveLength(1)
-    expect(wrapper.findAll('a[href="/account/orders"]')).toHaveLength(2)
+    expect(wrapper.findAll('a[href="/account/orders"]')).toHaveLength(3)
     const menuButton = wrapper.get('button[aria-label="Mở menu"]')
     await menuButton.trigger('click')
     expect(wrapper.findAll('a[href="/wishlist"]')).toHaveLength(2)
-    expect(wrapper.findAll('a[href="/account/orders"]')).toHaveLength(3)
+    expect(wrapper.findAll('a[href="/account/orders"]')).toHaveLength(4)
 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
     await flushPromises()
