@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -16,6 +17,23 @@ class EmbeddingResponse:
     vector: list[float]
     input_tokens: int = 0
     metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class ToolCall:
+    id: str
+    name: str
+    arguments: dict[str, Any]
+    thought_signature: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class ChatChunk:
+    delta_text: str = ""
+    tool_calls: list[ToolCall] = field(default_factory=list)
+    finish_reason: str | None = None
+    input_tokens: int = 0
+    output_tokens: int = 0
 
 
 class AIProviderError(RuntimeError):
@@ -48,6 +66,20 @@ class BaseAIProvider(ABC):
         max_output_tokens: int = 1024,
     ) -> ProviderResponse:
         """Generate text through the configured provider."""
+
+    @abstractmethod
+    def generate_chat(
+        self,
+        *,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        system_prompt: str = "",
+        model_name: str | None = None,
+        timeout: float,
+        temperature: float = 0.3,
+        max_output_tokens: int = 1024,
+    ) -> Iterator[ChatChunk]:
+        """Stream a multi-turn chat completion with optional function calls."""
 
     @abstractmethod
     def embed_text(

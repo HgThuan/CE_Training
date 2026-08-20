@@ -191,6 +191,9 @@ class AIRequestLog(TimeStampedModel):
         PRODUCT_SUMMARY = "product_summary", "Product summary"
         PRODUCT_COMPARE = "product_compare", "Product compare"
         SELLER_LISTING = "seller_listing", "Seller listing generation"
+        CHAT_TURN = "chat_turn", "Shopping assistant turn"
+        CHAT_SUMMARIZE = "chat_summarize", "Shopping assistant history summary"
+        POLICY_EMBEDDING = "policy_embedding", "Policy embedding"
         OTHER = "other", "Other"
 
     class Status(models.TextChoices):
@@ -329,3 +332,122 @@ class AIContentCache(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.feature}: {self.entity_type}/{self.entity_id}"
+
+
+class ChatSession(TimeStampedModel):
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Đang hoạt động"
+        CLOSED = "closed", "Đã đóng"
+        ESCALATED = "escalated", "Đã chuyển CSKH"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="chat_sessions",
+    )
+    guest_token = models.CharField(max_length=64, null=True, blank=True, db_index=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.ACTIVE,
+        db_index=True,
+    )
+    title = models.CharField(max_length=200, blank=True)
+    history_summary = models.TextField(blank=True)
+    turn_count = models.PositiveIntegerField(default=0)
+    last_active_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        db_table = "chat_sessions"
+        ordering = ("-last_active_at", "-created_at")
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(user__isnull=False) | Q(guest_token__isnull=False),
+                name="chat_session_owner_required",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return self.title or str(self.pk)
+
+
+class ChatMessage(models.Model):
+    class Role(models.TextChoices):
+        USER = "user", "Khách"
+        ASSISTANT = "assistant", "Trợ lý"
+        TOOL = "tool", "Kết quả công cụ"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    session = models.ForeignKey(
+        ChatSession,
+        on_delete=models.CASCADE,
+        related_name="messages",
+    )
+    role = models.CharField(max_length=20, choices=Role.choices)
+    content = models.TextField(blank=True)
+    tool_calls = models.JSONField(null=True, blank=True)
+    tool_call_id = models.CharField(max_length=100, null=True, blank=True)
+    attachments = models.JSONField(default=list, blank=True)
+    ai_request_log = models.ForeignKey(
+        AIRequestLog,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="chat_messages",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = "chat_messages"
+        ordering = ("created_at", "id")
+        indexes = [
+            models.Index(
+                fields=("session", "created_at"),
+                name="chat_msg_session_idx",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.session_id}:{self.role}:{self.pk}"
+
+
+class PolicyDocument(TimeStampedModel):
+    class Category(models.TextChoices):
+        SHIPPING = "shipping", "Giao hàng"
+        RETURN = "return", "Đổi trả"
+        PAYMENT = "payment", "Thanh toán"
+        WARRANTY = "warranty", "Bảo hành"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    category = models.CharField(max_length=20, choices=Category.choices, db_index=True)
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    embedding = VectorField(
+        dimensions=EMBEDDING_DIMENSIONS,
+        null=True,
+        blank=True,
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "policy_documents"
+        ordering = ("category", "title", "id")
+        indexes = [
+            models.Index(
+                fields=("category", "is_active"),
+                name="policy_category_active_idx",
+            ),
+            HnswIndex(
+                name="policy_doc_vector_hnsw",
+                fields=("embedding",),
+                m=16,
+                ef_construction=64,
+                opclasses=("vector_cosine_ops",),
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.title

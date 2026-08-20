@@ -323,12 +323,100 @@ def test_gemini_generation_uses_current_structured_output_payload():
     assert payload["generationConfig"]["responseFormat"] == {
         "text": {"mimeType": "APPLICATION_JSON", "schema": schema}
     }
-    assert payload["generationConfig"]["thinkingConfig"] == {
-        "thinkingLevel": "minimal"
-    }
+    assert payload["generationConfig"]["thinkingConfig"] == {"thinkingLevel": "minimal"}
     assert "responseMimeType" not in payload["generationConfig"]
     assert result.input_tokens == 3
     assert result.output_tokens == 2
+
+
+def test_gemini_chat_stream_preserves_function_call_contract():
+    provider = GeminiProvider(api_key="test-only")
+    stream = [
+        {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {"text": "Mình sẽ tìm ngay. "},
+                            {
+                                "functionCall": {
+                                    "id": "call-1",
+                                    "name": "search_products",
+                                    "args": {"query": "laptop học tập"},
+                                },
+                                "thoughtSignature": "signed-thought",
+                            },
+                        ]
+                    },
+                    "finishReason": "STOP",
+                }
+            ],
+            "usageMetadata": {"promptTokenCount": 8, "candidatesTokenCount": 5},
+        }
+    ]
+    tool = {
+        "name": "search_products",
+        "description": "Tìm sản phẩm",
+        "parameters": {"type": "object"},
+    }
+    messages = [
+        {"role": "system", "content": "Tóm tắt cũ"},
+        {"role": "user", "content": "Tìm laptop"},
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": "previous-call",
+                    "name": "get_policy",
+                    "arguments": {"topic": "đổi trả"},
+                    "thought_signature": "previous-signature",
+                }
+            ],
+        },
+        {
+            "role": "tool",
+            "name": "get_policy",
+            "tool_call_id": "previous-call",
+            "content": '{"documents": []}',
+        },
+    ]
+
+    with patch.object(provider, "_stream_json", return_value=iter(stream)) as stream_json:
+        chunks = list(
+            provider.generate_chat(
+                messages=messages,
+                tools=[tool],
+                system_prompt="Trợ lý mua sắm",
+                model_name="gemini-3.6-flash",
+                timeout=5,
+            )
+        )
+
+    url, payload = stream_json.call_args.args[:2]
+    assert url.endswith(":streamGenerateContent?alt=sse")
+    assert payload["tools"] == [{"functionDeclarations": [tool]}]
+    assert payload["systemInstruction"]["parts"][0]["text"] == ("Trợ lý mua sắm\n\nTóm tắt cũ")
+    assert payload["contents"][1]["parts"][0] == {
+        "functionCall": {
+            "name": "get_policy",
+            "args": {"topic": "đổi trả"},
+            "id": "previous-call",
+        },
+        "thoughtSignature": "previous-signature",
+    }
+    assert payload["contents"][2]["parts"][0]["functionResponse"] == {
+        "name": "get_policy",
+        "response": {"documents": []},
+        "id": "previous-call",
+    }
+    assert chunks[0].delta_text == "Mình sẽ tìm ngay. "
+    assert chunks[0].input_tokens == 8
+    assert chunks[0].output_tokens == 5
+    assert chunks[0].tool_calls[0].id == "call-1"
+    assert chunks[0].tool_calls[0].name == "search_products"
+    assert chunks[0].tool_calls[0].arguments == {"query": "laptop học tập"}
+    assert chunks[0].tool_calls[0].thought_signature == "signed-thought"
 
 
 @pytest.mark.parametrize(
