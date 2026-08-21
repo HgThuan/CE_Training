@@ -239,6 +239,36 @@ class ChatTurnRequestSerializer(serializers.Serializer):
         max_length=1_000,
         trim_whitespace=True,
     )
+    browsing_history = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        max_length=20,
+        allow_empty=True,
+    )
+    channel = serializers.RegexField(
+        regex=r"^[a-z][a-z0-9_-]{1,29}$",
+        required=False,
+        default="web",
+    )
+
+    def validate_browsing_history(self, value):
+        return list(dict.fromkeys(value))
+
+
+class ChatFeedbackSerializer(serializers.Serializer):
+    guest_token = serializers.RegexField(
+        regex=r"^[A-Za-z0-9._-]{20,64}$",
+        required=False,
+        allow_blank=False,
+    )
+    rating = serializers.IntegerField(min_value=1, max_value=5)
+    resolved = serializers.BooleanField(required=False, allow_null=True)
+    comment = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=1_000,
+        trim_whitespace=True,
+    )
 
 
 class ChatMessageSerializer(serializers.Serializer):
@@ -247,6 +277,7 @@ class ChatMessageSerializer(serializers.Serializer):
     role = serializers.ChoiceField(choices=("user", "assistant"))
     content = serializers.CharField(allow_blank=True)
     attachments = serializers.ListField(child=serializers.DictField())
+    feedback = serializers.DictField(allow_null=True, required=False)
     created_at = serializers.DateTimeField()
 
 

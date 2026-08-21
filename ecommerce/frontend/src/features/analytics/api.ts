@@ -1,7 +1,14 @@
 import { http } from '@/shared/lib/http'
 import type { ApiResponse } from '@/shared/types/api'
 
-import type { AuditEntry, RankingRow, SiteSetting, Summary, RevenueChartResponse } from './types'
+import type {
+  AuditEntry,
+  ChatbotMetrics,
+  RankingRow,
+  RevenueChartResponse,
+  SiteSetting,
+  Summary,
+} from './types'
 
 export const analyticsApi = {
   adminSummary: (days: number) =>
@@ -12,6 +19,8 @@ export const analyticsApi = {
     }),
   adminProducts: (days: number) =>
     http.get<ApiResponse<RankingRow[]>>('/admin/dashboard/top-products/', { params: { days } }),
+  chatbotMetrics: (days: number) =>
+    http.get<ApiResponse<ChatbotMetrics>>('/admin/dashboard/chatbot', { params: { days } }),
   sellerSummary: (days: number) =>
     http.get<ApiResponse<Summary>>('/seller/dashboard/summary/', { params: { days } }),
   sellerRevenue: (days: number, period: string = 'day') =>

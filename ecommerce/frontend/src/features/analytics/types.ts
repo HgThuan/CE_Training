@@ -52,3 +52,24 @@ export interface AuditEntry {
   request_id: string
   created_at: string
 }
+
+export interface ChatbotMetrics {
+  sessions: number
+  handoffs: number
+  handoff_rate: number
+  automated_resolution_rate: number
+  average_response_ms: number
+  feedback_count: number
+  feedback_rate: number
+  csat: number
+  resolved_feedback: number
+  unresolved_feedback: number
+  variants: Array<{
+    experiment_variant: string
+    sessions: number
+    escalated: number
+    feedback_count: number
+    csat: number
+    handoff_rate: number
+  }>
+}

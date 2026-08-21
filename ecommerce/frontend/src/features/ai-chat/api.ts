@@ -1,7 +1,7 @@
 import { http } from '@/shared/lib/http'
 import type { ApiResponse } from '@/shared/types/api'
 
-import type { ChatMessage, ChatStreamEvent, ChatTurnPayload } from './types'
+import type { ChatFeedback, ChatMessage, ChatStreamEvent, ChatTurnPayload } from './types'
 
 function apiUrl(path: string): string {
   const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? '/api/v1').replace(/\/$/, '')
@@ -16,9 +16,13 @@ async function responseError(response: Response): Promise<Error> {
       errors?: Record<string, string[]>
     }
     const fieldError = payload.errors
-      ? Object.values(payload.errors).flat().find((value) => typeof value === 'string')
+      ? Object.values(payload.errors)
+          .flat()
+          .find((value) => typeof value === 'string')
       : undefined
-    return new Error(fieldError ?? payload.message ?? payload.detail ?? 'Không thể kết nối trợ lý AI.')
+    return new Error(
+      fieldError ?? payload.message ?? payload.detail ?? 'Không thể kết nối trợ lý AI.',
+    )
   } catch {
     return new Error('Không thể kết nối trợ lý AI.')
   }
@@ -79,4 +83,8 @@ export const aiChatApi = {
     http.get<ApiResponse<ChatMessage[]>>(`/chat/sessions/${sessionId}/messages`, {
       params: { guest_token: guestToken },
     }),
+  feedback: (
+    messageId: string,
+    payload: { guest_token: string; rating: number; resolved?: boolean; comment?: string },
+  ) => http.post<ApiResponse<ChatFeedback>>(`/chat/messages/${messageId}/feedback`, payload),
 }

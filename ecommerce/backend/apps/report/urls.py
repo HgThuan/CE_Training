@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     AdminDashboardView,
     AuditLogView,
+    ChatbotMetricsView,
     ReportExportView,
     ReportView,
     SellerDashboardView,
@@ -11,6 +12,7 @@ from .views import (
 )
 
 urlpatterns = [
+    path("admin/dashboard/chatbot", ChatbotMetricsView.as_view(), name="admin-chatbot-metrics"),
     path("admin/dashboard/summary/", AdminDashboardView.as_view(), name="admin-dashboard-summary"),
     path(
         "admin/dashboard/revenue-chart/",
