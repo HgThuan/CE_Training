@@ -22,6 +22,7 @@ import { formatVnd } from '@/shared/lib/formatters'
 import { useAuthStore } from '@/stores/auth'
 
 import { productApi } from '../api'
+import { trackRecommendationAddToCart } from '../recommendationTracking'
 import { readBrowsingHistory, recordBrowsingProduct } from '../browsingHistory'
 import ProductDetailTabs from '../components/ProductDetailTabs.vue'
 import ProductGallery from '../components/ProductGallery.vue'
@@ -43,6 +44,8 @@ const similarProducts = ref<PublicProductListItem[]>([])
 const recommendedProducts = ref<PublicProductListItem[]>([])
 const similarLoading = ref(false)
 const recommendationsLoading = ref(false)
+const similarRecommendationId = ref('')
+const personalizedRecommendationId = ref('')
 let pageRequestSequence = 0
 
 const product = computed(() => productStore.detail)
@@ -108,6 +111,7 @@ async function prepareCart(action: 'cart' | 'buy'): Promise<void> {
       image: galleryMedia.value[0]?.file_url ?? null,
       price: selectedVariant.value.sale_price,
     })
+    trackRecommendationAddToCart(product.value.id)
     cartNotice.value =
       action === 'cart'
         ? `Đã thêm ${quantity.value} sản phẩm vào giỏ.`
@@ -124,6 +128,8 @@ function isCurrentProductRequest(sequence: number, productId: string): boolean {
 
 async function loadProductRecommendations(sequence: number, productId: string): Promise<void> {
   const browsingHistory = readBrowsingHistory(authStore.user?.id)
+  const cartProductIds =
+    cartStore.cart?.shops.flatMap((shop) => shop.items.map((item) => item.product_id)) ?? []
   similarLoading.value = true
   recommendationsLoading.value = true
 
@@ -132,17 +138,22 @@ async function loadProductRecommendations(sequence: number, productId: string): 
     .then((response) => {
       if (isCurrentProductRequest(sequence, productId)) {
         similarProducts.value = response.data.data.results
+        similarRecommendationId.value = response.data.data.recommendation_id ?? ''
       }
     })
     .finally(() => {
       if (isCurrentProductRequest(sequence, productId)) similarLoading.value = false
     })
 
-  const recommendationRequest = productApi
-    .recommendations(productId, browsingHistory)
+  const recommendationRequest = (
+    cartProductIds.length
+      ? productApi.recommendations(productId, browsingHistory, cartProductIds)
+      : productApi.recommendations(productId, browsingHistory)
+  )
     .then((response) => {
       if (isCurrentProductRequest(sequence, productId)) {
         recommendedProducts.value = response.data.data.results
+        personalizedRecommendationId.value = response.data.data.recommendation_id ?? ''
       }
     })
     .finally(() => {
@@ -161,6 +172,8 @@ async function loadProduct(): Promise<void> {
   cartNotice.value = ''
   similarProducts.value = []
   recommendedProducts.value = []
+  similarRecommendationId.value = ''
+  personalizedRecommendationId.value = ''
   similarLoading.value = false
   recommendationsLoading.value = false
   try {
@@ -459,11 +472,15 @@ onBeforeUnmount(() => {
             title="Sản phẩm tương tự"
             :products="similarProducts"
             :loading="similarLoading"
+            :recommendation-id="similarRecommendationId"
+            source="similar"
           />
           <ProductRecommendationCarousel
             title="Gợi ý dành cho bạn"
             :products="recommendedProducts"
             :loading="recommendationsLoading"
+            :recommendation-id="personalizedRecommendationId"
+            source="product"
           />
         </div>
       </template>

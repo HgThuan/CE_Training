@@ -75,6 +75,18 @@ class EmbeddingService:
                     "; ".join(f"{name}: {value}" for name, value in attributes),
                 )
             )
+        image_descriptions = sorted(
+            {
+                " ".join((media.alt_text or "").split())
+                for media in product.media.all()
+                if media.media_type == "image" and (media.alt_text or "").strip()
+            }
+        )
+        if image_descriptions:
+            # The default provider is text-only. Curated image alt text is a
+            # factual visual proxy; binary pixels are never pretended to have
+            # been embedded in this mode.
+            sections.append(("Mô tả hình ảnh", "; ".join(image_descriptions)))
         normalized_sections = []
         for label, value in sections:
             normalized_value = " ".join(strip_tags(str(value)).split())
@@ -98,6 +110,7 @@ class EmbeddingService:
             .select_related("shop", "category", "brand")
             .prefetch_related(
                 "product_attribute_links__attribute_value__attribute",
+                "media",
             )
             .filter(pk=product_id)
             .first()

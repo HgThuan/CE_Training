@@ -25,8 +25,17 @@ export interface SearchSuggestion {
 }
 
 export interface AiSearchIntent {
+  intent_type: string
   keywords: string[]
   filters: Record<string, unknown>
+  slots: {
+    category_hints: string[]
+    price_range: { min?: string | number | null; max?: string | number | null }
+    attributes: Record<string, string[]>
+    occasion: string | null
+    recipient: string | null
+  }
+  confidence: number
 }
 
 export interface SmartSearchApiData {
@@ -36,6 +45,7 @@ export interface SmartSearchApiData {
   intent?: Partial<AiSearchIntent>
   ai_used?: boolean
   fallback_used?: boolean
+  match_reasons?: Record<string, string>
 }
 
 export interface SmartSearchResult {
@@ -44,6 +54,7 @@ export interface SmartSearchResult {
   intent: AiSearchIntent
   ai_used: boolean
   fallback_used: boolean
+  match_reasons: Record<string, string>
 }
 
 export interface SearchFilterModel {

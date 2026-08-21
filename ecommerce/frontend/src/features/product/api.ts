@@ -21,6 +21,18 @@ function browsingHistoryParams(browsingHistory: string[]): { browsing_history?: 
   return serializedHistory ? { browsing_history: serializedHistory } : {}
 }
 
+function recommendationParams(
+  browsingHistory: string[],
+  cartProducts: string[],
+  landingContext: 'home' | 'product_detail',
+) {
+  return {
+    ...browsingHistoryParams(browsingHistory),
+    cart_products: cartProducts.length ? cartProducts.join(',') : undefined,
+    landing_context: landingContext,
+  }
+}
+
 export const productApi = {
   list: (filters: ProductListFilters) =>
     http.get<ApiResponse<PublicProductListItem[]>>('/products/', { params: filters }),
@@ -30,13 +42,17 @@ export const productApi = {
     }),
   similar: (productId: string) =>
     http.get<ApiResponse<ProductRecommendationData>>(`/products/${productId}/similar/`),
-  recommendations: (productId: string, browsingHistory: string[] = []) =>
+  recommendations: (
+    productId: string,
+    browsingHistory: string[] = [],
+    cartProducts: string[] = [],
+  ) =>
     http.get<ApiResponse<ProductRecommendationData>>(`/products/${productId}/recommendations/`, {
-      params: browsingHistoryParams(browsingHistory),
+      params: recommendationParams(browsingHistory, cartProducts, 'product_detail'),
     }),
   homeRecommendations: (browsingHistory: string[] = []) =>
     http.get<ApiResponse<ProductRecommendationData>>('/ai/recommendations/', {
-      params: browsingHistoryParams(browsingHistory),
+      params: recommendationParams(browsingHistory, [], 'home'),
     }),
   aiReviewSummary: (productId: string) =>
     http.get<ApiResponse<ProductAIReviewSummary>>(`/ai/products/${productId}/ai-review-summary`),

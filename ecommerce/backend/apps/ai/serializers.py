@@ -31,6 +31,7 @@ class AISearchDataSerializer(serializers.Serializer):
     intent = serializers.DictField()
     ai_used = serializers.BooleanField()
     fallback_used = serializers.BooleanField()
+    match_reasons = serializers.DictField(child=serializers.CharField())
 
 
 class AISearchResponseSerializer(serializers.Serializer):
@@ -49,6 +50,24 @@ class RecommendationQuerySerializer(serializers.Serializer):
             "Tối đa 20 UUID sản phẩm, phân tách bằng dấu phẩy và sắp xếp từ mới nhất đến cũ nhất."
         ),
     )
+    cart_products = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=740,
+        help_text="Tối đa 20 UUID sản phẩm đang có trong giỏ hàng.",
+    )
+    landing_context = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=40,
+        default="home",
+    )
+    traffic_source = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=80,
+        default="direct",
+    )
     page = serializers.IntegerField(min_value=1, required=False)
     page_size = serializers.IntegerField(
         min_value=1,
@@ -65,6 +84,13 @@ class RecommendationQuerySerializer(serializers.Serializer):
         return super().to_internal_value(data)
 
     def validate_browsing_history(self, value: str) -> list[UUID]:
+        return self._validate_uuid_list(value, field_name="browsing_history")
+
+    def validate_cart_products(self, value: str) -> list[UUID]:
+        return self._validate_uuid_list(value, field_name="cart_products")
+
+    @staticmethod
+    def _validate_uuid_list(value: str, *, field_name: str) -> list[UUID]:
         if not value.strip():
             return []
         raw_ids = value.split(",")
@@ -73,7 +99,7 @@ class RecommendationQuerySerializer(serializers.Serializer):
         for raw_id in raw_ids:
             candidate = raw_id.strip()
             if not candidate:
-                raise serializers.ValidationError("browsing_history không được chứa phần tử rỗng")
+                raise serializers.ValidationError(f"{field_name} không được chứa phần tử rỗng")
             try:
                 product_id = UUID(candidate)
             except ValueError as exc:
@@ -84,12 +110,13 @@ class RecommendationQuerySerializer(serializers.Serializer):
                 seen.add(product_id)
                 normalized.append(product_id)
         if len(normalized) > 20:
-            raise serializers.ValidationError("browsing_history chỉ chấp nhận tối đa 20 sản phẩm")
+            raise serializers.ValidationError(f"{field_name} chỉ chấp nhận tối đa 20 sản phẩm")
         return normalized
 
     def validate(self, attrs):
         attrs = dict(attrs)
         attrs.setdefault("browsing_history", [])
+        attrs.setdefault("cart_products", [])
         return attrs
 
 
@@ -99,6 +126,7 @@ class RecommendationDataSerializer(serializers.Serializer):
     fallback_used = serializers.BooleanField()
     personalized = serializers.BooleanField()
     strategy = serializers.CharField()
+    recommendation_id = serializers.UUIDField()
 
 
 class RecommendationResponseSerializer(serializers.Serializer):
@@ -123,6 +151,30 @@ class SimilarProductsQuerySerializer(serializers.Serializer):
                 {"query_params": [f"Tham số không được hỗ trợ: {', '.join(unknown)}"]}
             )
         return super().to_internal_value(data)
+
+
+class RecommendationEventSerializer(serializers.Serializer):
+    recommendation_id = serializers.UUIDField()
+    product_id = serializers.UUIDField()
+    event_type = serializers.ChoiceField(choices=("impression", "click", "add_to_cart"))
+    source = serializers.ChoiceField(choices=("home", "product", "similar", "search"))
+    position = serializers.IntegerField(min_value=0, max_value=500, required=False)
+    visitor_id = serializers.CharField(
+        max_length=200,
+        required=False,
+        allow_blank=True,
+        write_only=True,
+    )
+    context = serializers.DictField(required=False, default=dict)
+
+    def validate_context(self, value):
+        if len(value) > 20:
+            raise serializers.ValidationError("context chỉ chấp nhận tối đa 20 trường")
+        return {
+            str(key)[:80]: str(item)[:300]
+            for key, item in value.items()
+            if isinstance(item, (str, int, float, bool)) or item is None
+        }
 
 
 class ProductAIReviewSummaryDataSerializer(serializers.Serializer):

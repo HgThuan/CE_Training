@@ -452,14 +452,17 @@ class AIService:
         fallback = self._fallback_search_intent(normalized_query)
         prompt = (
             "Extract ecommerce search intent from the query below. "
-            "Return only JSON with keys: keywords (array of strings), filters "
-            "(object using only price_min, price_max, "
-            "rating_min, in_stock), and explanation (short string).\n"
+            "Return only JSON with keys: intent_type, keywords (array of strings), "
+            "filters (object using only price_min, price_max, rating_min, in_stock), "
+            "slots, and confidence (0..1). slots must contain category_hints "
+            "(array), attributes (object of arrays), occasion, and recipient.\n"
             "Rules:\n"
             "1. Keywords must contain the core product names, features, categories, "
             "and brands. Do NOT include price words in keywords if mapped to filters.\n"
             "2. For price filters, ALWAYS convert to pure numbers in VND "
             "(e.g. '10 triệu' -> 10000000, '50k' -> 50000).\n"
+            "3. category_hints are non-authoritative semantic suggestions for vague "
+            "needs; never present them as facts supplied by the customer.\n"
             f"Query: {normalized_query}"
         )
         result = self.generate_text(
@@ -474,7 +477,7 @@ class AIService:
             user=user,
             fallback="",
             cache_context={"query": normalized_query},
-            prompt_template_version="smart-search-v8",
+            prompt_template_version="smart-search-v9-structured-slots",
             response_mime_type="application/json",
             temperature=0,
             max_output_tokens=8192,
@@ -501,14 +504,14 @@ class AIService:
         filters = self._normalize_search_filters(
             raw_filters if isinstance(raw_filters, dict) else {}
         )
-        explanation = sanitize_ai_text(
-            parsed.get("explanation", ""),
-            max_length=300,
-        )
+        raw_slots = parsed.get("slots")
+        slots = raw_slots if isinstance(raw_slots, dict) else {}
         return {
+            "intent_type": sanitize_ai_text(parsed.get("intent_type", ""), max_length=40),
             "keywords": normalized_keywords,
             "filters": filters,
-            "explanation": explanation,
+            "slots": slots,
+            "confidence": parsed.get("confidence", 0),
             "ai_used": True,
             "fallback_used": False,
         }
@@ -1569,9 +1572,16 @@ class AIService:
             word for word in WORD_RE.findall(query) if len(word) > 1 and not word.isdigit()
         ][:12]
         return {
+            "intent_type": "product_search",
             "keywords": keywords or ([query] if query else []),
             "filters": filters,
-            "explanation": "",
+            "slots": {
+                "category_hints": [],
+                "attributes": {},
+                "occasion": "",
+                "recipient": "",
+            },
+            "confidence": 0,
             "ai_used": False,
             "fallback_used": True,
         }

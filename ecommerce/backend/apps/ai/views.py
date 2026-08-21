@@ -363,6 +363,7 @@ class BaseAISearchView(generics.GenericAPIView):
             "intent": outcome.intent,
             "ai_used": outcome.ai_used,
             "fallback_used": outcome.fallback_used,
+            "match_reasons": outcome.match_reasons,
         }
         return self.get_paginated_response(data)
 

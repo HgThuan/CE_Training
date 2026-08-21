@@ -156,6 +156,7 @@ export interface ProductRecommendationData {
   fallback_used: boolean
   personalized: boolean
   strategy: string
+  recommendation_id?: string
 }
 
 export interface ProductAIReviewSummary {

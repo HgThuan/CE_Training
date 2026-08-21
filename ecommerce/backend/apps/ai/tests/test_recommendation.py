@@ -73,12 +73,12 @@ def test_similar_fallback_uses_deterministic_tiers_and_never_returns_anchor():
     with patch.object(RecommendationService, "is_vector_enabled", return_value=False):
         outcome = RecommendationService.similar_products(context_product=anchor)
 
-    assert [product.pk for product in outcome.products[:4]] == [
+    assert [product.pk for product in outcome.products] == [
         same_category_brand.pk,
         same_category.pk,
-        same_brand.pk,
-        global_product.pk,
     ]
+    assert same_brand.pk not in {product.pk for product in outcome.products}
+    assert global_product.pk not in {product.pk for product in outcome.products}
     assert anchor.pk not in {product.pk for product in outcome.products}
     assert outcome.ai_used is False
     assert outcome.fallback_used is True
@@ -321,6 +321,40 @@ def test_three_recommendation_endpoints_return_standard_shape_and_forward_contex
     }
     similar.assert_called_once()
     assert similar.call_args.kwargs["context_product"] == anchor
+
+
+@pytest.mark.django_db
+def test_recommendation_event_accepts_interactions_but_rejects_client_purchase():
+    customer = UserFactory(role=User.Role.CUSTOMER)
+    product = public_product()
+    client = APIClient()
+    client.force_authenticate(customer)
+    recommendation_id = "2a7446df-b249-47af-8518-29f501ff10e6"
+
+    accepted = client.post(
+        reverse("ai:recommendation-event"),
+        {
+            "recommendation_id": recommendation_id,
+            "product_id": str(product.pk),
+            "event_type": "click",
+            "source": "home",
+            "position": 0,
+        },
+        format="json",
+    )
+    rejected = client.post(
+        reverse("ai:recommendation-event"),
+        {
+            "recommendation_id": recommendation_id,
+            "product_id": str(product.pk),
+            "event_type": "purchase",
+            "source": "home",
+        },
+        format="json",
+    )
+
+    assert accepted.status_code == 200
+    assert rejected.status_code == 400
 
 
 @pytest.mark.django_db

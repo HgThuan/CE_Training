@@ -1,21 +1,41 @@
 <script setup lang="ts">
-import { useId } from 'vue'
+import { useId, watch } from 'vue'
 
 import type { PublicProductListItem } from '../types'
+import {
+  trackRecommendationClick,
+  trackRecommendationImpression,
+  type RecommendationSource,
+} from '../recommendationTracking'
 import ProductCard from './ProductCard.vue'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     title: string
     products: PublicProductListItem[]
     loading?: boolean
+    recommendationId?: string
+    source?: RecommendationSource
   }>(),
   {
     loading: false,
+    recommendationId: '',
+    source: 'product',
   },
 )
 
 const headingId = `product-recommendations-${useId()}`
+
+watch(
+  () => [props.recommendationId, props.products] as const,
+  ([recommendationId, products]) => {
+    if (!recommendationId) return
+    products.slice(0, 20).forEach((product, index) =>
+      trackRecommendationImpression(recommendationId, product.id, props.source, index),
+    )
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -44,11 +64,14 @@ const headingId = `product-recommendations-${useId()}`
         </li>
       </template>
       <li
-        v-for="product in loading ? [] : products"
+        v-for="(product, index) in loading ? [] : products"
         :key="product.id"
         class="w-[78vw] max-w-[19rem] shrink-0 snap-start sm:w-72 lg:w-[calc(25%-0.9375rem)]"
       >
-        <ProductCard :product="product" />
+        <ProductCard
+          :product="product"
+          @click.capture="trackRecommendationClick(recommendationId, product.id, source, index)"
+        />
       </li>
     </ul>
   </section>
