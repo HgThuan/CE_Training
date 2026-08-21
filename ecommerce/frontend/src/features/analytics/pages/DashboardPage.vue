@@ -101,7 +101,7 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="mx-auto max-w-[1440px] space-y-6" :aria-busy="loading">
+  <main class="app-page max-w-[1440px] space-y-6" :aria-busy="loading">
     <header class="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
       <div>
         <p class="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-indigo-600">
@@ -260,5 +260,5 @@ onMounted(load)
         </div>
       </section>
     </div>
-  </div>
+  </main>
 </template>

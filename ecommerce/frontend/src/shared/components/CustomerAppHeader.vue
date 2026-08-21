@@ -86,11 +86,12 @@ async function logout(): Promise<void> {
           v-if="authStore.user"
           class="market-account-link"
           :to="homePathForRole(authStore.user.role)"
+          aria-label="Mở tài khoản"
         >
           <UserCircleIcon class="size-5" />
           <span class="max-xl:hidden">Tài khoản</span>
         </RouterLink>
-        <RouterLink v-else class="market-account-link" to="/auth/login">
+        <RouterLink v-else class="market-account-link" to="/auth/login" aria-label="Đăng nhập">
           <UserCircleIcon class="size-5" /><span>Đăng nhập</span>
         </RouterLink>
         <button
