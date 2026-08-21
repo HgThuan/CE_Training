@@ -279,6 +279,9 @@ class CheckoutService:
             from .tasks import send_order_confirmation_notification
 
             _queue(send_order_confirmation_notification, str(order.pk))
+            from apps.ai.tasks import record_purchase_recommendation_feedback
+
+            _queue(record_purchase_recommendation_feedback, str(order.pk))
 
         payment_url = None
         if payment_method == Order.PaymentMethod.VNPAY:

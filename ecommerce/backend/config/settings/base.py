@@ -240,6 +240,14 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.order.tasks.release_expired_stock_reservations",
         "schedule": 300.0,
     },
+    "reconcile-product-embeddings-nightly": {
+        "task": "ai.reindex_all_products",
+        "schedule": 86400.0,
+    },
+    "rebuild-recommendation-profiles-nightly": {
+        "task": "ai.rebuild_recommendation_profiles",
+        "schedule": 86400.0,
+    },
 }
 
 LOGGING = {
@@ -271,6 +279,19 @@ AI_PROVIDER = env("AI_PROVIDER", default="gemini")
 AI_MODEL = env("AI_MODEL", default="gemini-3.6-flash")
 AI_EMBEDDING_MODEL = env("AI_EMBEDDING_MODEL", default="gemini-embedding-2")
 AI_EMBEDDING_DIMENSIONS = env.int("AI_EMBEDDING_DIMENSIONS", default=1536)
+AI_EMBEDDING_MODALITY = env("AI_EMBEDDING_MODALITY", default="text")
+AI_SEARCH_RRF_K = env.int("AI_SEARCH_RRF_K", default=60)
+AI_SEARCH_SEMANTIC_WEIGHT = env.float("AI_SEARCH_SEMANTIC_WEIGHT", default=0.65)
+AI_SEARCH_KEYWORD_WEIGHT = env.float("AI_SEARCH_KEYWORD_WEIGHT", default=0.35)
+AI_SEARCH_MIN_COSINE_SIMILARITY = env.float(
+    "AI_SEARCH_MIN_COSINE_SIMILARITY", default=0.30
+)
+AI_RECOMMENDATION_MIN_COSINE_SIMILARITY = env.float(
+    "AI_RECOMMENDATION_MIN_COSINE_SIMILARITY", default=0.30
+)
+AI_SIMILAR_MIN_COSINE_SIMILARITY = env.float(
+    "AI_SIMILAR_MIN_COSINE_SIMILARITY", default=0.45
+)
 AI_REQUEST_TIMEOUT_SECONDS = env.float("AI_REQUEST_TIMEOUT_SECONDS", default=20.0)
 AI_MAX_RETRIES = env.int("AI_MAX_RETRIES", default=3)
 AI_RETRY_BACKOFF_SECONDS = env.float("AI_RETRY_BACKOFF_SECONDS", default=0.25)

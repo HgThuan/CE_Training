@@ -9,6 +9,8 @@ from .models import (
     ChatSession,
     PolicyDocument,
     ProductEmbedding,
+    RecommendationEvent,
+    RecommendationProfile,
 )
 
 
@@ -68,6 +70,55 @@ class AIRequestLogAdmin(admin.ModelAdmin):
         return False
 
     def has_delete_permission(self, request, obj=None) -> bool:
+        return False
+
+
+@admin.register(RecommendationProfile)
+class RecommendationProfileAdmin(admin.ModelAdmin):
+    list_display = ("user", "model_name", "generated_at", "updated_at")
+    search_fields = ("user__email",)
+    readonly_fields = (
+        "id",
+        "user",
+        "category_weights",
+        "brand_weights",
+        "related_product_ids",
+        "model_name",
+        "generated_at",
+        "created_at",
+        "updated_at",
+    )
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+    def has_change_permission(self, request, obj=None) -> bool:
+        return False
+
+
+@admin.register(RecommendationEvent)
+class RecommendationEventAdmin(admin.ModelAdmin):
+    list_display = ("event_type", "source", "user", "product", "created_at")
+    list_filter = ("event_type", "source")
+    search_fields = ("recommendation_id", "user__email", "product__name")
+    readonly_fields = (
+        "id",
+        "recommendation_id",
+        "user",
+        "visitor_id_hash",
+        "product",
+        "event_type",
+        "source",
+        "position",
+        "context",
+        "created_at",
+        "updated_at",
+    )
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+    def has_change_permission(self, request, obj=None) -> bool:
         return False
 
 

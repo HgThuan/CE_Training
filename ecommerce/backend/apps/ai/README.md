@@ -45,12 +45,29 @@ provider is unavailable, policy lookup falls back to the same verified rows by c
 
 ## Search API
 
-- `GET /api/v1/ai/smart-search/` extracts structured intent and combines it with the existing
-  keyword/full-text search. Explicit client filters always override AI-inferred filters.
-- `GET /api/v1/ai/semantic-search/` uses cosine distance on PostgreSQL embeddings and a small
-  rating weight. Public Product, Shop, Category, and positive-stock filters remain authoritative.
+- `GET /api/v1/ai/smart-search/` runs a separate NLU stage before catalog lookup. Its stable
+  schema contains `intent_type`, `keywords`, and slots for `category_hints`, `price_range`,
+  `attributes`, `occasion`, and `recipient`. Explicit client filters always override inferred
+  values.
+- A reviewable semantic rule layer handles vague Vietnamese needs. For example, “quà sinh nhật
+  cho bạn gái” maps to non-authoritative hints such as mỹ phẩm, trang sức, phụ kiện, nước hoa,
+  and túi xách. These hints broaden discovery but never masquerade as user-supplied filters.
+- `explanation` and per-product `match_reasons` are controlled templates assembled from validated
+  slots and actual catalog fields. Free-form model explanations are discarded, so price,
+  category, and attribute claims cannot be hallucinated.
+- `GET /api/v1/ai/semantic-search/` combines PostgreSQL full-text/BM25-like keyword rank with
+  cosine-vector rank using reciprocal rank fusion:
+
+  `score = 0.65 / (60 + semantic_rank) + 0.35 / (60 + keyword_rank)`
+
+  The weights and RRF constant are configurable with `AI_SEARCH_SEMANTIC_WEIGHT`,
+  `AI_SEARCH_KEYWORD_WEIGHT`, and `AI_SEARCH_RRF_K`. Candidates below
+  `AI_SEARCH_MIN_COSINE_SIMILARITY` (default `0.30`) are rejected. A deterministic top-k
+  re-ranker then uses only verified category match, rating, and sales fields. A learned
+  cross-encoder can replace this re-ranker later without changing the endpoint contract.
 - Both endpoints accept the public search filter whitelist, paginate with the standard paginator,
-  and return `results`, `explanation`, `intent`, `ai_used`, and `fallback_used`.
+  and return `results`, `explanation`, `match_reasons`, `intent`, `ai_used`, and
+  `fallback_used`.
 - Anonymous and authenticated requests use separate throttle buckets.
 
 The global `AI_FEATURES_ENABLED` switch and the cached
@@ -60,9 +77,18 @@ keyword search without exposing non-public products.
 
 ## Embedding indexing
 
-Approved public products are indexed from deterministic normalized title, description, category,
-brand, and attribute text. A SHA-256 content hash skips unchanged content; a successful re-index
-removes older embeddings for that product/model.
+The configured multilingual model is `gemini-embedding-2` with 1,536 dimensions. Vietnamese is
+the primary index language. Vectors are stored in PostgreSQL `pgvector` and searched through an
+HNSW cosine index. `AI_EMBEDDING_MODALITY=text` is intentionally explicit: approved products are
+indexed from normalized title, description, category, brand, attributes, and curated image
+`alt_text`. The current provider does **not** embed image pixels, so the system never claims true
+multimodal similarity. A future multimodal provider can change the modality after a full re-index.
+
+A SHA-256 content hash skips unchanged content; a successful re-index removes older embeddings
+for that product/model. Product, category, brand, attribute, and media/alt-text changes enqueue an
+immediate re-index after transaction commit. Price and stock remain live SQL filters/ranking data
+and are deliberately not copied into embeddings, so a price update does not require re-indexing.
+Celery Beat also queues a full reconciliation every 24 hours for missed events.
 
 Product saves dispatch `index_product_embedding` with `transaction.on_commit` only when both the
 feature and provider are ready. The task checks those conditions again so a queued task cannot
@@ -77,3 +103,26 @@ python manage.py reindex_all_embeddings
 Use `--sync` only for controlled maintenance. PostgreSQL with the `vector` extension is required
 to validate vector ranking and HNSW behavior; the SQLite test suite intentionally verifies the
 keyword fallback path instead.
+
+## Recommendation and similar-products ranking
+
+Personalization has two independent inputs:
+
+- The real-time layer weights the current product `4x`, cart products `3x`, the five most recent
+  browsing products `2x`, then older browsing and wishlist products `1x`.
+- The nightly batch layer builds `purchase-cooccurrence-v1` profiles from verified order items.
+  It persists weighted category/brand preferences and products co-purchased by similar users.
+
+Cold-start ranking uses the landing/traffic context, current season, and only demographics the
+customer explicitly supplied. It then fills from in-stock popularity. The recommendation query
+accepts optional `cart_products`, `landing_context`, and `traffic_source`; existing callers remain
+compatible.
+
+Every response includes a new `recommendation_id`. The storefront records impressions, clicks,
+and add-to-cart actions at `POST /api/v1/ai/recommendation-events/`. Clients cannot submit a
+purchase event; checkout asynchronously attributes actual `OrderItem` rows to recent interactions.
+These events form the feedback dataset for future offline evaluation/retraining.
+
+Similar products use the same content embeddings but enforce
+`AI_SIMILAR_MIN_COSINE_SIMILARITY=0.45`. When vectors are unavailable, fallback candidates must at
+least share the category (and prefer the same brand); unrelated global best sellers are not used.

@@ -1,15 +1,20 @@
 from django.http import Http404
+from django.utils.crypto import salted_hmac
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
+from rest_framework.views import APIView
 
+from apps.common.responses import success_response
 from apps.product.models import Product
 from apps.product.selectors import ProductSelector
 from apps.product.serializers import PublicProductListSerializer
 
+from .models import RecommendationEvent
 from .permissions import AISearchRateThrottle
 from .recommendation_service import RecommendationService
 from .serializers import (
+    RecommendationEventSerializer,
     RecommendationQuerySerializer,
     RecommendationResponseSerializer,
     SimilarProductsQuerySerializer,
@@ -37,6 +42,7 @@ class BaseRecommendationView(generics.GenericAPIView):
             "fallback_used": outcome.fallback_used,
             "personalized": outcome.personalized,
             "strategy": outcome.strategy,
+            "recommendation_id": outcome.recommendation_id,
         }
         return self.get_paginated_response(data)
 
@@ -67,10 +73,19 @@ class ProductRecommendationsView(BaseRecommendationView):
     )
     def get(self, request, product_id):
         params = self._validated_params(request)
+        service_params = {
+            "context_product": self._public_source(product_id),
+            "browsing_ids": params["browsing_history"],
+            "user": self._request_user(request),
+        }
+        if params["cart_products"]:
+            service_params["cart_ids"] = params["cart_products"]
+        if params["landing_context"] != "home":
+            service_params["landing_context"] = params["landing_context"]
+        if params["traffic_source"] != "direct":
+            service_params["traffic_source"] = params["traffic_source"]
         outcome = RecommendationService.recommendations(
-            context_product=self._public_source(product_id),
-            browsing_ids=params["browsing_history"],
-            user=self._request_user(request),
+            **service_params,
         )
         return self._response_for(outcome)
 
@@ -103,8 +118,49 @@ class HomeRecommendationsView(BaseRecommendationView):
     )
     def get(self, request):
         params = self._validated_params(request)
-        outcome = RecommendationService.recommendations(
-            browsing_ids=params["browsing_history"],
-            user=self._request_user(request),
-        )
+        service_params = {
+            "browsing_ids": params["browsing_history"],
+            "user": self._request_user(request),
+        }
+        if params["cart_products"]:
+            service_params["cart_ids"] = params["cart_products"]
+        if params["landing_context"] != "home":
+            service_params["landing_context"] = params["landing_context"]
+        if params["traffic_source"] != "direct":
+            service_params["traffic_source"] = params["traffic_source"]
+        outcome = RecommendationService.recommendations(**service_params)
         return self._response_for(outcome)
+
+
+class RecommendationEventView(APIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [AISearchRateThrottle]
+
+    @extend_schema(
+        operation_id="recommendation_event",
+        request=RecommendationEventSerializer,
+        responses={200: RecommendationEventSerializer},
+    )
+    def post(self, request):
+        serializer = RecommendationEventSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        product = ProductSelector.public_base().filter(pk=data["product_id"]).first()
+        if product is None:
+            raise Http404
+        visitor_id = data.get("visitor_id", "")
+        event = RecommendationEvent.objects.create(
+            recommendation_id=data["recommendation_id"],
+            user=request.user if request.user.is_authenticated else None,
+            visitor_id_hash=(
+                salted_hmac("recommendation-visitor", visitor_id).hexdigest()
+                if visitor_id
+                else ""
+            ),
+            product=product,
+            event_type=data["event_type"],
+            source=data["source"],
+            position=data.get("position"),
+            context=data.get("context", {}),
+        )
+        return success_response(data={"id": str(event.pk)}, message="Đã ghi nhận tín hiệu.")

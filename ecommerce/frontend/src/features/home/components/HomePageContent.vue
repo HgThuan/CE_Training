@@ -23,6 +23,7 @@ const loading = ref(true)
 const errorMessage = ref('')
 const personalizedProducts = ref<PublicProductListItem[]>([])
 const recommendationsLoading = ref(false)
+const recommendationId = ref('')
 let recommendationRequestSequence = 0
 
 const heroBanners = computed(
@@ -48,6 +49,7 @@ async function loadPersonalizedRecommendations(): Promise<void> {
   const sequence = ++recommendationRequestSequence
   const userId = authStore.user?.id
   personalizedProducts.value = []
+  recommendationId.value = ''
   recommendationsLoading.value = false
 
   if (!authStore.initialized || !authStore.isAuthenticated || userId === undefined) return
@@ -61,6 +63,7 @@ async function loadPersonalizedRecommendations(): Promise<void> {
       authStore.user?.id === userId
     ) {
       personalizedProducts.value = response.data.data.results
+      recommendationId.value = response.data.data.recommendation_id ?? ''
     }
   } catch {
     // Personalized recommendations are optional and must not block the home page.
@@ -134,6 +137,8 @@ onBeforeUnmount(() => {
             title="Gợi ý cho bạn"
             :products="personalizedProducts"
             :loading="recommendationsLoading"
+            :recommendation-id="recommendationId"
+            source="home"
           />
           <ProductGrid
             title="Sản phẩm mới"

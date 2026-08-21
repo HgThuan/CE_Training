@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .recommendation_views import HomeRecommendationsView
+from .recommendation_views import HomeRecommendationsView, RecommendationEventView
 from .views import (
     ProductAIReviewSummaryView,
     ProductAISummaryView,
@@ -27,5 +27,10 @@ urlpatterns = [
         "recommendations/",
         HomeRecommendationsView.as_view(),
         name="recommendations",
+    ),
+    path(
+        "recommendation-events/",
+        RecommendationEventView.as_view(),
+        name="recommendation-event",
     ),
 ]

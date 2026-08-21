@@ -37,6 +37,7 @@ const errorMessage = ref('')
 const aiExplanation = ref('')
 const aiResultUsed = ref(false)
 const fallbackNotice = ref('')
+const matchReasons = ref<Record<string, string>>({})
 const mobileFiltersOpen = ref(false)
 const sort = ref<SearchSort | ''>('')
 const filters = reactive<SearchFilterModel>({
@@ -111,6 +112,7 @@ async function loadResults(): Promise<void> {
   aiExplanation.value = ''
   aiResultUsed.value = false
   fallbackNotice.value = ''
+  matchReasons.value = {}
   try {
     if (aiSearchEnabled.value && searchTerm.value) {
       try {
@@ -120,6 +122,7 @@ async function loadResults(): Promise<void> {
         products.value = result.results
         aiExplanation.value = result.explanation
         aiResultUsed.value = result.ai_used
+        matchReasons.value = result.match_reasons
         if (result.fallback_used) {
           fallbackNotice.value =
             'AI Search đã chuyển sang tìm kiếm từ khóa để bảo đảm bạn vẫn nhận được kết quả.'
@@ -384,7 +387,15 @@ onBeforeUnmount(() => {
         </div>
 
         <div v-else-if="products.length" class="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-          <ProductCard v-for="product in products" :key="product.id" :product="product" />
+          <div v-for="product in products" :key="product.id" class="space-y-2">
+            <ProductCard :product="product" />
+            <p
+              v-if="matchReasons[product.id]"
+              class="rounded-xl bg-indigo-50 px-3 py-2 text-xs font-semibold leading-5 text-indigo-900"
+            >
+              {{ matchReasons[product.id] }}
+            </p>
+          </div>
         </div>
 
         <div

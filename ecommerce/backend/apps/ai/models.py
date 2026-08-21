@@ -544,3 +544,73 @@ class PolicyDocument(TimeStampedModel):
 
     def __str__(self) -> str:
         return self.title
+
+
+class RecommendationProfile(TimeStampedModel):
+    """Offline collaborative profile consumed by the online ranker."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="recommendation_profile",
+    )
+    category_weights = models.JSONField(default=dict, blank=True)
+    brand_weights = models.JSONField(default=dict, blank=True)
+    related_product_ids = models.JSONField(default=list, blank=True)
+    model_name = models.CharField(max_length=80, default="purchase-cooccurrence-v1")
+    generated_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        db_table = "ai_recommendation_profiles"
+        ordering = ("-generated_at", "-id")
+
+
+class RecommendationEvent(TimeStampedModel):
+    class EventType(models.TextChoices):
+        IMPRESSION = "impression", "Impression"
+        CLICK = "click", "Click"
+        ADD_TO_CART = "add_to_cart", "Add to cart"
+        PURCHASE = "purchase", "Purchase"
+
+    class Source(models.TextChoices):
+        HOME = "home", "Home"
+        PRODUCT = "product", "Product recommendation"
+        SIMILAR = "similar", "Similar products"
+        SEARCH = "search", "AI search"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    recommendation_id = models.UUIDField(db_index=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="recommendation_events",
+    )
+    visitor_id_hash = models.CharField(max_length=64, blank=True, db_index=True)
+    product = models.ForeignKey(
+        "product.Product",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="recommendation_events",
+    )
+    event_type = models.CharField(max_length=20, choices=EventType.choices, db_index=True)
+    source = models.CharField(max_length=20, choices=Source.choices, db_index=True)
+    position = models.PositiveSmallIntegerField(null=True, blank=True)
+    context = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = "ai_recommendation_events"
+        ordering = ("-created_at", "-id")
+        indexes = [
+            models.Index(
+                fields=("event_type", "-created_at"),
+                name="ai_rec_event_type_idx",
+            ),
+            models.Index(
+                fields=("user", "product", "-created_at"),
+                name="ai_rec_user_product_idx",
+            ),
+        ]

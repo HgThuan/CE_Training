@@ -13,6 +13,7 @@ from apps.product.models import (
     AttributeValue,
     Product,
     ProductAttributeValue,
+    ProductMedia,
 )
 from apps.product.selectors import ProductSelector
 
@@ -191,6 +192,24 @@ def schedule_product_attribute_link_delete(
     instance: ProductAttributeValue,
     **kwargs,
 ) -> None:
+    _schedule_product_ids((instance.product_id,))
+
+
+@receiver(
+    post_save,
+    sender=ProductMedia,
+    dispatch_uid="ai.index_product_media_on_change",
+)
+def schedule_product_media_change(instance: ProductMedia, **kwargs) -> None:
+    _schedule_product_ids((instance.product_id,))
+
+
+@receiver(
+    post_delete,
+    sender=ProductMedia,
+    dispatch_uid="ai.index_product_media_on_delete",
+)
+def schedule_product_media_delete(instance: ProductMedia, **kwargs) -> None:
     _schedule_product_ids((instance.product_id,))
 
 
