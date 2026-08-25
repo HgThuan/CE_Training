@@ -279,12 +279,12 @@ class SellerListingResponseSerializer(serializers.Serializer):
     data = SellerListingDataSerializer()
 
 
-class ChatTurnRequestSerializer(serializers.Serializer):
-    session_id = serializers.UUIDField(required=False, allow_null=True)
+class AssistantMessageRequestSerializer(serializers.Serializer):
+    conversation_id = serializers.UUIDField(required=False, allow_null=True)
     guest_token = serializers.RegexField(
         regex=r"^[A-Za-z0-9._-]{20,64}$",
         required=False,
-        allow_blank=False,
+        write_only=True,
     )
     message = serializers.CharField(
         min_length=1,
@@ -307,11 +307,11 @@ class ChatTurnRequestSerializer(serializers.Serializer):
         return list(dict.fromkeys(value))
 
 
-class ChatFeedbackSerializer(serializers.Serializer):
+class AssistantFeedbackSerializer(serializers.Serializer):
     guest_token = serializers.RegexField(
         regex=r"^[A-Za-z0-9._-]{20,64}$",
         required=False,
-        allow_blank=False,
+        write_only=True,
     )
     rating = serializers.IntegerField(min_value=1, max_value=5)
     resolved = serializers.BooleanField(required=False, allow_null=True)
@@ -323,9 +323,9 @@ class ChatFeedbackSerializer(serializers.Serializer):
     )
 
 
-class ChatMessageSerializer(serializers.Serializer):
+class AssistantMessageSerializer(serializers.Serializer):
     id = serializers.UUIDField()
-    session_id = serializers.UUIDField()
+    conversation_id = serializers.UUIDField()
     role = serializers.ChoiceField(choices=("user", "assistant"))
     content = serializers.CharField(allow_blank=True)
     attachments = serializers.ListField(child=serializers.DictField())
@@ -333,7 +333,14 @@ class ChatMessageSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField()
 
 
-class ChatMessageHistoryResponseSerializer(serializers.Serializer):
-    success = serializers.BooleanField()
-    message = serializers.CharField()
-    data = ChatMessageSerializer(many=True)
+class AssistantConversationSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    title = serializers.CharField()
+    status = serializers.CharField()
+    turn_count = serializers.IntegerField()
+    last_active_at = serializers.DateTimeField()
+    created_at = serializers.DateTimeField()
+
+
+class AssistantConversationDetailSerializer(AssistantConversationSerializer):
+    messages = AssistantMessageSerializer(many=True)

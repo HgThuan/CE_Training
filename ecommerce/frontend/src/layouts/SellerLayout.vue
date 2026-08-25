@@ -15,6 +15,7 @@ import {
 } from '@heroicons/vue/24/outline'
 
 import WorkspaceShell from '@/shared/components/WorkspaceShell.vue'
+import ChatWidget from '@/features/ai-chat/components/ChatWidget.vue'
 
 const navigation = [
   {
@@ -64,4 +65,5 @@ const navigation = [
     workspace="seller"
     workspace-label="Seller Center"
   />
+  <ChatWidget />
 </template>

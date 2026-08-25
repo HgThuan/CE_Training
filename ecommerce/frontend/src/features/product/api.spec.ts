@@ -29,6 +29,7 @@ describe('product recommendation API', () => {
     expect(http.get).toHaveBeenCalledWith('/products/product-id/recommendations/', {
       params: {
         browsing_history: 'history-1,history-2',
+        landing_context: 'product_detail',
       },
     })
     const requestConfig = vi.mocked(http.get).mock.calls[0]?.[1]
@@ -41,6 +42,7 @@ describe('product recommendation API', () => {
     expect(http.get).toHaveBeenCalledWith('/ai/recommendations/', {
       params: {
         browsing_history: 'history-2,history-1',
+        landing_context: 'home',
       },
     })
   })
@@ -50,10 +52,10 @@ describe('product recommendation API', () => {
     productApi.homeRecommendations()
 
     expect(http.get).toHaveBeenNthCalledWith(1, '/products/product-id/recommendations/', {
-      params: {},
+      params: { landing_context: 'product_detail' },
     })
     expect(http.get).toHaveBeenNthCalledWith(2, '/ai/recommendations/', {
-      params: {},
+      params: { landing_context: 'home' },
     })
   })
 

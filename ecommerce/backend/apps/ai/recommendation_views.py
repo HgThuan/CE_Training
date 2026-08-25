@@ -11,7 +11,7 @@ from apps.product.selectors import ProductSelector
 from apps.product.serializers import PublicProductListSerializer
 
 from .models import RecommendationEvent
-from .permissions import AISearchRateThrottle
+from .permissions import AIRecommendationRateThrottle, RecommendationEventRateThrottle
 from .recommendation_service import RecommendationService
 from .serializers import (
     RecommendationEventSerializer,
@@ -23,7 +23,7 @@ from .serializers import (
 
 class BaseRecommendationView(generics.GenericAPIView):
     permission_classes = [AllowAny]
-    throttle_classes = [AISearchRateThrottle]
+    throttle_classes = [AIRecommendationRateThrottle]
 
     def _validated_params(self, request) -> dict:
         query = self.get_serializer(data=request.query_params)
@@ -134,7 +134,7 @@ class HomeRecommendationsView(BaseRecommendationView):
 
 class RecommendationEventView(APIView):
     permission_classes = [AllowAny]
-    throttle_classes = [AISearchRateThrottle]
+    throttle_classes = [RecommendationEventRateThrottle]
 
     @extend_schema(
         operation_id="recommendation_event",

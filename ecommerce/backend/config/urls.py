@@ -10,9 +10,6 @@ from apps.ai.recommendation_views import (
     SimilarProductsView,
 )
 from apps.ai.views import (
-    ChatFeedbackView,
-    ChatMessageHistoryView,
-    ChatTurnView,
     ProductCompareView,
     SellerListingGenerateView,
 )
@@ -40,17 +37,6 @@ urlpatterns = [
         name="product-similar",
     ),
     path("api/v1/products/compare", ProductCompareView.as_view(), name="product-compare"),
-    path("api/v1/chat/turn", ChatTurnView.as_view(), name="ai-shopping-chat-turn"),
-    path(
-        "api/v1/chat/messages/<uuid:message_id>/feedback",
-        ChatFeedbackView.as_view(),
-        name="ai-shopping-chat-feedback",
-    ),
-    path(
-        "api/v1/chat/sessions/<uuid:session_id>/messages",
-        ChatMessageHistoryView.as_view(),
-        name="ai-shopping-chat-history",
-    ),
     path(
         "api/v1/seller/products/generate-listing",
         SellerListingGenerateView.as_view(),

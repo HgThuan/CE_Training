@@ -2,6 +2,10 @@ from django.urls import path
 
 from .recommendation_views import HomeRecommendationsView, RecommendationEventView
 from .views import (
+    AssistantConversationDetailView,
+    AssistantConversationListView,
+    AssistantFeedbackView,
+    AssistantMessageView,
     ProductAIReviewSummaryView,
     ProductAISummaryView,
     SemanticSearchView,
@@ -11,6 +15,22 @@ from .views import (
 app_name = "ai"
 
 urlpatterns = [
+    path("assistant/messages", AssistantMessageView.as_view(), name="assistant-message"),
+    path(
+        "assistant/conversations/",
+        AssistantConversationListView.as_view(),
+        name="assistant-conversation-list",
+    ),
+    path(
+        "assistant/conversations/<uuid:conversation_id>/",
+        AssistantConversationDetailView.as_view(),
+        name="assistant-conversation-detail",
+    ),
+    path(
+        "assistant/messages/<uuid:message_id>/feedback",
+        AssistantFeedbackView.as_view(),
+        name="assistant-feedback",
+    ),
     path("smart-search/", SmartSearchView.as_view(), name="smart-search"),
     path("semantic-search/", SemanticSearchView.as_view(), name="semantic-search"),
     path(

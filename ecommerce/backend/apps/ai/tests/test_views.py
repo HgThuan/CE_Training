@@ -151,8 +151,8 @@ def test_semantic_search_sqlite_fallback_only_returns_public_in_stock_products()
 def test_ai_search_guest_and_authenticated_throttle_buckets_are_separate():
     rates = {
         **settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"],
-        "ai_anonymous": "2/minute",
-        "ai_authenticated": "3/minute",
+        "ai_search_anonymous": "2/minute",
+        "ai_search_authenticated": "3/minute",
     }
     rest_framework = {
         **settings.REST_FRAMEWORK,

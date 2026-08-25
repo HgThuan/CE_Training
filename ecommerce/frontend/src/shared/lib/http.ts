@@ -17,6 +17,26 @@ export function setAuthSessionAdapter(adapter: AuthSessionAdapter): void {
   authSessionAdapter = adapter
 }
 
+export function refreshAuthSession(): Promise<string> {
+  if (!authSessionAdapter) {
+    return Promise.reject(new Error('Auth session adapter is not initialized'))
+  }
+
+  if (!refreshPromise) {
+    const adapter = authSessionAdapter
+    refreshPromise = adapter
+      .refreshAccessToken()
+      .catch((error: unknown) => {
+        adapter.onAuthenticationFailure()
+        throw error
+      })
+      .finally(() => {
+        refreshPromise = null
+      })
+  }
+  return refreshPromise
+}
+
 export const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api/v1',
   timeout: 15_000,
@@ -61,17 +81,12 @@ http.interceptors.response.use(
     }
 
     config._retry = true
-    refreshPromise ??= authSessionAdapter.refreshAccessToken()
-
     try {
-      const accessToken = await refreshPromise
+      const accessToken = await refreshAuthSession()
       config.headers.Authorization = `Bearer ${accessToken}`
       return await http(config)
     } catch (refreshError) {
-      authSessionAdapter.onAuthenticationFailure()
       return Promise.reject(refreshError)
-    } finally {
-      refreshPromise = null
     }
   },
 )

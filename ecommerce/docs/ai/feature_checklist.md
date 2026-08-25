@@ -203,8 +203,8 @@ Sau mỗi Sprint, trước khi báo hoàn thành hoặc tạo Release, phải th
 
 ### Trợ lý
 
-- [ ] ⚪ **AI-05** — AI Shopping Assistant (chatbot)
-- [ ] 🟡 **AI-06** — AI Customer Support tự động
+- [x] ⚪ **AI-05** — AI Shopping Assistant (chatbot)
+- [x] 🟡 **AI-06** — AI Customer Support tự động
 
 ### Nội dung
 

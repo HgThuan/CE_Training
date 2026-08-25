@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useId, watch } from 'vue'
+import { nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 
 import type { PublicProductListItem } from '../types'
 import {
@@ -25,17 +25,87 @@ const props = withDefaults(
 )
 
 const headingId = `product-recommendations-${useId()}`
+const listElement = ref<HTMLElement | null>(null)
+const recordedImpressions = new Set<string>()
+let impressionObserver: IntersectionObserver | null = null
+let observerGeneration = 0
+
+function recordVisibleProduct(element: HTMLElement): void {
+  const productId = element.dataset.recommendationProductId
+  const position = Number(element.dataset.recommendationPosition)
+  const recommendationId = props.recommendationId
+  if (!recommendationId || !productId || !Number.isInteger(position)) return
+
+  const key = `${recommendationId}:${productId}:${props.source}`
+  if (recordedImpressions.has(key)) return
+  recordedImpressions.add(key)
+  impressionObserver?.unobserve(element)
+  trackRecommendationImpression(recommendationId, productId, props.source, position)
+}
+
+function recordProductsVisibleWithoutObserver(elements: HTMLElement[]): void {
+  const rootBounds = listElement.value?.getBoundingClientRect()
+  if (!rootBounds?.width || !rootBounds.height) return
+
+  elements.forEach((element) => {
+    const bounds = element.getBoundingClientRect()
+    const visibleWidth = Math.max(
+      0,
+      Math.min(bounds.right, rootBounds.right) - Math.max(bounds.left, rootBounds.left),
+    )
+    const verticallyVisible = bounds.bottom > rootBounds.top && bounds.top < rootBounds.bottom
+    if (verticallyVisible && bounds.width > 0 && visibleWidth / bounds.width >= 0.5) {
+      recordVisibleProduct(element)
+    }
+  })
+}
+
+async function observeProductImpressions(): Promise<void> {
+  const generation = ++observerGeneration
+  impressionObserver?.disconnect()
+  impressionObserver = null
+  await nextTick()
+  if (generation !== observerGeneration || props.loading || !props.recommendationId) return
+
+  const root = listElement.value
+  if (!root) return
+  const elements = Array.from(
+    root.querySelectorAll<HTMLElement>('[data-recommendation-product-id]'),
+  )
+  if (typeof IntersectionObserver === 'undefined') {
+    recordProductsVisibleWithoutObserver(elements)
+    return
+  }
+
+  impressionObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+          recordVisibleProduct(entry.target as HTMLElement)
+        }
+      })
+    },
+    { root, threshold: 0.5 },
+  )
+  elements.forEach((element) => impressionObserver?.observe(element))
+}
 
 watch(
-  () => [props.recommendationId, props.products] as const,
-  ([recommendationId, products]) => {
-    if (!recommendationId) return
-    products.slice(0, 20).forEach((product, index) =>
-      trackRecommendationImpression(recommendationId, product.id, props.source, index),
-    )
-  },
-  { immediate: true },
+  () =>
+    [
+      props.recommendationId,
+      props.source,
+      props.loading ? 'loading' : 'ready',
+      props.products.map((product) => product.id).join(','),
+    ].join('|'),
+  () => void observeProductImpressions(),
+  { immediate: true, flush: 'post' },
 )
+
+onBeforeUnmount(() => {
+  observerGeneration += 1
+  impressionObserver?.disconnect()
+})
 </script>
 
 <template>
@@ -45,7 +115,11 @@ watch(
     </h2>
 
     <p v-if="loading" class="sr-only" role="status">Đang tải {{ title.toLowerCase() }}</p>
-    <ul class="mt-6 flex snap-x snap-mandatory gap-5 overflow-x-auto pb-5" :aria-label="title">
+    <ul
+      ref="listElement"
+      class="mt-6 flex snap-x snap-mandatory gap-5 overflow-x-auto pb-5"
+      :aria-label="title"
+    >
       <template v-if="loading">
         <li
           v-for="index in 4"
@@ -66,6 +140,8 @@ watch(
       <li
         v-for="(product, index) in loading ? [] : products"
         :key="product.id"
+        :data-recommendation-product-id="product.id"
+        :data-recommendation-position="index"
         class="w-[78vw] max-w-[19rem] shrink-0 snap-start sm:w-72 lg:w-[calc(25%-0.9375rem)]"
       >
         <ProductCard
