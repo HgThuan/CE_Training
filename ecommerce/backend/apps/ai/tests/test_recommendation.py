@@ -2,6 +2,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
+from django.conf import settings
 from django.core.cache import cache
 from django.test import override_settings
 from django.urls import reverse
@@ -355,6 +356,53 @@ def test_recommendation_event_accepts_interactions_but_rejects_client_purchase()
 
     assert accepted.status_code == 200
     assert rejected.status_code == 400
+
+
+@pytest.mark.django_db
+def test_recommendations_and_tracking_events_have_independent_throttle_buckets():
+    rates = {
+        **settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"],
+        "ai_recommendation_authenticated": "1/minute",
+        "ai_recommendation_event_authenticated": "2/minute",
+    }
+    rest_framework = {
+        **settings.REST_FRAMEWORK,
+        "DEFAULT_THROTTLE_RATES": rates,
+    }
+    customer = UserFactory(role=User.Role.CUSTOMER)
+    product = public_product()
+    client = APIClient()
+    client.force_authenticate(customer)
+    event_payload = {
+        "recommendation_id": str(uuid4()),
+        "product_id": str(product.pk),
+        "event_type": "impression",
+        "source": "home",
+        "position": 0,
+    }
+
+    with override_settings(REST_FRAMEWORK=rest_framework):
+        assert client.get(reverse("ai:recommendations")).status_code == 200
+        assert client.get(reverse("ai:recommendations")).status_code == 429
+
+        assert (
+            client.post(
+                reverse("ai:recommendation-event"), event_payload, format="json"
+            ).status_code
+            == 200
+        )
+        assert (
+            client.post(
+                reverse("ai:recommendation-event"), event_payload, format="json"
+            ).status_code
+            == 200
+        )
+        assert (
+            client.post(
+                reverse("ai:recommendation-event"), event_payload, format="json"
+            ).status_code
+            == 429
+        )
 
 
 @pytest.mark.django_db

@@ -48,16 +48,12 @@ function isLatestAssistant(message: ChatMessage, index: number): boolean {
 }
 
 function followUps(message: ChatMessage): string[] {
-  if (
-    message.attachments.some(
-      (item) => item.type === 'quick_actions' || item.type === 'handoff_card',
-    )
-  )
+  return message.attachments.flatMap((item) => {
+    if (item.type === 'suggested_replies' || item.type === 'clarification') {
+      return item.suggestions
+    }
     return []
-  const productCount = message.attachments.filter((item) => item.type === 'product_card').length
-  if (productCount >= 2) return ['So sánh các sản phẩm này', 'Tìm lựa chọn khác']
-  if (productCount === 1) return ['Tìm sản phẩm tương tự', 'Hỏi về phí giao hàng']
-  return ['Tìm sản phẩm phù hợp', 'Hỏi chính sách đổi trả']
+  })
 }
 
 function productCards(
@@ -230,6 +226,9 @@ watch(
             <ul class="space-y-2.5">
               <li v-for="attachment in productCards(message, 'exact')" :key="attachment.product_id">
                 <ChatProductCard :product="attachment.product" />
+                <p v-if="attachment.reason" class="ai-chat-answer__product-reason">
+                  {{ attachment.reason }}
+                </p>
               </li>
             </ul>
           </div>
@@ -252,6 +251,16 @@ watch(
                 :key="attachment.product_id"
               >
                 <ChatProductCard :product="attachment.product" />
+                <p v-if="attachment.reason" class="ai-chat-answer__product-reason">
+                  {{ attachment.reason }}
+                </p>
+                <p
+                  v-for="warning in attachment.compatibility_warnings ?? []"
+                  :key="warning"
+                  class="ai-chat-answer__product-warning"
+                >
+                  {{ warning }}
+                </p>
               </li>
             </ul>
           </div>
@@ -271,6 +280,9 @@ watch(
                 :key="attachment.product_id"
               >
                 <ChatProductCard :product="attachment.product" />
+                <p v-if="attachment.reason" class="ai-chat-answer__product-reason">
+                  {{ attachment.reason }}
+                </p>
               </li>
             </ul>
           </div>
@@ -316,10 +328,10 @@ watch(
                   {{ shop.items.map((item) => `${item.name} × ${item.quantity}`).join(', ') }}
                 </p>
                 <p
-                  v-if="shop.return_requests.length"
+                  v-if="shop.return_requests?.length"
                   class="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[0.7rem] font-bold text-amber-900"
                 >
-                  Đổi/trả: {{ shop.return_requests[0].status_label }}
+                  Đổi/trả: {{ shop.return_requests?.[0]?.status_label }}
                 </p>
                 <p
                   v-else-if="shop.return_eligible"
@@ -517,6 +529,21 @@ watch(
   color: #667974;
   font-size: 0.7rem;
   line-height: 1.2;
+}
+
+.ai-chat-answer__product-reason,
+.ai-chat-answer__product-warning {
+  margin: 0.45rem 0.25rem 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.ai-chat-answer__product-reason {
+  color: #395d55;
+}
+
+.ai-chat-answer__product-warning {
+  color: #92400e;
 }
 
 .ai-chat-answer__copy {

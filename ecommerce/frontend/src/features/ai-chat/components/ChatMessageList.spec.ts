@@ -42,6 +42,10 @@ Tuy nhiên, bạn có thể tham khảo:
           product_id: 'product-1',
           product: { id: 'product-1', name: 'Đồng hồ thông minh' } as never,
         },
+        {
+          type: 'suggested_replies',
+          suggestions: ['Tìm sản phẩm tương tự'],
+        },
       ],
       created_at: '2026-08-14T00:00:00Z',
     }

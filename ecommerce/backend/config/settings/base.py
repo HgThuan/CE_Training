@@ -170,10 +170,26 @@ REST_FRAMEWORK = {
         "auth_refresh": env("AUTH_RATE_LIMIT", default="10/minute"),
         "auth_email": env("AUTH_RATE_LIMIT", default="5/minute"),
         "auth_password": env("AUTH_RATE_LIMIT", default="5/minute"),
-        "ai_anonymous": env("AI_ANONYMOUS_RATE_LIMIT", default="10/minute"),
-        "ai_authenticated": env("AI_AUTHENTICATED_RATE_LIMIT", default="30/minute"),
-        "ai_search_anonymous": env("AI_ANONYMOUS_RATE_LIMIT", default="10/minute"),
-        "ai_search_authenticated": env("AI_AUTHENTICATED_RATE_LIMIT", default="30/minute"),
+        "ai_search_anonymous": env(
+            "AI_SEARCH_ANONYMOUS_RATE_LIMIT",
+            default=env("AI_ANONYMOUS_RATE_LIMIT", default="10/minute"),
+        ),
+        "ai_search_authenticated": env(
+            "AI_SEARCH_AUTHENTICATED_RATE_LIMIT",
+            default=env("AI_AUTHENTICATED_RATE_LIMIT", default="30/minute"),
+        ),
+        "ai_recommendation_anonymous": env(
+            "AI_RECOMMENDATION_ANONYMOUS_RATE_LIMIT", default="30/minute"
+        ),
+        "ai_recommendation_authenticated": env(
+            "AI_RECOMMENDATION_AUTHENTICATED_RATE_LIMIT", default="60/minute"
+        ),
+        "ai_recommendation_event_anonymous": env(
+            "AI_RECOMMENDATION_EVENT_ANONYMOUS_RATE_LIMIT", default="120/minute"
+        ),
+        "ai_recommendation_event_authenticated": env(
+            "AI_RECOMMENDATION_EVENT_AUTHENTICATED_RATE_LIMIT", default="300/minute"
+        ),
         "ai_review_summary": env("AI_REVIEW_SUMMARY_RATE_LIMIT", default="10/minute"),
         "ai_product_summary": env("AI_PRODUCT_SUMMARY_RATE_LIMIT", default="10/minute"),
         "ai_product_compare": env("AI_PRODUCT_COMPARE_RATE_LIMIT", default="10/minute"),
@@ -295,6 +311,10 @@ AI_SIMILAR_MIN_COSINE_SIMILARITY = env.float(
 AI_REQUEST_TIMEOUT_SECONDS = env.float("AI_REQUEST_TIMEOUT_SECONDS", default=20.0)
 AI_MAX_RETRIES = env.int("AI_MAX_RETRIES", default=3)
 AI_RETRY_BACKOFF_SECONDS = env.float("AI_RETRY_BACKOFF_SECONDS", default=0.25)
+AI_ASSISTANT_HEARTBEAT_SECONDS = env.float(
+    "AI_ASSISTANT_HEARTBEAT_SECONDS", default=10.0
+)
+AI_ASSISTANT_STREAM_WORKERS = env.int("AI_ASSISTANT_STREAM_WORKERS", default=8)
 AI_CACHE_TTL_SECONDS = env.int("AI_CACHE_TTL_SECONDS", default=3600)
 AI_EMBEDDING_CACHE_TTL_SECONDS = env.int(
     "AI_EMBEDDING_CACHE_TTL_SECONDS",
@@ -303,6 +323,31 @@ AI_EMBEDDING_CACHE_TTL_SECONDS = env.int(
 AI_RECOMMENDATION_CACHE_TTL_SECONDS = env.int("AI_RECOMMENDATION_CACHE_TTL_SECONDS", default=900)
 AI_SIMILAR_CACHE_TTL_SECONDS = env.int("AI_SIMILAR_CACHE_TTL_SECONDS", default=1800)
 AI_MAX_OUTPUT_TOKENS = env.int("AI_MAX_OUTPUT_TOKENS", default=1024)
+AI_ASSISTANT_RESULT_LIMIT = env.int("AI_ASSISTANT_RESULT_LIMIT", default=4)
+AI_ASSISTANT_CLARIFICATION_THRESHOLD = env.float(
+    "AI_ASSISTANT_CLARIFICATION_THRESHOLD", default=0.85
+)
+AI_ASSISTANT_RANK_CATEGORY_WEIGHT = env.float(
+    "AI_ASSISTANT_RANK_CATEGORY_WEIGHT", default=0.28
+)
+AI_ASSISTANT_RANK_BRAND_WEIGHT = env.float(
+    "AI_ASSISTANT_RANK_BRAND_WEIGHT", default=0.18
+)
+AI_ASSISTANT_RANK_PRICE_WEIGHT = env.float(
+    "AI_ASSISTANT_RANK_PRICE_WEIGHT", default=0.20
+)
+AI_ASSISTANT_RANK_PREFERENCE_WEIGHT = env.float(
+    "AI_ASSISTANT_RANK_PREFERENCE_WEIGHT", default=0.16
+)
+AI_ASSISTANT_RANK_RATING_WEIGHT = env.float(
+    "AI_ASSISTANT_RANK_RATING_WEIGHT", default=0.08
+)
+AI_ASSISTANT_RANK_STOCK_WEIGHT = env.float(
+    "AI_ASSISTANT_RANK_STOCK_WEIGHT", default=0.10
+)
+AI_ASSISTANT_RANK_INCOMPATIBILITY_PENALTY = env.float(
+    "AI_ASSISTANT_RANK_INCOMPATIBILITY_PENALTY", default=0.50
+)
 AI_INPUT_COST_PER_MILLION = env("AI_INPUT_COST_PER_MILLION", default="0")
 AI_OUTPUT_COST_PER_MILLION = env("AI_OUTPUT_COST_PER_MILLION", default="0")
 GEMINI_API_KEY = env("GEMINI_API_KEY", default="")

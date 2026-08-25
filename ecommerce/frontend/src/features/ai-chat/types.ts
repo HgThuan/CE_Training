@@ -4,6 +4,8 @@ export interface ProductCardAttachment {
   type: 'product_card'
   product_id: string
   product: PublicProductListItem
+  reason?: string
+  compatibility_warnings?: string[]
   match?: {
     product_id?: string
     kind: 'exact' | 'alternative' | 'personalized'
@@ -18,33 +20,6 @@ export interface CompareTableAttachment {
   comparison: ProductCompareData
 }
 
-export interface OrderSupportItem {
-  id: string
-  name: string
-  variant: string
-  quantity: number
-}
-
-export interface OrderSupportShop {
-  id: string
-  shop_order_code: string
-  shop_name: string
-  fulfillment_status: string
-  fulfillment_status_label: string
-  shipping_method: string
-  estimated_delivery_at: string | null
-  last_status_at: string
-  return_eligible: boolean
-  return_deadline: string | null
-  items: OrderSupportItem[]
-  return_requests: Array<{
-    id: string
-    status: string
-    status_label: string
-    requested_at: string
-  }>
-}
-
 export interface OrderSupportAttachment {
   type: 'order_card'
   order: {
@@ -57,7 +32,25 @@ export interface OrderSupportAttachment {
     payment_status_label: string
     payment_method: string
     payment_method_label: string
-    shop_orders: OrderSupportShop[]
+    shop_orders: Array<{
+      id: string
+      shop_order_code: string
+      shop_name: string
+      fulfillment_status: string
+      fulfillment_status_label: string
+      shipping_method: string
+      estimated_delivery_at?: string | null
+      last_status_at: string
+      return_eligible?: boolean
+      return_deadline?: string | null
+      items: Array<{ id: string; name: string; variant: string; quantity: number }>
+      return_requests?: Array<{
+        id: string
+        status: string
+        status_label: string
+        requested_at: string
+      }>
+    }>
   }
 }
 
@@ -75,27 +68,29 @@ export interface PromotionAttachment {
     min_order_amount: string
     valid_until: string
     remaining_quantity: number | null
-    saved: boolean
+    saved?: boolean
   }
 }
 
 export interface QuickActionsAttachment {
   type: 'quick_actions'
-  actions: Array<{
-    label: string
-    kind: 'reply' | 'link'
-    value: string
-  }>
+  actions: Array<{ label: string; kind: 'reply' | 'link'; value: string }>
+}
+
+export interface ClarificationAttachment {
+  type: 'clarification'
+  questions: string[]
+  suggestions: string[]
+}
+
+export interface SuggestedRepliesAttachment {
+  type: 'suggested_replies'
+  suggestions: string[]
 }
 
 export interface HandoffAttachment {
   type: 'handoff_card'
-  handoff: {
-    id: string
-    status: string
-    status_label: string
-    channel: string
-  }
+  handoff: { id: string; status: string; status_label: string; channel: string }
 }
 
 export type ChatAttachment =
@@ -104,6 +99,8 @@ export type ChatAttachment =
   | OrderSupportAttachment
   | PromotionAttachment
   | QuickActionsAttachment
+  | ClarificationAttachment
+  | SuggestedRepliesAttachment
   | HandoffAttachment
 
 export interface ChatFeedback {
@@ -114,7 +111,7 @@ export interface ChatFeedback {
 
 export interface ChatMessage {
   id: string
-  session_id?: string
+  conversation_id?: string
   role: 'user' | 'assistant'
   content: string
   attachments: ChatAttachment[]
@@ -122,15 +119,31 @@ export interface ChatMessage {
   created_at: string
 }
 
+export interface ChatConversation {
+  id: string
+  title: string
+  status: 'active' | 'closed' | 'escalated'
+  turn_count: number
+  last_active_at: string
+  created_at: string
+}
+
+export interface ChatConversationDetail extends ChatConversation {
+  messages: ChatMessage[]
+}
+
+export type AssistantStage = 'understanding' | 'planning' | 'retrieving' | 'composing'
+
 export type ChatStreamEvent =
-  | { type: 'session'; session_id: string }
+  | { type: 'conversation'; conversation_id: string }
+  | { type: 'stage'; stage: AssistantStage }
   | { type: 'delta'; text: string }
   | { type: 'error'; text: string; code?: string }
   | { type: 'done'; message: ChatMessage }
 
-export interface ChatTurnPayload {
-  session_id?: string
-  guest_token: string
+export interface ChatMessagePayload {
+  conversation_id?: string
+  guest_token?: string
   message: string
   browsing_history?: string[]
   channel?: string

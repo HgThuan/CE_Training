@@ -1,10 +1,15 @@
+import asyncio
 import json
+import re
+import threading
+from collections.abc import AsyncIterator
+from typing import Any
 
 from django.conf import settings
-from django.db import transaction
+from django.db import connections
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny
@@ -13,21 +18,21 @@ from rest_framework.throttling import AnonRateThrottle, SimpleRateThrottle, User
 from rest_framework.views import APIView
 
 from apps.account.permissions import IsSeller
-from apps.common.models import SiteSetting
 from apps.common.responses import success_response
 from apps.product.selectors import ProductSelector
 from apps.product.serializers import PublicProductListSerializer
 
-from .chat_service import AIChatService
+from .assistant import ShoppingAssistant
 from .models import ChatFeedback, ChatMessage, ChatSession, sanitize_ai_text
 from .permissions import AISearchRateThrottle
 from .renderers import ServerSentEventRenderer
 from .search_service import AISearchService
 from .serializers import (
     AISearchResponseSerializer,
-    ChatFeedbackSerializer,
-    ChatMessageHistoryResponseSerializer,
-    ChatTurnRequestSerializer,
+    AssistantConversationDetailSerializer,
+    AssistantConversationSerializer,
+    AssistantFeedbackSerializer,
+    AssistantMessageRequestSerializer,
     ProductAIReviewSummaryResponseSerializer,
     ProductAISummaryResponseSerializer,
     ProductCompareRequestSerializer,
@@ -40,7 +45,7 @@ from .serializers import (
 from .services import AIService
 
 
-class ChatSessionThrottle(SimpleRateThrottle):
+class AssistantConversationThrottle(SimpleRateThrottle):
     scope = "ai_chat_session"
 
     def get_rate(self):
@@ -48,43 +53,45 @@ class ChatSessionThrottle(SimpleRateThrottle):
         return rates.get(self.scope, "12/minute")
 
     def get_cache_key(self, request, view):
-        session_id = request.data.get("session_id")
-        guest_token = request.data.get("guest_token")
-        if session_id:
-            ident = f"session:{session_id}"
-        elif guest_token:
-            ident = f"guest:{guest_token}"
-        elif request.user.is_authenticated:
+        if request.user.is_authenticated:
             ident = f"user:{request.user.pk}"
         else:
-            ident = self.get_ident(request)
+            ident = f"guest:{request.data.get('guest_token') or self.get_ident(request)}"
         return self.cache_format % {"scope": self.scope, "ident": ident}
 
 
-class ChatTurnView(APIView):
+class AssistantMessageView(APIView):
     permission_classes = [AllowAny]
-    throttle_classes = [ChatSessionThrottle]
+    throttle_classes = [AssistantConversationThrottle]
     renderer_classes = [ServerSentEventRenderer, JSONRenderer]
 
     @extend_schema(
-        operation_id="ai_shopping_chat_turn",
-        request=ChatTurnRequestSerializer,
+        operation_id="ai_assistant_message",
+        request=AssistantMessageRequestSerializer,
         responses={(200, "text/event-stream"): str},
     )
     def post(self, request):
-        serializer = ChatTurnRequestSerializer(data=request.data)
+        serializer = AssistantMessageRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        session = _resolve_or_create_chat_session(request, serializer.validated_data)
-        _apply_chat_context(session, serializer.validated_data)
+        owner = _assistant_owner(request, serializer.validated_data)
+        conversation_id = serializer.validated_data.get("conversation_id")
+        if conversation_id:
+            session = get_object_or_404(
+                ChatSession,
+                pk=conversation_id,
+                **owner,
+            )
+        else:
+            session = ChatSession.objects.create(**owner)
+        _apply_assistant_context(session, serializer.validated_data)
         message = serializer.validated_data["message"]
 
-        def event_stream():
-            yield _sse_data({"type": "session", "session_id": str(session.pk)})
-            for event in AIChatService().handle_turn(session, message):
-                yield _sse_data(event.to_dict())
-
         response = StreamingHttpResponse(
-            event_stream(),
+            _assistant_event_stream(
+                session=session,
+                message=message,
+                user=request.user if request.user.is_authenticated else None,
+            ),
             content_type="text/event-stream; charset=utf-8",
         )
         response["Cache-Control"] = "no-cache, no-transform"
@@ -92,60 +99,84 @@ class ChatTurnView(APIView):
         return response
 
 
-class ChatMessageHistoryView(APIView):
+class AssistantConversationListView(APIView):
     permission_classes = [AllowAny]
 
     @extend_schema(
-        operation_id="ai_shopping_chat_history",
-        parameters=[
-            OpenApiParameter(
-                name="guest_token",
-                type=str,
-                location=OpenApiParameter.QUERY,
-                required=False,
-                description="Stable browser token required when the session is not user-owned.",
-            )
-        ],
-        responses={200: ChatMessageHistoryResponseSerializer},
+        operation_id="ai_assistant_conversation_list",
+        responses={200: AssistantConversationSerializer(many=True)},
     )
-    def get(self, request, session_id):
-        guest_token = str(request.query_params.get("guest_token", "")).strip()
-        session = _owned_chat_session(request, session_id, guest_token=guest_token)
+    def get(self, request):
+        conversations = ChatSession.objects.filter(**_assistant_owner(request)).order_by(
+            "-last_active_at", "-created_at"
+        )[:50]
+        return success_response(
+            data=AssistantConversationSerializer(conversations, many=True).data
+        )
+
+
+class AssistantConversationDetailView(APIView):
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        operation_id="ai_assistant_conversation_detail",
+        responses={200: AssistantConversationDetailSerializer},
+    )
+    def get(self, request, conversation_id):
+        session = get_object_or_404(
+            ChatSession,
+            pk=conversation_id,
+            **_assistant_owner(request),
+        )
         messages = (
-            session.messages.filter(role__in=(ChatMessage.Role.USER, ChatMessage.Role.ASSISTANT))
+            session.messages.filter(
+                role__in=(ChatMessage.Role.USER, ChatMessage.Role.ASSISTANT)
+            )
             .select_related("feedback")
             .order_by("created_at", "id")
         )
-        data = [AIChatService.serialize_message(message) for message in messages]
+        data = AssistantConversationSerializer(session).data
+        data["messages"] = [
+            ShoppingAssistant.serialize_message(message) for message in messages
+        ]
         return success_response(data=data)
 
+    @extend_schema(
+        operation_id="ai_assistant_conversation_delete",
+        responses={200: AssistantConversationSerializer},
+    )
+    def delete(self, request, conversation_id):
+        session = get_object_or_404(
+            ChatSession,
+            pk=conversation_id,
+            **_assistant_owner(request),
+        )
+        session.delete()
+        return success_response(data=None, message="Đã xóa cuộc trò chuyện.")
 
-class ChatFeedbackView(APIView):
+
+class AssistantFeedbackView(APIView):
     permission_classes = [AllowAny]
 
     @extend_schema(
-        operation_id="ai_shopping_chat_feedback",
-        request=ChatFeedbackSerializer,
-        responses={200: ChatFeedbackSerializer},
+        operation_id="ai_assistant_feedback",
+        request=AssistantFeedbackSerializer,
+        responses={200: AssistantFeedbackSerializer},
     )
     def post(self, request, message_id):
-        serializer = ChatFeedbackSerializer(data=request.data)
+        serializer = AssistantFeedbackSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        guest_token = str(serializer.validated_data.get("guest_token", "")).strip()
+        owner = _assistant_owner(request, serializer.validated_data)
         message = get_object_or_404(
             ChatMessage.objects.select_related("session"),
             pk=message_id,
             role=ChatMessage.Role.ASSISTANT,
-        )
-        session = _owned_chat_session(
-            request,
-            message.session_id,
-            guest_token=guest_token,
+            **{f"session__{key}": value for key, value in owner.items()},
         )
         feedback, _ = ChatFeedback.objects.update_or_create(
             message=message,
             defaults={
-                "session": session,
+                "session": message.session,
                 "submitted_by": request.user if request.user.is_authenticated else None,
                 "rating": serializer.validated_data["rating"],
                 "resolved": serializer.validated_data.get("resolved"),
@@ -165,88 +196,152 @@ class ChatFeedbackView(APIView):
         )
 
 
-def _resolve_or_create_chat_session(request, data) -> ChatSession:
-    session_id = data.get("session_id")
-    guest_token = str(data.get("guest_token", "")).strip()
-    if session_id:
-        if request.user.is_authenticated:
-            session = ChatSession.objects.filter(pk=session_id, user=request.user).first()
-            if session is not None:
-                return session
-            if guest_token:
-                with transaction.atomic():
-                    claimable = (
-                        ChatSession.objects.select_for_update()
-                        .filter(
-                            pk=session_id,
-                            user__isnull=True,
-                            guest_token=guest_token,
-                        )
-                        .first()
-                    )
-                    if claimable is not None:
-                        claimable.user = request.user
-                        claimable.save(update_fields=("user", "updated_at"))
-                        return claimable
-            return get_object_or_404(ChatSession, pk=session_id, user=request.user)
-        if not guest_token:
-            raise ValidationError({"guest_token": ["guest_token là bắt buộc với khách."]})
-        return get_object_or_404(
-            ChatSession,
-            pk=session_id,
-            user__isnull=True,
-            guest_token=guest_token,
-        )
-
+def _assistant_owner(request, data=None) -> dict:
+    """Resolve a conversation owner without mixing authenticated and guest histories."""
     if request.user.is_authenticated:
-        return ChatSession.objects.create(
-            user=request.user,
-            guest_token=guest_token or None,
+        return {"user": request.user}
+
+    source = data if data is not None else request.query_params
+    guest_token = str(source.get("guest_token", "")).strip()
+    if not re.fullmatch(r"[A-Za-z0-9._-]{20,64}", guest_token):
+        raise ValidationError(
+            {"guest_token": ["Cần mã phiên khách hợp lệ để tiếp tục cuộc trò chuyện."]}
         )
-    if not guest_token:
-        raise ValidationError({"guest_token": ["guest_token là bắt buộc với khách."]})
-    return ChatSession.objects.create(guest_token=guest_token)
+    return {"guest_token": guest_token, "user": None}
 
 
-def _owned_chat_session(request, session_id, *, guest_token: str) -> ChatSession:
-    if request.user.is_authenticated:
-        session = ChatSession.objects.filter(pk=session_id, user=request.user).first()
-        if session is not None:
-            return session
-        if guest_token:
-            return get_object_or_404(
-                ChatSession,
-                pk=session_id,
-                user__isnull=True,
-                guest_token=guest_token,
-            )
-        return get_object_or_404(ChatSession, pk=session_id, user=request.user)
-    if not guest_token:
-        raise ValidationError({"guest_token": ["guest_token là bắt buộc với khách."]})
-    return get_object_or_404(
-        ChatSession,
-        pk=session_id,
-        user__isnull=True,
-        guest_token=guest_token,
-    )
-
-
-def _apply_chat_context(session: ChatSession, data) -> None:
+def _apply_assistant_context(session: ChatSession, data) -> None:
     context = dict(session.context or {})
     context["channel"] = data.get("channel", context.get("channel", "web"))
     if "browsing_history" in data:
         context["browsing_history"] = [str(item) for item in data["browsing_history"][:20]]
 
-    update_fields = ["context", "updated_at"]
-    if session.turn_count == 0 and SiteSetting.get_bool("ai.chat_ab_test.enabled", True):
-        session.experiment_variant = "guided_actions" if session.pk.int % 2 else "control"
-        update_fields.append("experiment_variant")
     session.context = context
-    session.save(update_fields=update_fields)
+    session.save(update_fields=("context", "updated_at"))
 
 
 def _sse_data(payload: dict) -> str:
     return f"data: {json.dumps(payload, ensure_ascii=False, default=str)}\n\n"
+
+
+_ASSISTANT_STREAM_END = object()
+_ASSISTANT_STREAM_EVENT = "event"
+_ASSISTANT_STREAM_ERROR = "error"
+_ASSISTANT_STREAM_SLOTS = threading.BoundedSemaphore(
+    value=max(1, int(settings.AI_ASSISTANT_STREAM_WORKERS))
+)
+
+
+async def _assistant_event_stream(
+    *,
+    session: ChatSession,
+    message: str,
+    user: Any,
+) -> AsyncIterator[str]:
+    """Stream a synchronous assistant safely from Django's ASGI handler.
+
+    Django has to fully consume synchronous StreamingHttpResponse iterators when
+    serving ASGI. Advancing the assistant in worker threads keeps the response
+    genuinely incremental, while comments prevent idle proxy timeouts during a
+    slow provider call or retry.
+    """
+    yield _sse_data({"type": "conversation", "conversation_id": str(session.pk)})
+
+    if not _ASSISTANT_STREAM_SLOTS.acquire(blocking=False):
+        yield _sse_data(
+            {
+                "type": "error",
+                "code": "assistant_busy",
+                "text": "Trợ lý đang xử lý nhiều yêu cầu. Vui lòng thử lại sau ít phút.",
+            }
+        )
+        return
+
+    heartbeat_seconds = max(
+        0.05,
+        float(getattr(settings, "AI_ASSISTANT_HEARTBEAT_SECONDS", 10.0)),
+    )
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue[tuple[str, Any]] = asyncio.Queue()
+    stopped = threading.Event()
+    producer = threading.Thread(
+        target=_produce_assistant_events,
+        kwargs={
+            "loop": loop,
+            "queue": queue,
+            "stopped": stopped,
+            "session": session,
+            "message": message,
+            "user": user,
+        },
+        name="ai-assistant-stream",
+        daemon=True,
+    )
+    try:
+        producer.start()
+    except RuntimeError:
+        _ASSISTANT_STREAM_SLOTS.release()
+        raise
+    try:
+        while True:
+            try:
+                kind, value = await asyncio.wait_for(
+                    queue.get(),
+                    timeout=heartbeat_seconds,
+                )
+            except TimeoutError:
+                yield ": keep-alive\n\n"
+                continue
+
+            if value is _ASSISTANT_STREAM_END:
+                break
+            if kind == _ASSISTANT_STREAM_ERROR:
+                raise value
+            yield _sse_data(value.to_dict())
+    finally:
+        stopped.set()
+
+
+def _produce_assistant_events(
+    *,
+    loop: asyncio.AbstractEventLoop,
+    queue: asyncio.Queue[tuple[str, Any]],
+    stopped: threading.Event,
+    session: ChatSession,
+    message: str,
+    user: Any,
+) -> None:
+    try:
+        for event in ShoppingAssistant().handle_turn(
+            session=session,
+            user_text=message,
+            user=user,
+        ):
+            if stopped.is_set():
+                break
+            _enqueue_stream_item(loop, queue, (_ASSISTANT_STREAM_EVENT, event))
+    except Exception as exc:
+        _enqueue_stream_item(loop, queue, (_ASSISTANT_STREAM_ERROR, exc))
+    finally:
+        connections.close_all()
+        _ASSISTANT_STREAM_SLOTS.release()
+        _enqueue_stream_item(
+            loop,
+            queue,
+            (_ASSISTANT_STREAM_EVENT, _ASSISTANT_STREAM_END),
+        )
+
+
+def _enqueue_stream_item(
+    loop: asyncio.AbstractEventLoop,
+    queue: asyncio.Queue[tuple[str, Any]],
+    item: tuple[str, Any],
+) -> None:
+    try:
+        loop.call_soon_threadsafe(queue.put_nowait, item)
+    except RuntimeError:
+        # The ASGI event loop can already be closed after a client disconnect.
+        pass
 
 
 class ProductAIReviewSummaryThrottle(AnonRateThrottle):

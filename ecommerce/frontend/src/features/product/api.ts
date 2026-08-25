@@ -28,7 +28,7 @@ function recommendationParams(
 ) {
   return {
     ...browsingHistoryParams(browsingHistory),
-    cart_products: cartProducts.length ? cartProducts.join(',') : undefined,
+    ...(cartProducts.length ? { cart_products: cartProducts.join(',') } : {}),
     landing_context: landingContext,
   }
 }

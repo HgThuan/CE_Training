@@ -2,34 +2,40 @@
 
 `apps.ai` is the provider-neutral boundary for smart search, semantic search, embeddings,
 recommendations, and the multi-turn shopping assistant. Most callers use `AIService`; streaming
-conversation orchestration lives in `AIChatService`, which still consumes the same provider
-interface instead of importing a concrete provider.
+conversation orchestration lives in `assistant.ShoppingAssistant`, which consumes the same
+provider-neutral service instead of importing a concrete provider.
 
 ## Shopping assistant
 
-- `POST /api/v1/chat/turn` accepts `message`, an optional `session_id`, a stable
-  `guest_token`, up to 20 public product IDs in `browsing_history`, and a channel identifier.
-  It returns Server-Sent Events (`session`, `delta`, `error`, and `done`). The same contract can
-  be used by web, app, Zalo, Messenger, Telegram, or another adapter.
-- `GET /api/v1/chat/sessions/<session_id>/messages` restores user/assistant history. A guest
-  session can be claimed by the authenticated user only when the original guest token matches.
-- `AIChatService` retains the latest 10 turns, summarizes older context, caps a session at 30
-  user turns, and allows at most 5 function-calling rounds per turn.
+- `POST /api/v1/ai/assistant/messages` accepts `message`, an optional `conversation_id`, up to
+  20 public product IDs in `browsing_history`, and a channel identifier. It returns Server-Sent
+  Events (`conversation`, `stage`, `delta`, `error`, and `done`).
+- `GET /api/v1/ai/assistant/conversations/`, `GET/DELETE .../<conversation_id>/` restore and
+  manage history owned by the authenticated Customer. Guest, Seller, and Admin accounts cannot
+  call these Customer endpoints.
+- `ShoppingAssistant` caps a conversation at 60 user turns. Structured state is versioned inside
+  `ChatSession.context` and separates user facts, constraints, preferences, exclusions, and AI
+  inferences with source/turn provenance.
 - The model can search public in-stock products, retrieve a current product, compare 2–4
   products, and retrieve verified policy documents. Deterministic support routing handles order,
-  return, payment, promotion, and personalized-recommendation intents without asking the model
-  to invent or repeat operational data. Account tools require an authenticated customer and
+  return, payment, voucher, live Flash Sale, and personalized-recommendation intents without
+  asking the model to invent or repeat operational data. Situational discovery requests such as
+  “đi biển” are expanded into reviewable catalog terms and keep those terms separate from facts
+  explicitly supplied by the customer. Account tools require an authenticated customer and
   always scope queries to that customer.
 - The storefront/customer widget consumes the SSE response incrementally and reuses the existing
   `ProductCard` and `ProductCompareTable` components. It also renders order, promotion, handoff,
   and quick-action cards. The assistant never creates an order, return, or payment transaction;
   state-changing actions remain on authenticated confirmation screens.
-- `POST /api/v1/chat/messages/<message_id>/feedback` records a 1–5 rating and whether the issue
-  was resolved. Ownership checks are identical to history access for both users and guests.
+- `POST /api/v1/ai/assistant/messages/<message_id>/feedback` records a 1–5 rating and whether the
+  issue was resolved. The assistant message must belong to the authenticated Customer.
 - A request to meet an employee creates a `ChatHandoff`, stores a sanitized 20-message context
   snapshot, and marks the session escalated. Staff can triage and assign handoffs in Django admin.
 - `GET /api/v1/admin/dashboard/chatbot?days=30` reports response time, feedback rate, CSAT,
   automated resolution, handoff rate, and results by stable A/B variant.
+
+See [`docs/ai/shopping_assistant.md`](../../../docs/ai/shopping_assistant.md) for request flow,
+tool boundaries, configuration, failure behavior, and test commands.
 
 Policy answers come only from active `PolicyDocument` rows. The seed migration records the
 shipping, return, and payment behavior implemented by the platform; it intentionally does not

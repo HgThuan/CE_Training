@@ -142,11 +142,10 @@ class AIContentCacheAdmin(admin.ModelAdmin):
 class ChatSessionAdmin(admin.ModelAdmin):
     list_display = ("id", "user", "status", "turn_count", "last_active_at")
     list_filter = ("status",)
-    search_fields = ("id", "user__email", "guest_token", "title")
+    search_fields = ("id", "user__email", "title")
     readonly_fields = (
         "id",
         "user",
-        "guest_token",
         "title",
         "history_summary",
         "context",

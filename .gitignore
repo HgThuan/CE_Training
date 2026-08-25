@@ -16,3 +16,9 @@ __pycache__/
 .vscode/
 .idea/
 .DS_Store
+
+# Local Codex/design working artifacts (never ship with product branches)
+.agents/
+.impeccable/
+DESIGN.md
+PRODUCT.md

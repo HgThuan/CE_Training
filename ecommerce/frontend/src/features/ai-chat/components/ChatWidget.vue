@@ -13,7 +13,7 @@ import {
   UserGroupIcon,
 } from '@heroicons/vue/24/outline'
 import { storeToRefs } from 'pinia'
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { useAuthStore } from '@/stores/auth'
 import { useCompareStore } from '@/features/product/compare-store'
@@ -25,14 +25,34 @@ import ChatMessageList from './ChatMessageList.vue'
 const authStore = useAuthStore()
 const chatStore = useChatStore()
 const compareStore = useCompareStore()
-const { messages, isStreaming, isLoadingHistory, errorMessage, historyError } =
-  storeToRefs(chatStore)
+const {
+  conversationId,
+  conversations,
+  messages,
+  isStreaming,
+  isLoadingHistory,
+  errorMessage,
+  historyError,
+  activeStage,
+  lastFailedMessage,
+  canUseAssistant,
+} = storeToRefs(chatStore)
 const { selectedProducts } = storeToRefs(compareStore)
 const isOpen = ref(false)
 const panel = ref<HTMLElement | null>(null)
 const launcher = ref<HTMLButtonElement | null>(null)
 const isMobile = ref(false)
 let mobileMediaQuery: MediaQueryList | null = null
+
+const stageLabel = computed(() => {
+  const labels = {
+    understanding: 'Đang hiểu nhu cầu',
+    planning: 'Đang lập kế hoạch',
+    retrieving: 'Đang kiểm tra dữ liệu Mercato',
+    composing: 'Đang soạn câu trả lời',
+  }
+  return activeStage.value ? labels[activeStage.value] : 'Sẵn sàng tư vấn'
+})
 
 const starters = [
   {
@@ -111,6 +131,11 @@ function submitFeedback(messageId: string, rating: number): void {
   void chatStore.submitFeedback(messageId, rating)
 }
 
+function selectConversation(event: Event): void {
+  const id = (event.target as HTMLSelectElement).value
+  if (id) void chatStore.selectConversation(id)
+}
+
 async function openChat(): Promise<void> {
   isOpen.value = true
   await nextTick()
@@ -183,7 +208,7 @@ function handlePanelKeydown(event: KeyboardEvent): void {
             <h2 class="truncate text-[1.05rem] font-black tracking-[-0.015em]">Trợ lý mua sắm</h2>
             <p class="ai-chat-presence" role="status">
               <span :class="{ 'is-busy': isStreaming }" aria-hidden="true" />
-              {{ isStreaming ? 'Đang chuẩn bị câu trả lời' : 'Sẵn sàng tư vấn' }}
+              {{ isStreaming ? stageLabel : 'Sẵn sàng tư vấn' }}
             </p>
           </div>
           <button
@@ -204,6 +229,29 @@ function handlePanelKeydown(event: KeyboardEvent): void {
             <MinusIcon class="size-5" aria-hidden="true" />
           </button>
         </header>
+
+        <div
+          v-if="canUseAssistant && conversations.length"
+          class="ai-chat-history"
+          aria-label="Lịch sử hội thoại"
+        >
+          <label for="ai-chat-conversation">Cuộc trò chuyện</label>
+          <select
+            id="ai-chat-conversation"
+            :value="conversationId ?? ''"
+            :disabled="isStreaming || isLoadingHistory"
+            @change="selectConversation"
+          >
+            <option value="">Cuộc trò chuyện mới</option>
+            <option
+              v-for="conversation in conversations"
+              :key="conversation.id"
+              :value="conversation.id"
+            >
+              {{ conversation.title || 'Cuộc trò chuyện chưa đặt tên' }}
+            </option>
+          </select>
+        </div>
 
         <div
           v-if="isLoadingHistory"
@@ -266,19 +314,31 @@ function handlePanelKeydown(event: KeyboardEvent): void {
           <button
             class="shrink-0 rounded-lg border border-amber-800 px-2.5 py-1.5 font-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-800"
             type="button"
-            @click="chatStore.loadHistory"
+            @click="chatStore.loadConversations"
           >
             Thử lại
           </button>
         </p>
-        <p
+        <div
           v-if="errorMessage"
-          class="border-t border-red-200 bg-red-50 px-4 py-2 text-xs font-semibold text-red-800"
+          class="flex items-center justify-between gap-3 border-t border-red-200 bg-red-50 px-4 py-2 text-xs font-semibold text-red-800"
           role="status"
         >
-          {{ errorMessage }}
-        </p>
-        <ChatInput :disabled="isStreaming || isLoadingHistory" @send="send" />
+          <span>{{ errorMessage }}</span>
+          <button
+            v-if="lastFailedMessage"
+            class="shrink-0 rounded-lg border border-red-800 px-2.5 py-1.5 font-black"
+            type="button"
+            @click="chatStore.retryLastMessage"
+          >
+            Gửi lại
+          </button>
+        </div>
+        <ChatInput
+          v-if="canUseAssistant"
+          :disabled="isStreaming || isLoadingHistory"
+          @send="send"
+        />
       </aside>
     </Transition>
 
@@ -373,6 +433,39 @@ function handlePanelKeydown(event: KeyboardEvent): void {
 .ai-chat-header__mark svg {
   width: 1.25rem;
   height: 1.25rem;
+}
+
+.ai-chat-history {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid rgb(23 59 53 / 12%);
+  padding: 0.55rem 0.9rem;
+  background: #fffdf8;
+}
+
+.ai-chat-history label {
+  flex: 0 0 auto;
+  color: #526762;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.ai-chat-history select {
+  min-width: 0;
+  flex: 1;
+  border: 1px solid #cad9d3;
+  border-radius: 0.65rem;
+  padding: 0.45rem 0.65rem;
+  color: #173b35;
+  background: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.ai-chat-history select:focus-visible {
+  outline: 3px solid rgb(232 93 63 / 26%);
+  outline-offset: 1px;
 }
 
 .ai-chat-presence {
