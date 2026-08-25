@@ -191,7 +191,7 @@ onBeforeUnmount(cancelPending)
         />
         <button
           v-if="query"
-          class="absolute right-11 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+          class="absolute right-11 top-1/2 grid h-8 min-h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
           type="button"
           aria-label="Xóa từ khóa"
           @click="clearSearch"
@@ -199,7 +199,7 @@ onBeforeUnmount(cancelPending)
           <XMarkIcon class="h-4 w-4" />
         </button>
         <button
-          class="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg bg-slate-950 text-white hover:bg-indigo-700"
+          class="absolute right-1.5 top-1/2 grid h-8 min-h-8 w-8 -translate-y-1/2 place-items-center rounded-lg bg-slate-950 text-white hover:bg-indigo-700"
           type="submit"
           aria-label="Tìm kiếm"
         >
