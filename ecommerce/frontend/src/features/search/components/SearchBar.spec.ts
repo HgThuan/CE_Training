@@ -59,6 +59,16 @@ describe('SearchBar', () => {
     vi.useRealTimers()
   })
 
+  it('keeps the floating search controls square inside the 44px field', async () => {
+    const { wrapper } = await mountSearchBar()
+
+    expect(wrapper.get('button[aria-label="Tìm kiếm"]').classes()).toContain('min-h-8')
+    await wrapper.get('input[role="combobox"]').setValue('laptop')
+    expect(wrapper.get('button[aria-label="Xóa từ khóa"]').classes()).toContain('min-h-8')
+
+    wrapper.unmount()
+  })
+
   it('debounces autocomplete and ignores a stale response', async () => {
     const first = deferred<Awaited<ReturnType<typeof searchApi.suggestions>>>()
     const second = deferred<Awaited<ReturnType<typeof searchApi.suggestions>>>()
