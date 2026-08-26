@@ -298,6 +298,47 @@ describe('ProductDetailPage recommendations', () => {
     wrapper.unmount()
   })
 
+  it('does not treat descriptive seed attributes as variant choices', async () => {
+    const detail = makeDetail(PRODUCT_ONE_ID, 'Bàn phím cơ', 'ban-phim-co')
+    detail.attributes = [
+      {
+        id: 'layout-specification',
+        name: 'Layout',
+        code: 'layout',
+        display_type: 'text',
+        values: [
+          {
+            id: 'layout-75',
+            value: '75% 84 phím',
+            display_value: '75% 84 phím',
+            color_code: null,
+            sort_order: 0,
+          },
+        ],
+      },
+    ]
+    detail.variants[0]!.name = 'Red Switch'
+    vi.mocked(productApi.detail).mockResolvedValue(detailResponse(detail))
+    vi.mocked(productApi.similar).mockResolvedValue(recommendationResponse([]))
+    vi.mocked(productApi.recommendations).mockResolvedValue(recommendationResponse([]))
+
+    const { wrapper } = await mountPage('/products/ban-phim-co')
+    await flushPromises()
+
+    const addButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Thêm vào giỏ'))
+    expect(addButton?.attributes('disabled')).toBeUndefined()
+
+    await addButton?.trigger('click')
+    await flushPromises()
+
+    expect(JSON.parse(localStorage.getItem('mercato_guest_cart_v1') ?? '[]')).toMatchObject([
+      { variant_id: detail.variants[0]!.id, quantity: 1 },
+    ])
+    wrapper.unmount()
+  })
+
   it('adds the selected product and opens the cart when buying now', async () => {
     const detail = makeDetail(PRODUCT_ONE_ID, 'Sản phẩm một', 'product-one')
     vi.mocked(productApi.detail).mockResolvedValue(detailResponse(detail))

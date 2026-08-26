@@ -335,8 +335,10 @@ class AdminFlashSaleListCreateView(PaginatedAPIView):
 
     def get(self, request: Request):
         queryset = FlashSale.objects.prefetch_related(
+            "items__variant__inventory_balance",
             "items__variant__product__shop",
             "items__variant__product__media",
+            "items__variant__shop",
         )
         return self.paginate(request, queryset, FlashSaleSerializer)
 
@@ -346,8 +348,10 @@ class AdminFlashSaleListCreateView(PaginatedAPIView):
         serializer.is_valid(raise_exception=True)
         flash_sale = serializer.save()
         flash_sale = FlashSale.objects.prefetch_related(
+            "items__variant__inventory_balance",
             "items__variant__product__shop",
             "items__variant__product__media",
+            "items__variant__shop",
         ).get(pk=flash_sale.pk)
         return success_response(
             data=FlashSaleSerializer(flash_sale).data,
@@ -405,8 +409,10 @@ class AdminFlashSaleDetailView(APIView):
     def _object(pk: uuid.UUID):
         return get_object_or_404(
             FlashSale.objects.prefetch_related(
+                "items__variant__inventory_balance",
                 "items__variant__product__shop",
                 "items__variant__product__media",
+                "items__variant__shop",
             ),
             pk=pk,
         )

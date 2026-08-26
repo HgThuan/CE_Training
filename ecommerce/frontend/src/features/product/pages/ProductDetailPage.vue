@@ -28,6 +28,7 @@ import ProductDetailTabs from '../components/ProductDetailTabs.vue'
 import ProductGallery from '../components/ProductGallery.vue'
 import ProductRecommendationCarousel from '../components/ProductRecommendationCarousel.vue'
 import VariantSelector from '../components/VariantSelector.vue'
+import { selectableVariantAttributes } from '../composables/useVariantSelection'
 import { useProductStore } from '../store'
 import type { ProductVariant, PublicProductListItem } from '../types'
 
@@ -48,6 +49,11 @@ const personalizedRecommendationId = ref('')
 let pageRequestSequence = 0
 
 const product = computed(() => productStore.detail)
+const selectionAttributes = computed(() =>
+  product.value
+    ? selectableVariantAttributes(product.value.attributes, product.value.variants)
+    : [],
+)
 const galleryMedia = computed(() => {
   if (!product.value) return []
   const baseMedia = product.value.media.filter((media) => !media.variant_id)
@@ -178,7 +184,7 @@ async function loadProduct(): Promise<void> {
     if (sequence !== pageRequestSequence) return
     const loadedProduct = product.value
     if (!loadedProduct) return
-    if (!loadedProduct.attributes.length) {
+    if (!selectionAttributes.value.length) {
       selectedVariant.value =
         loadedProduct.variants.find((variant) => variant.available_stock > 0) ??
         loadedProduct.variants[0] ??
@@ -310,8 +316,8 @@ onBeforeUnmount(() => {
             <div class="my-8 h-px bg-slate-200" />
 
             <VariantSelector
-              v-if="product.attributes.length"
-              :attributes="product.attributes"
+              v-if="selectionAttributes.length"
+              :attributes="selectionAttributes"
               :variants="product.variants"
               @change="handleVariantChange"
             />

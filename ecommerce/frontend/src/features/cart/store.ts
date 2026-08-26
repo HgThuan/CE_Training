@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 import { productApi } from '@/features/product/api'
-import type { PublicProductDetail } from '@/features/product/types'
+import type { ProductVariant, PublicProductDetail } from '@/features/product/types'
 import { useAuthStore } from '@/stores/auth'
 
 import { cartApi } from './api'
@@ -17,6 +17,12 @@ function errorMessage(error: unknown): string {
     { message?: string; errors?: Record<string, string[] | string> } | undefined
   if (payload?.message) return payload.message
   return error.response ? 'Không thể xử lý yêu cầu' : 'Không thể kết nối máy chủ'
+}
+
+function purchasableStock(variant: ProductVariant): number {
+  const inventoryStock = Math.max(0, variant.available_stock)
+  const flashQuota = variant.remaining_flash_quota
+  return Math.min(inventoryStock, flashQuota ?? inventoryStock)
 }
 
 function guestGroup(
@@ -49,7 +55,7 @@ function guestGroup(
     line_total: String(Number(currentPrice) * guestQuantity),
     available_stock: variant.available_stock,
     price_changed: Number(snapshot) !== Number(currentPrice),
-    is_valid: variant.available_stock >= guestQuantity && variant.available_stock > 0,
+    is_valid: purchasableStock(variant) >= guestQuantity,
   }
 }
 
@@ -197,6 +203,44 @@ export const useCartStore = defineStore('cart', () => {
     }
   }
 
+  async function addGuestItem(
+    variantId: string,
+    quantity: number,
+    context?: GuestItemContext,
+  ): Promise<void> {
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      error.value = 'Số lượng sản phẩm phải lớn hơn 0'
+      throw new Error(error.value)
+    }
+    if (!context?.product_slug) {
+      error.value = 'Không thể xác minh tồn kho của sản phẩm này'
+      throw new Error(error.value)
+    }
+
+    const response = await productApi.detail(context.product_slug, context.shop_slug)
+    const variant = response.data.data.variants.find((entry) => entry.id === variantId)
+    if (!variant) {
+      error.value = 'Biến thể không còn khả dụng'
+      throw new Error(error.value)
+    }
+
+    const existingQuantity =
+      readGuestCart().find((entry) => entry.variant_id === variantId)?.quantity ?? 0
+    const targetQuantity = existingQuantity + quantity
+    const available = purchasableStock(variant)
+    if (available <= 0) {
+      error.value = 'Sản phẩm đã hết hàng'
+      throw new Error(error.value)
+    }
+    if (targetQuantity > available) {
+      error.value = `Chỉ còn ${available} sản phẩm khả dụng`
+      throw new Error(error.value)
+    }
+
+    guestCart.add(variantId, quantity, context)
+    await loadGuestCart()
+  }
+
   async function addItem(
     variantId: string,
     quantity = 1,
@@ -205,8 +249,7 @@ export const useCartStore = defineStore('cart', () => {
     error.value = ''
     try {
       if (!isAuthenticatedCustomer.value) {
-        guestCart.add(variantId, quantity, context)
-        await loadGuestCart()
+        await addGuestItem(variantId, quantity, context)
       } else {
         cart.value = (await cartApi.addItem(variantId, quantity)).data.data
       }
@@ -223,7 +266,7 @@ export const useCartStore = defineStore('cart', () => {
           : undefined,
       })
     } catch (caught) {
-      error.value = errorMessage(caught)
+      if (!error.value) error.value = errorMessage(caught)
       cartToast.show({ status: 'error', message: error.value })
       throw caught
     }

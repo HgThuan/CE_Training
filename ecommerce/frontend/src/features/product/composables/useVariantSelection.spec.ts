@@ -2,6 +2,7 @@ import type { ProductAttribute, ProductVariant } from '../types'
 import {
   findSelectedVariant,
   isVariantValueAvailable,
+  selectableVariantAttributes,
   variantMatchesSelection,
 } from './useVariantSelection'
 
@@ -88,6 +89,21 @@ const variants: ProductVariant[] = [
 ]
 
 describe('variant selection', () => {
+  it('only exposes attributes that are completely linked to every variant', () => {
+    expect(selectableVariantAttributes(attributes, variants)).toEqual(attributes)
+
+    const descriptiveAttributes = [
+      {
+        ...attributes[0]!,
+        id: 'screen-specification',
+        name: 'Màn hình',
+      },
+    ]
+    const variantsWithoutLinks = variants.map((variant) => ({ ...variant, attributes: [] }))
+
+    expect(selectableVariantAttributes(descriptiveAttributes, variantsWithoutLinks)).toEqual([])
+  })
+
   it('finds the exact selected combination', () => {
     expect(findSelectedVariant(variants, attributes, { color: 'red', size: 's' })?.id).toBe('red-s')
     expect(findSelectedVariant(variants, attributes, { color: 'red', size: 'm' })).toBeNull()

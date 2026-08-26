@@ -197,6 +197,11 @@ class FlashSaleItemSerializer(serializers.ModelSerializer):
     variant_sku = serializers.CharField(source="variant.sku", read_only=True)
     shop_id = serializers.IntegerField(source="variant.shop_id", read_only=True)
     shop_name = serializers.CharField(source="variant.shop.name", read_only=True)
+    shop_slug = serializers.CharField(source="variant.shop.slug", read_only=True)
+    available_stock = serializers.IntegerField(
+        source="variant.available_stock",
+        read_only=True,
+    )
     original_price = serializers.DecimalField(
         source="variant.sale_price",
         max_digits=18,
@@ -217,12 +222,14 @@ class FlashSaleItemSerializer(serializers.ModelSerializer):
             "variant_sku",
             "shop_id",
             "shop_name",
+            "shop_slug",
             "primary_image",
             "original_price",
             "sale_price",
             "quota",
             "sold_count",
             "remaining_quota",
+            "available_stock",
         )
         read_only_fields = ("sold_count",)
 

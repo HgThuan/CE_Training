@@ -66,6 +66,7 @@ export interface FlashSaleItem {
   variant_sku?: string
   shop_id?: number
   shop_name?: string
+  shop_slug?: string
   primary_image?: string | null
   original_price?: string
   sale_price: string

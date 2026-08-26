@@ -9,7 +9,7 @@ from apps.account.tests.factories import ShopFactory, UserFactory
 from apps.inventory.tests.factories import InventoryBalanceFactory
 from apps.product.models import Product
 from apps.product.tests.factories import ProductVariantFactory
-from apps.promotion.models import FlashSale, Voucher
+from apps.promotion.models import FlashSale, FlashSaleItem, Voucher
 
 
 def voucher_payload(code="SAVE10"):
@@ -90,6 +90,40 @@ def test_active_flash_sales_is_public_and_paginated():
     assert response.status_code == 200
     assert response.data["success"] is True
     assert response.data["meta"]["total_items"] == 1
+
+
+@pytest.mark.django_db
+def test_active_flash_sales_only_exposes_purchasable_items_with_current_stock():
+    now = timezone.now()
+    flash_sale = FlashSale.objects.create(
+        name="Active",
+        start_time=now - timezone.timedelta(minutes=1),
+        end_time=now + timezone.timedelta(minutes=10),
+    )
+    available_variant = ProductVariantFactory(product__status=Product.Status.APPROVED)
+    unavailable_variant = ProductVariantFactory(product__status=Product.Status.APPROVED)
+    InventoryBalanceFactory(variant=available_variant, available_stock=7)
+    InventoryBalanceFactory(variant=unavailable_variant, available_stock=0)
+    FlashSaleItem.objects.create(
+        flash_sale=flash_sale,
+        variant=available_variant,
+        sale_price=Decimal("80000"),
+        quota=10,
+    )
+    FlashSaleItem.objects.create(
+        flash_sale=flash_sale,
+        variant=unavailable_variant,
+        sale_price=Decimal("80000"),
+        quota=10,
+    )
+
+    response = APIClient().get("/api/v1/flash-sales/active")
+
+    assert response.status_code == 200
+    items = response.data["data"][0]["items"]
+    assert [item["variant"] for item in items] == [available_variant.pk]
+    assert items[0]["available_stock"] == 7
+    assert items[0]["shop_slug"] == available_variant.shop.slug
 
 
 @pytest.mark.django_db
