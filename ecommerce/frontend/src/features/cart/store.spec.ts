@@ -5,6 +5,7 @@ import { productApi } from '@/features/product/api'
 import { useAuthStore } from '@/stores/auth'
 
 import { cartApi } from './api'
+import { useCartToast } from './composables/useCartToast'
 import { GUEST_CART_STORAGE_KEY } from './composables/useGuestCart'
 import { useCartStore } from './store'
 
@@ -55,6 +56,7 @@ describe('cart store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     localStorage.clear()
+    useCartToast().hide()
     vi.clearAllMocks()
   })
 
@@ -91,6 +93,10 @@ describe('cart store', () => {
     await store.addItem('variant-1', 2, context)
 
     expect(JSON.parse(localStorage.getItem(GUEST_CART_STORAGE_KEY) ?? '[]')[0].quantity).toBe(3)
+    expect(useCartToast().toastData.value).toMatchObject({
+      status: 'success',
+      item: { product_name: 'Product', quantity: 2 },
+    })
   })
 
   it('keeps a minimal guest item visible when product context is unavailable', async () => {

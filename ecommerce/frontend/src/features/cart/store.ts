@@ -7,14 +7,9 @@ import type { PublicProductDetail } from '@/features/product/types'
 import { useAuthStore } from '@/stores/auth'
 
 import { cartApi } from './api'
+import { useCartToast } from './composables/useCartToast'
 import { clearGuestCart, readGuestCart, useGuestCart } from './composables/useGuestCart'
-import type {
-  CartData,
-  CartItem,
-  CartShopGroup,
-  GuestCartItem,
-  GuestItemContext,
-} from './types'
+import type { CartData, CartItem, CartShopGroup, GuestCartItem, GuestItemContext } from './types'
 
 function errorMessage(error: unknown): string {
   if (!(error instanceof AxiosError)) return 'Đã có lỗi không mong muốn'
@@ -100,6 +95,7 @@ function unavailableGuestEntry(guest: GuestCartItem): {
 export const useCartStore = defineStore('cart', () => {
   const authStore = useAuthStore()
   const guestCart = useGuestCart()
+  const cartToast = useCartToast()
   const cart = ref<CartData | null>(null)
   const loading = ref(false)
   const error = ref('')
@@ -207,15 +203,28 @@ export const useCartStore = defineStore('cart', () => {
     context?: GuestItemContext,
   ): Promise<void> {
     error.value = ''
-    if (!isAuthenticatedCustomer.value) {
-      guestCart.add(variantId, quantity, context)
-      await loadGuestCart()
-      return
-    }
     try {
-      cart.value = (await cartApi.addItem(variantId, quantity)).data.data
+      if (!isAuthenticatedCustomer.value) {
+        guestCart.add(variantId, quantity, context)
+        await loadGuestCart()
+      } else {
+        cart.value = (await cartApi.addItem(variantId, quantity)).data.data
+      }
+      cartToast.show({
+        status: 'success',
+        item: context
+          ? {
+              product_name: context.product_name,
+              variant_name: context.variant_name,
+              quantity,
+              price: context.price,
+              image: context.image,
+            }
+          : undefined,
+      })
     } catch (caught) {
       error.value = errorMessage(caught)
+      cartToast.show({ status: 'error', message: error.value })
       throw caught
     }
   }
