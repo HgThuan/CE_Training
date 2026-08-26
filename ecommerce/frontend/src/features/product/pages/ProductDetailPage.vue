@@ -39,7 +39,6 @@ const productStore = useProductStore()
 const errorMessage = ref('')
 const selectedVariant = ref<ProductVariant | null>(null)
 const quantity = ref(1)
-const cartNotice = ref('')
 const similarProducts = ref<PublicProductListItem[]>([])
 const recommendedProducts = ref<PublicProductListItem[]>([])
 const similarLoading = ref(false)
@@ -112,13 +111,9 @@ async function prepareCart(action: 'cart' | 'buy'): Promise<void> {
       price: selectedVariant.value.sale_price,
     })
     trackRecommendationAddToCart(product.value.id)
-    cartNotice.value =
-      action === 'cart'
-        ? `Đã thêm ${quantity.value} sản phẩm vào giỏ.`
-        : 'Đã thêm sản phẩm. Đang mở giỏ hàng...'
     if (action === 'buy') await router.push({ name: 'cart' })
   } catch {
-    cartNotice.value = cartStore.error
+    return
   }
 }
 
@@ -169,7 +164,6 @@ async function loadProduct(): Promise<void> {
   errorMessage.value = ''
   selectedVariant.value = null
   quantity.value = 1
-  cartNotice.value = ''
   similarProducts.value = []
   recommendedProducts.value = []
   similarRecommendationId.value = ''
@@ -398,14 +392,6 @@ onBeforeUnmount(() => {
               v-if="selectedVariant && selectedVariant.available_stock === 0"
               :variant-id="selectedVariant.id"
             />
-
-            <p
-              v-if="cartNotice"
-              class="mt-4 rounded-xl bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-900"
-              role="status"
-            >
-              {{ cartNotice }}
-            </p>
 
             <div class="mt-8 grid gap-3 sm:grid-cols-3">
               <div class="rounded-2xl bg-white p-4 text-center ring-1 ring-slate-200">
