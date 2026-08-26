@@ -4,6 +4,34 @@ import type { ProductAttribute, ProductVariant } from '../types'
 
 export type VariantSelection = Record<string, string>
 
+export function selectableVariantAttributes(
+  attributes: ProductAttribute[],
+  variants: ProductVariant[],
+): ProductAttribute[] {
+  if (!attributes.length || !variants.length) return []
+
+  const linkedAttributeIds = new Set(
+    variants.flatMap((variant) => variant.attributes.map((attribute) => attribute.attribute_id)),
+  )
+  if (!linkedAttributeIds.size) return []
+
+  const selectable = attributes.filter((attribute) => linkedAttributeIds.has(attribute.id))
+  const selectableIds = new Set(selectable.map((attribute) => attribute.id))
+  if (selectableIds.size !== linkedAttributeIds.size) return []
+
+  const variantsHaveCompleteLinks = variants.every((variant) => {
+    const variantAttributeIds = new Set(
+      variant.attributes.map((attribute) => attribute.attribute_id),
+    )
+    return (
+      variantAttributeIds.size === selectableIds.size &&
+      [...selectableIds].every((attributeId) => variantAttributeIds.has(attributeId))
+    )
+  })
+
+  return variantsHaveCompleteLinks ? selectable : []
+}
+
 export function variantMatchesSelection(
   variant: ProductVariant,
   selection: VariantSelection,

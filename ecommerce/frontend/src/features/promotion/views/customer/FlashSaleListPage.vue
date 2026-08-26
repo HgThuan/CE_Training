@@ -1,22 +1,44 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 import { useCartStore } from '@/features/cart/store'
 import { formatVnd } from '@/shared/lib/formatters'
 
+import { flashSaleAvailableQuantity } from '../../availability'
 import FlashSaleCountdown from '../../components/FlashSaleCountdown.vue'
 import { usePromotionStore } from '../../store'
+import type { FlashSaleItem } from '../../types'
 
 const store = usePromotionStore()
 const cartStore = useCartStore()
 const sales = computed(() => store.flashSales.filter((sale) => sale.status === 'ongoing'))
+const addingVariantId = ref<string | null>(null)
+
+async function addItem(item: FlashSaleItem): Promise<void> {
+  if (flashSaleAvailableQuantity(item) <= 0 || addingVariantId.value) return
+  addingVariantId.value = item.variant
+  try {
+    await cartStore.addItem(item.variant, 1, {
+      product_slug: item.product_slug ?? '',
+      shop_slug: item.shop_slug,
+      product_name: item.product_name ?? 'Sản phẩm Flash Sale',
+      variant_name: item.variant_sku,
+      image: item.primary_image,
+      price: item.sale_price,
+    })
+  } catch {
+    return
+  } finally {
+    addingVariantId.value = null
+  }
+}
 void store.loadActiveFlashSales()
 </script>
 
 <template>
   <main class="mx-auto min-h-[70vh] max-w-7xl px-4 py-10 sm:px-6">
     <h1 class="text-4xl font-black">Flash Sale đang diễn ra</h1>
-    <p class="mt-2 text-slate-500">Giá và quota được xác nhận lại ở máy chủ khi xem giỏ.</p>
+    <p class="mt-2 text-slate-500">Giá, tồn kho và quota được xác nhận lại trước khi thêm.</p>
     <div v-if="store.loading" class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <div v-for="i in 4" :key="i" class="h-80 animate-pulse rounded-3xl bg-slate-200" />
     </div>
@@ -53,23 +75,35 @@ void store.loadActiveFlashSales()
             :alt="item.product_name"
             class="aspect-square w-full rounded-2xl object-cover"
           />
-          <h3 class="mt-3 font-black">{{ item.product_name }}</h3>
+          <RouterLink
+            class="mt-3 block font-black hover:text-rose-700"
+            :to="{
+              name: 'product-detail',
+              params: { slug: item.product_slug },
+              query: { shop: item.shop_slug },
+            }"
+          >
+            {{ item.product_name }}
+          </RouterLink>
           <p class="mt-2 text-xl font-black text-rose-600">{{ formatVnd(item.sale_price) }}</p>
           <p class="text-sm text-slate-400 line-through">{{ formatVnd(item.original_price) }}</p>
-          <p class="mt-2 text-sm text-slate-500">Đã bán {{ item.sold_count }}/{{ item.quota }}</p>
+          <p class="mt-2 text-sm text-slate-500">
+            Đã bán {{ item.sold_count }}/{{ item.quota }} · Còn
+            {{ flashSaleAvailableQuantity(item) }} sản phẩm
+          </p>
           <button
-            class="mt-4 w-full rounded-xl bg-slate-950 px-4 py-2.5 font-bold text-white"
-            @click="
-              cartStore.addItem(item.variant, 1, {
-                product_slug: item.product_slug ?? '',
-                product_name: item.product_name ?? 'Flash Sale',
-                variant_name: item.variant_sku,
-                image: item.primary_image,
-                price: item.sale_price,
-              })
-            "
+            class="mt-4 w-full rounded-xl bg-slate-950 px-4 py-2.5 font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600"
+            type="button"
+            :disabled="flashSaleAvailableQuantity(item) <= 0 || addingVariantId !== null"
+            @click="addItem(item)"
           >
-            Thêm vào giỏ
+            {{
+              flashSaleAvailableQuantity(item) <= 0
+                ? 'Hết hàng'
+                : addingVariantId === item.variant
+                  ? 'Đang thêm…'
+                  : 'Thêm vào giỏ'
+            }}
           </button>
         </article>
       </div>

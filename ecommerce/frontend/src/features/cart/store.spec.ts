@@ -99,6 +99,52 @@ describe('cart store', () => {
     })
   })
 
+  it('rejects an out-of-stock guest variant before writing localStorage', async () => {
+    vi.mocked(productApi.detail).mockResolvedValue({
+      data: {
+        success: true,
+        message: 'ok',
+        data: {
+          id: 'product-1',
+          name: 'Product',
+          slug: 'product',
+          shop: { id: 1, name: 'Shop', slug: 'shop', logo_url: null, average_rating: '0' },
+          media: [],
+          variants: [
+            {
+              id: 'variant-1',
+              sku: 'SKU',
+              name: 'Default',
+              original_price: '120000',
+              sale_price: '100000',
+              stock_quantity: 0,
+              available_stock: 0,
+              weight_grams: null,
+              attributes: [],
+            },
+          ],
+        },
+      },
+    } as never)
+    const store = useCartStore()
+
+    await expect(
+      store.addItem('variant-1', 1, {
+        product_slug: 'product',
+        shop_slug: 'shop',
+        product_name: 'Product',
+        price: '100000',
+      }),
+    ).rejects.toThrow('Sản phẩm đã hết hàng')
+
+    expect(store.error).toBe('Sản phẩm đã hết hàng')
+    expect(localStorage.getItem(GUEST_CART_STORAGE_KEY)).toBeNull()
+    expect(useCartToast().toastData.value).toMatchObject({
+      status: 'error',
+      message: 'Sản phẩm đã hết hàng',
+    })
+  })
+
   it('keeps a minimal guest item visible when product context is unavailable', async () => {
     localStorage.setItem(
       GUEST_CART_STORAGE_KEY,

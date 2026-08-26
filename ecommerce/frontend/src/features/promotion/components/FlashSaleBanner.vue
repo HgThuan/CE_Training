@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 import { useCartStore } from '@/features/cart/store'
 import { formatVnd } from '@/shared/lib/formatters'
 
+import { flashSaleAvailableQuantity } from '../availability'
 import { usePromotionStore } from '../store'
 import FlashSaleCountdown from './FlashSaleCountdown.vue'
 
@@ -15,15 +16,25 @@ const visibleItems = computed(() =>
   active.value.flatMap((sale) => sale.items).slice(0, props.limit),
 )
 const endTime = computed(() => active.value[0]?.end_time ?? '')
+const addingVariantId = ref<string | null>(null)
 
 async function addItem(item: (typeof visibleItems.value)[number]): Promise<void> {
-  await cartStore.addItem(item.variant, 1, {
-    product_slug: item.product_slug ?? '',
-    product_name: item.product_name ?? 'Sản phẩm Flash Sale',
-    variant_name: item.variant_sku,
-    image: item.primary_image,
-    price: item.sale_price,
-  })
+  if (flashSaleAvailableQuantity(item) <= 0 || addingVariantId.value) return
+  addingVariantId.value = item.variant
+  try {
+    await cartStore.addItem(item.variant, 1, {
+      product_slug: item.product_slug ?? '',
+      shop_slug: item.shop_slug,
+      product_name: item.product_name ?? 'Sản phẩm Flash Sale',
+      variant_name: item.variant_sku,
+      image: item.primary_image,
+      price: item.sale_price,
+    })
+  } catch {
+    return
+  } finally {
+    addingVariantId.value = null
+  }
 }
 
 void store.loadActiveFlashSales()
@@ -76,7 +87,11 @@ void store.loadActiveFlashSales()
           class="market-flash-ticket__image aspect-square w-full rounded-xl object-cover"
         /><RouterLink
           class="market-flash-ticket__name mt-3 block line-clamp-2 text-sm font-bold hover:text-rose-700"
-          :to="`/products/${item.product_slug}`"
+          :to="{
+            name: 'product-detail',
+            params: { slug: item.product_slug },
+            query: { shop: item.shop_slug },
+          }"
           >{{ item.product_name }}</RouterLink
         >
         <p class="market-flash-ticket__price mt-2 text-lg font-black text-[#e85d3f]">
@@ -89,14 +104,33 @@ void store.loadActiveFlashSales()
           {{ formatVnd(item.original_price) }}
         </p>
         <p class="market-flash-ticket__sold mt-2 text-xs font-semibold text-slate-500">
-          Đã bán {{ item.sold_count }}/{{ item.quota }}
+          Đã bán {{ item.sold_count }}/{{ item.quota }} · Còn
+          {{ flashSaleAvailableQuantity(item) }}
         </p>
         <button
-          class="market-flash-ticket__action market-primary-action mt-3 w-full px-3 py-2 text-xs"
+          class="market-flash-ticket__action market-primary-action mt-3 w-full px-3 py-2 text-xs disabled:pointer-events-none disabled:bg-slate-300 disabled:text-slate-600"
+          type="button"
+          :disabled="flashSaleAvailableQuantity(item) <= 0 || addingVariantId !== null"
           @click="addItem(item)"
         >
-          <span class="market-flash-ticket__action-full">Thêm vào giỏ</span>
-          <span class="market-flash-ticket__action-short">Thêm</span>
+          <span class="market-flash-ticket__action-full">
+            {{
+              flashSaleAvailableQuantity(item) <= 0
+                ? 'Hết hàng'
+                : addingVariantId === item.variant
+                  ? 'Đang thêm…'
+                  : 'Thêm vào giỏ'
+            }}
+          </span>
+          <span class="market-flash-ticket__action-short">
+            {{
+              flashSaleAvailableQuantity(item) <= 0
+                ? 'Hết'
+                : addingVariantId === item.variant
+                  ? '…'
+                  : 'Thêm'
+            }}
+          </span>
         </button>
       </article>
     </div>
